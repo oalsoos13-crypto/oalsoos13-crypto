@@ -111,6 +111,12 @@ npm start                 # يهيّئ قاعدة البيانات ويزرع ا
 
 ---
 
+## النشر · Deployment
+
+للحصول على **لينك عام** انشر النظام على استضافة تشغّل Node. يوجد `render.yaml`
+(Blueprint لـ Render.com) و`Dockerfile` جاهزان. الخطوات الكاملة في
+**[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
 ## الإعداد للإنتاج · Production
 
 1. اضبط في `.env`:
