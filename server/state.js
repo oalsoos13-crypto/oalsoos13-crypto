@@ -56,7 +56,9 @@ function buildState() {
   db.prepare('SELECT channel, amount FROM channel_alloc').all()
     .forEach((c) => { channels[c.channel] = c.amount; });
 
-  const dist = db.prepare('SELECT * FROM dist ORDER BY sup, sales').all().map(mapDist);
+  const dist = db.prepare(
+    "SELECT * FROM dist ORDER BY (sup=''), sup, (sales=''), sales, (coop=''), coop, outlet"
+  ).all().map(mapDist);
   const letters = db.prepare('SELECT * FROM letters ORDER BY created_at ASC').all().map((r) => mapLetter(r, nameOf));
   const notes = db.prepare('SELECT * FROM notes ORDER BY created_at ASC').all().map((r) => mapNote(r, nameOf));
 

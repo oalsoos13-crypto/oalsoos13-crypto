@@ -987,20 +987,41 @@ function pickDistOutlet(i, val) {
   renderDistRows();
   refreshDistAmts();
 }
+// Order rows so each supervisor → salesman → main coop → outlet group is contiguous.
+// Empty values sort last so newly added blank rows stay at the bottom.
+function sortDist() {
+  const key = (v) => String(v || "");
+  const cmp = (a, b) => {
+    for (const f of ["sup", "sales", "coop", "outlet"]) {
+      const av = key(a[f]), bv = key(b[f]);
+      if (!av && bv) return 1;
+      if (av && !bv) return -1;
+      const c = av.localeCompare(bv, undefined, { sensitivity: "base" });
+      if (c) return c;
+    }
+    return 0;
+  };
+  DB.dist.sort(cmp);
+}
 function renderDistRows() {
   const box = document.getElementById("distRows");
   if (!DB.dist.length)
     DB.dist = [{ sup: "", sales: "", coop: "", outlet: "", wob: "" }];
+  sortDist();
   box.innerHTML = DB.dist
     .map(
-      (r, i) => `<tr>
-   <td><select onchange="DB.dist[${i}].sup=this.value"><option value="">${t("choose")}</option>${DB.ref.supervisors.map((s) => `<option ${r.sup === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></td>
-   <td><input value="${esc(r.sales)}" oninput="DB.dist[${i}].sales=this.value" style="min-width:110px"></td>
+      (r, i) => {
+        const newSup = i === 0 || DB.dist[i - 1].sup !== r.sup;
+        const repSales = !newSup && DB.dist[i - 1].sales === r.sales;
+        return `<tr class="${newSup ? "grp" : ""}">
+   <td class="${newSup ? "" : "rep"}"><select onchange="DB.dist[${i}].sup=this.value"><option value="">${t("choose")}</option>${DB.ref.supervisors.map((s) => `<option ${r.sup === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></td>
+   <td class="${repSales ? "rep" : ""}"><input value="${esc(r.sales)}" oninput="DB.dist[${i}].sales=this.value" style="min-width:110px"></td>
    <td><select onchange="DB.dist[${i}].coop=this.value"><option value="">${t("choose")}</option>${DB.ref.coops.map((c) => `<option ${r.coop === c.n ? "selected" : ""}>${esc(c.n)}</option>`).join("")}</select></td>
    <td><input value="${esc(r.outlet)}" list="outletDL" onchange="pickDistOutlet(${i},this.value)" oninput="DB.dist[${i}].outlet=this.value" style="min-width:120px"></td>
    <td><input type="number" step="0.01" value="${r.wob}" oninput="DB.dist[${i}].wob=+this.value||0;refreshDistAmts()" style="max-width:85px"></td>
    <td><div style="display:flex;gap:4px;align-items:center"><input type="number" step="0.001" class="amtIn" value="${Number(rowAmt(r)).toFixed(3)}" oninput="setAmt(${i},this.value)" style="max-width:96px;${r.manual ? "border-color:#1c4e8a;font-weight:700;color:#123f70" : ""}"><button class="rm" style="width:26px;height:26px;font-size:12px;flex:none" title="WOB" onclick="clearAmt(${i})">↺</button></div></td>
-   <td><button class="rm" onclick="DB.dist.splice(${i},1);renderDistRows()">✕</button></td></tr>`,
+   <td><button class="rm" onclick="DB.dist.splice(${i},1);renderDistRows()">✕</button></td></tr>`;
+      },
     )
     .join("");
 }

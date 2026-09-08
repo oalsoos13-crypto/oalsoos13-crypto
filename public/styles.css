@@ -31,6 +31,11 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .rolebar{background:linear-gradient(90deg,#fff,#f2f7fc);border-bottom:1px solid var(--line);padding:16px 0}
 .rolebar .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .navbtns{display:flex;gap:8px;flex-wrap:wrap}
+/* distribution grouping cues */
+#distRows tr.grp>td{border-top:2px solid var(--line2)}
+#distRows tr.grp:first-child>td{border-top:none}
+#distRows td.rep select,#distRows td.rep input{opacity:.5}
+#distRows td.rep select:focus,#distRows td.rep input:focus{opacity:1}
 .rolebar h2{margin:0;font-size:20px;color:#123f70}.rolebar .sub{font-size:13px;color:var(--muted)}
 .back{background:none;border:1px solid var(--line2);border-radius:9px;padding:8px 14px;cursor:pointer;font-weight:700;color:var(--text)}.back:hover{border-color:var(--ink2)}
 .page{padding:24px 0 60px}
