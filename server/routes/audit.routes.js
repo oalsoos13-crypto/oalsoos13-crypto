@@ -5,7 +5,11 @@ const { requireAuth, requireRole } = require('../auth');
 const { asyncH, num } = require('../util');
 
 const router = express.Router();
-router.use(requireAuth, requireRole('doc')); // admin implicitly allowed by requireRole
+// Guard each route individually (admin implicitly allowed by requireRole).
+// NOTE: do NOT use a pass-through `router.use(requireRole(...))` here — this
+// router shares the '/api' mount, so a blanket gate would reject requests for
+// routes defined in other routers mounted after this one.
+const guard = [requireAuth, requireRole('doc')];
 
 // Build a WHERE clause + params from query filters.
 function buildFilter(q) {
@@ -22,7 +26,7 @@ function buildFilter(q) {
 }
 
 // GET /api/audit — paginated audit rows, newest first.
-router.get('/audit', asyncH((req, res) => {
+router.get('/audit', guard, asyncH((req, res) => {
   const { clause, params } = buildFilter(req.query);
   const limit = Math.min(1000, Math.max(1, num(req.query.limit, 200)));
   const offset = Math.max(0, num(req.query.offset, 0));
@@ -40,7 +44,7 @@ function csvCell(v) {
 }
 
 // GET /api/audit/export.csv — full filtered export (UTF-8 BOM for Excel/Arabic).
-router.get('/audit/export.csv', asyncH((req, res) => {
+router.get('/audit/export.csv', guard, asyncH((req, res) => {
   const { clause, params } = buildFilter(req.query);
   const rows = db.prepare(`SELECT * FROM audit_log ${clause} ORDER BY id DESC`).all(params);
   const cols = ['id', 'ts', 'username', 'name', 'role', 'action', 'entity_type', 'entity_id', 'summary', 'ip', 'details'];
@@ -61,7 +65,7 @@ function sendCsv(res, name, cols, rows) {
 }
 
 // GET /api/export/notes.csv — debit notes register for auditors.
-router.get('/export/notes.csv', asyncH((req, res) => {
+router.get('/export/notes.csv', guard, asyncH((req, res) => {
   const rows = db.prepare(`
     SELECT n.*, s.name AS sup_name, m.name AS mgr_name, rj.name AS rej_name, cr.name AS creator
     FROM notes n
@@ -83,7 +87,7 @@ router.get('/export/notes.csv', asyncH((req, res) => {
 }));
 
 // GET /api/export/letters.csv — letters register for auditors.
-router.get('/export/letters.csv', asyncH((req, res) => {
+router.get('/export/letters.csv', guard, asyncH((req, res) => {
   const rows = db.prepare(`
     SELECT l.*, cr.name AS creator FROM letters l
     LEFT JOIN users cr ON cr.id = l.created_by ORDER BY l.created_at DESC`).all();

@@ -47,6 +47,7 @@ app.use('/api', require('./routes/dist.routes'));
 app.use('/api', require('./routes/letter.routes'));
 app.use('/api', require('./routes/note.routes'));
 app.use('/api', require('./routes/audit.routes'));
+app.use('/api', require('./routes/master.routes'));
 app.use('/api', require('./routes/admin.routes'));
 
 // Unknown API route -> JSON 404 (so the SPA fallback never swallows API typos).

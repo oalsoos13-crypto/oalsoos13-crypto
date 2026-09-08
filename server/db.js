@@ -129,6 +129,47 @@ function migrate() {
       updated_at      TEXT
     );
 
+    -- Real outlet master data (imported from COOPS_DETAILS).
+    CREATE TABLE IF NOT EXISTS outlets (
+      cust_id         TEXT PRIMARY KEY,
+      code_com        TEXT,
+      name            TEXT,
+      parent          TEXT,
+      fsm             TEXT, fsm_pf TEXT,
+      salesman        TEXT, salesman_pf TEXT,
+      route           TEXT,
+      merchandiser    TEXT, merchandiser_pf TEXT,
+      lays_sales      REAL, iec_sales REAL
+    );
+
+    -- Contract terms per outlet (values may be combos, kept as text).
+    CREATE TABLE IF NOT EXISTS contracts (
+      cust_id        TEXT PRIMARY KEY,
+      pct            REAL,
+      lumsum         TEXT,
+      bonus          TEXT,
+      slap           TEXT,
+      category_total TEXT,
+      lays           TEXT,
+      iec            TEXT,
+      iec_off_shelf  TEXT,
+      gondola        TEXT
+    );
+
+    -- Annual sales & targets per parent co-op.
+    CREATE TABLE IF NOT EXISTS sales_history (
+      parent         TEXT PRIMARY KEY,
+      fsm            TEXT,
+      salesman       TEXT,
+      contract       TEXT,
+      years          TEXT,        -- JSON { "2015": n, ... "2026": n }
+      coop_issues    TEXT,
+      listing        TEXT,
+      price_increase TEXT,
+      iec_usa        TEXT,
+      target         TEXT
+    );
+
     -- Named atomic counters (LYSAL document sequence).
     CREATE TABLE IF NOT EXISTS counters (
       name  TEXT PRIMARY KEY,
@@ -158,6 +199,9 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);
     CREATE INDEX IF NOT EXISTS idx_notes_sales  ON notes(sales);
     CREATE INDEX IF NOT EXISTS idx_letters_status ON letters(status);
+    CREATE INDEX IF NOT EXISTS idx_outlets_parent ON outlets(parent);
+    CREATE INDEX IF NOT EXISTS idx_outlets_salesman ON outlets(salesman);
+    CREATE INDEX IF NOT EXISTS idx_outlets_route ON outlets(route);
   `);
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();

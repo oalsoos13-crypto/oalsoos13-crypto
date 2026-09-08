@@ -32,6 +32,42 @@ function seedDist() {
   tx(DEFAULT_DIST);
 }
 
+function seedMaster() {
+  if (db.prepare('SELECT COUNT(*) n FROM outlets').get().n > 0) return; // seed once
+  let master;
+  try { master = require('./coops_master.json'); } catch (e) { return; }
+  const S = (v) => (v == null ? null : String(v));
+  const N = (v) => (v == null || v === '' || isNaN(+v) ? null : +v);
+  const insO = db.prepare(`INSERT OR IGNORE INTO outlets
+    (cust_id,code_com,name,parent,fsm,fsm_pf,salesman,salesman_pf,route,merchandiser,merchandiser_pf,lays_sales,iec_sales)
+    VALUES (@cust_id,@code_com,@name,@parent,@fsm,@fsm_pf,@salesman,@salesman_pf,@route,@merchandiser,@merchandiser_pf,@lays,@iec)`);
+  const insC = db.prepare(`INSERT OR IGNORE INTO contracts
+    (cust_id,pct,lumsum,bonus,slap,category_total,lays,iec,iec_off_shelf,gondola)
+    VALUES (@cust_id,@pct,@lumsum,@bonus,@slap,@category_total,@lays,@iec,@iec_off_shelf,@gondola)`);
+  const insS = db.prepare(`INSERT OR IGNORE INTO sales_history
+    (parent,fsm,salesman,contract,years,coop_issues,listing,price_increase,iec_usa,target)
+    VALUES (@parent,@fsm,@salesman,@contract,@years,@coop_issues,@listing,@price_increase,@iec_usa,@target)`);
+  const tx = db.transaction(() => {
+    for (const o of master.outlets || []) insO.run({
+      cust_id: S(o.custId), code_com: S(o.codeCom), name: S(o.name), parent: S(o.parent),
+      fsm: S(o.fsm), fsm_pf: S(o.fsmPf), salesman: S(o.salesman), salesman_pf: S(o.salesmanPf),
+      route: S(o.route), merchandiser: S(o.merchandiser), merchandiser_pf: S(o.merchandiserPf),
+      lays: N(o.laysSales), iec: N(o.iecSales),
+    });
+    for (const [cust, c] of Object.entries(master.contracts || {})) insC.run({
+      cust_id: S(cust), pct: N(c.pct), lumsum: S(c.lumsum), bonus: S(c.bonus), slap: S(c.slap),
+      category_total: S(c.categoryTotal), lays: S(c.lays), iec: S(c.iec),
+      iec_off_shelf: S(c.iecOffShelf), gondola: S(c.gondola),
+    });
+    for (const s of master.sales || []) insS.run({
+      parent: S(s.parent), fsm: S(s.fsm), salesman: S(s.salesman), contract: S(s.contract),
+      years: JSON.stringify(s.years || {}), coop_issues: S(s.coopIssues), listing: S(s.listing),
+      price_increase: S(s.priceIncrease), iec_usa: S(s.iecUsa), target: S(s.target),
+    });
+  });
+  tx();
+}
+
 function seedCounter() {
   db.prepare('INSERT OR IGNORE INTO counters (name, value) VALUES (?, ?)')
     .run('lysal', config.startCounter);
@@ -60,6 +96,7 @@ function seedUsers() {
 function run() {
   seedCoops();
   seedDist();
+  seedMaster();
   seedCounter();
   const createdUsers = seedUsers();
   return { createdUsers };

@@ -7,12 +7,15 @@ const { requireAuth, requireRole, hashPassword } = require('../auth');
 const { asyncH, nowIso, badRequest, notFound } = require('../util');
 
 const router = express.Router();
-router.use(requireAuth, requireRole()); // requireRole() with no args => admin only
+// Admin-only, guarded per-route. Do NOT use a pass-through `router.use(requireRole())`
+// here: this router shares the '/api' mount, so a blanket gate would also reject
+// unmatched requests (turning 404s into 403s) and anything routed through it.
+const guard = [requireAuth, requireRole()]; // requireRole() with no args => admin only
 
 const ROLES = ['admin', 'marketing', 'division', 'doc', 'supervisor', 'salesman'];
 
 // GET /api/admin/users
-router.get('/admin/users', asyncH((req, res) => {
+router.get('/admin/users', guard, asyncH((req, res) => {
   const rows = db.prepare(
     `SELECT id, username, name, role, active, must_change_password, last_login_at, created_at
      FROM users ORDER BY role, name`
@@ -21,7 +24,7 @@ router.get('/admin/users', asyncH((req, res) => {
 }));
 
 // POST /api/admin/users  { username, name, role, password? }
-router.post('/admin/users', asyncH((req, res) => {
+router.post('/admin/users', guard, asyncH((req, res) => {
   const username = String(req.body.username || '').trim().toLowerCase();
   const name = String(req.body.name || '').trim();
   const role = String(req.body.role || '');
@@ -44,7 +47,7 @@ router.post('/admin/users', asyncH((req, res) => {
 }));
 
 // PATCH /api/admin/users/:id  { name?, role?, active? }
-router.patch('/admin/users/:id', asyncH((req, res) => {
+router.patch('/admin/users/:id', guard, asyncH((req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!u) throw notFound('المستخدم غير موجود');
   const name = req.body.name != null ? String(req.body.name).trim() : u.name;
@@ -66,7 +69,7 @@ router.patch('/admin/users/:id', asyncH((req, res) => {
 }));
 
 // POST /api/admin/users/:id/reset-password  { password? }
-router.post('/admin/users/:id/reset-password', asyncH((req, res) => {
+router.post('/admin/users/:id/reset-password', guard, asyncH((req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!u) throw notFound('المستخدم غير موجود');
   const pw = req.body.password ? String(req.body.password) : config.defaultPassword;
@@ -80,7 +83,7 @@ router.post('/admin/users/:id/reset-password', asyncH((req, res) => {
 
 // GET /api/admin/export.json — full database backup (excluding password hashes).
 const BACKUP_TABLES = ['budgets', 'channel_alloc', 'dist', 'letters', 'notes', 'counters', 'coops', 'audit_log'];
-router.get('/admin/export.json', asyncH((req, res) => {
+router.get('/admin/export.json', guard, asyncH((req, res) => {
   const dump = { meta: { exportedAt: nowIso(), schemaVersion: db.SCHEMA_VERSION, by: req.user.username } };
   for (const t of BACKUP_TABLES) dump[t] = db.prepare(`SELECT * FROM ${t}`).all();
   dump.users = db.prepare('SELECT id, username, name, role, active, must_change_password, created_at FROM users').all();
@@ -92,7 +95,7 @@ router.get('/admin/export.json', asyncH((req, res) => {
 
 // POST /api/admin/restore — restore business data from a backup (destructive).
 // Does NOT touch users. Body: the JSON produced by export.json.
-router.post('/admin/restore', asyncH((req, res) => {
+router.post('/admin/restore', guard, asyncH((req, res) => {
   const b = req.body || {};
   const restoreTables = ['budgets', 'channel_alloc', 'dist', 'letters', 'notes', 'coops'];
   const tx = db.transaction(() => {

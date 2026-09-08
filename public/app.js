@@ -345,6 +345,20 @@ const T = {
   lhFull: { ar: "ليتر هيد كامل", en: "Full letterhead" },
   lhBlank: { ar: "ورق مطبوع مسبقًا", en: "Pre-printed paper" },
   lhToggleHint: { ar: "تبديل: طباعة الليتر هيد كامل أو ترك مساحة للورق المطبوع", en: "Toggle full letterhead vs blank margins" },
+  /* outlets & sales master data */
+  r_outlets: { ar: "المنافذ والعقود", en: "Outlets & Contracts" },
+  r_outlets_d: { ar: "المنافذ الفعلية وخطوط السير وشروط العقود.", en: "Real outlets, routes and contract terms." },
+  r_sales: { ar: "المبيعات والتارجت", en: "Sales & Targets" },
+  r_sales_d: { ar: "المبيعات السنوية والتارجت وحالة الإدراج.", en: "Annual sales, targets and listing status." },
+  outletsTitle: { ar: "المنافذ والعقود", en: "Outlets & contracts" },
+  salesTitle: { ar: "المبيعات السنوية والتارجت", en: "Annual sales & targets" },
+  route: { ar: "خط السير", en: "Route" },
+  merchandiser: { ar: "المندِّب", en: "Merchandiser" },
+  contract: { ar: "العقد", en: "Contract" },
+  target: { ar: "التارجت", en: "Target" },
+  search: { ar: "بحث…", en: "Search…" },
+  noOutlets: { ar: "لا توجد منافذ.", en: "No outlets." },
+  noSales: { ar: "لا توجد بيانات مبيعات.", en: "No sales data." },
 };
 function t(k) {
   const e = T[k];
@@ -501,12 +515,36 @@ function render() {
     renderHome();
     return;
   }
-  const rk = isAdmin ? role : currentUser.role;
+  // Read-only reference/report views each role may open beyond its own home.
+  const EXTRA = {
+    marketing: ["sales", "outlets"],
+    division: ["outlets", "sales"],
+    supervisor: ["outlets"],
+    doc: ["outlets", "sales"],
+    salesman: ["outlets"],
+  };
+  let rk;
+  if (isAdmin) rk = role;
+  else if (role && (EXTRA[currentUser.role] || []).includes(role)) rk = role;
+  else rk = currentUser.role;
   role = rk;
   document.getElementById("roleChip").innerHTML =
     `<span class="role-chip">${t("r_" + rk)}</span>`;
+  // Navigation buttons (right side of the role bar).
+  let nav = "";
+  if (isAdmin) {
+    nav = `<button class="back" onclick="go(null)">← ${t("back")}</button>`;
+  } else {
+    const extras = EXTRA[currentUser.role] || [];
+    const btns = extras
+      .filter((v) => v !== rk)
+      .map((v) => `<button class="back" onclick="go('${v}')">${t("r_" + v)}</button>`)
+      .join("");
+    const backBtn = rk !== currentUser.role ? `<button class="back" onclick="go('${currentUser.role}')">← ${t("back")}</button>` : "";
+    nav = backBtn + btns;
+  }
   document.getElementById("app").innerHTML =
-    `<div class="rolebar"><div class="wrap"><div><h2>${t("r_" + rk)}</h2><div class="sub">${t("r_" + rk + "_d")}</div></div>${isAdmin ? `<button class="back" onclick="go(null)">← ${t("back")}</button>` : ""}</div></div><div class="page"><div class="wrap" id="rv"></div></div>`;
+    `<div class="rolebar"><div class="wrap"><div><h2>${t("r_" + rk)}</h2><div class="sub">${t("r_" + rk + "_d")}</div></div><div class="navbtns">${nav}</div></div></div><div class="page"><div class="wrap" id="rv"></div></div>`;
   const view = {
     marketing: vMarketing,
     division: vDivision,
@@ -516,6 +554,8 @@ function render() {
     audit: vAudit,
     users: vUsers,
     backup: vBackup,
+    outlets: vOutlets,
+    sales: vSales,
   }[rk];
   if (view) view();
   else renderHome();
@@ -595,6 +635,8 @@ async function doChangePw() {
   }
 }
 const ADMIN_ROLES = [
+  { k: "outlets", ic: "🏪" },
+  { k: "sales", ic: "📈" },
   { k: "audit", ic: "🛡" },
   { k: "users", ic: "👥" },
   { k: "backup", ic: "💾" },
@@ -1672,6 +1714,66 @@ function doRestore(input) {
     input.value = "";
   };
   rd.readAsText(f);
+}
+
+/* ---------- outlets & contracts (imported master data) ---------- */
+let outletsCache = [];
+async function vOutlets() {
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("outletsTitle")}</h3>
+    <div style="display:flex;gap:8px;align-items:center"><input id="olq" placeholder="${t("search")}" oninput="renderOutlets()" style="min-width:200px"><span class="pill-info" id="olCount"></span></div>
+  </header><div class="tbl-wrap" id="outletsBox"><div class="empty">${t("loading")}</div></div></div>`;
+  try {
+    const r = await api("/outlets");
+    outletsCache = r.outlets;
+    renderOutlets();
+  } catch (e) {
+    document.getElementById("outletsBox").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+function contractLabel(o) {
+  const p = [];
+  if (o.pct != null) p.push((+o.pct * 100).toFixed(2).replace(/\.00$/, "") + "%");
+  if (o.lumsum) p.push("Lump " + o.lumsum);
+  if (o.bonus) p.push("Bonus " + o.bonus);
+  if (o.slap) p.push(o.slap);
+  return p.join(" · ") || "—";
+}
+function renderOutlets() {
+  const q = (document.getElementById("olq")?.value || "").trim().toLowerCase();
+  const rows = outletsCache.filter((o) =>
+    !q || [o.name, o.parent, o.salesman, o.route, o.cust_id, o.merchandiser].some((v) => String(v || "").toLowerCase().includes(q)));
+  document.getElementById("olCount").textContent = rows.length + " / " + outletsCache.length;
+  document.getElementById("outletsBox").innerHTML = rows.length
+    ? `<table><thead><tr><th>CUST</th><th>${t("outlet")}</th><th>${t("coop")}</th><th>${t("route")}</th><th>${t("r_salesman")}</th><th>${t("merchandiser")}</th><th>${t("contract")}</th><th>Lays</th><th>IEC</th></tr></thead><tbody>${rows
+        .map((o) => `<tr><td class="mono-sm">${esc(o.cust_id)}</td><td>${esc(o.name)}</td><td>${esc(o.parent)}</td><td class="mono-sm">${esc(o.route || "")}</td><td>${esc(o.salesman || "")}</td><td>${esc(o.merchandiser || "")}</td><td class="mono-sm">${esc(contractLabel(o))}</td><td class="mono">${o.lays_sales != null ? KD(o.lays_sales) : "—"}</td><td class="mono">${o.iec_sales != null ? KD(o.iec_sales) : "—"}</td></tr>`)
+        .join("")}</tbody></table>`
+    : `<div class="empty">${t("noOutlets")}</div>`;
+}
+
+/* ---------- sales & targets (imported master data) ---------- */
+const SALE_YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+async function vSales() {
+  document.getElementById("rv").innerHTML =
+    `<div class="panel"><header><h3>${t("salesTitle")}</h3><input id="slq" placeholder="${t("search")}" oninput="renderSales()" style="min-width:200px"></header><div class="tbl-wrap" id="salesBox"><div class="empty">${t("loading")}</div></div></div>`;
+  try {
+    const r = await api("/sales");
+    salesCache = r.sales;
+    renderSales();
+  } catch (e) {
+    document.getElementById("salesBox").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+let salesCache = [];
+function renderSales() {
+  const q = (document.getElementById("slq")?.value || "").trim().toLowerCase();
+  const rows = salesCache.filter((s) => !q || [s.parent, s.salesman, s.fsm].some((v) => String(v || "").toLowerCase().includes(q)));
+  const yh = SALE_YEARS.map((y) => `<th>${y}</th>`).join("");
+  document.getElementById("salesBox").innerHTML = rows.length
+    ? `<table><thead><tr><th>${t("coop")}</th><th>${t("r_salesman")}</th>${yh}<th>${t("target")}</th><th>LISTING</th></tr></thead><tbody>${rows
+        .map((s) => `<tr><td>${esc(s.parent)}</td><td>${esc(s.salesman || "")}</td>${SALE_YEARS.map((y) => `<td class="mono">${s.years && s.years[y] != null ? KD(s.years[y]) : "—"}</td>`).join("")}<td class="mono">${esc(s.target || "—")}</td><td>${esc(s.listing || "")}</td></tr>`)
+        .join("")}</tbody></table>`
+    : `<div class="empty">${t("noSales")}</div>`;
 }
 
 /* ---------- init ---------- */
