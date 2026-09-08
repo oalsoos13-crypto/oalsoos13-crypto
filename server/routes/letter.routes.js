@@ -22,9 +22,26 @@ function refNo(n) {
   return 'LYSAL/' + n + '/' + config.refYear;
 }
 
+// A price-update / "change price" letter carries a table of items instead of a
+// monetary debit value. Sanitize and store the rows; value is 0 (not a debit note).
+function sanitizePriceRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, 200).map((r) => ({
+    item: String(r.item || '').slice(0, 40),
+    name: String(r.name || '').slice(0, 200),
+    pack: String(r.pack || '').slice(0, 60),
+    coopOld: num(r.coopOld), coopNew: num(r.coopNew),
+    consOld: num(r.consOld), consNew: num(r.consNew),
+    barcode: String(r.barcode || '').slice(0, 40),
+  })).filter((r) => r.name || r.item || r.barcode);
+}
+
 // Recompute the letter value server-side (never trust the client figure).
 function computeValue(type, body, coopName) {
   const mode = typeMode[type];
+  if (mode === 'pricetable') {
+    return { value: 0, items: sanitizePriceRows(body.priceRows || body.items) };
+  }
   if (mode === 'items') {
     const c = getCoop.get(coopName);
     const mains = c ? c.mains : 0;
@@ -48,7 +65,11 @@ router.post('/letters', requireRole('salesman'), asyncH((req, res) => {
   const sales = req.user.role === 'salesman' ? req.user.name : (req.body.sales || req.user.name);
 
   const calc = computeValue(type, req.body, coop);
-  if (!calc.value) throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+  if (typeMode[type] === 'pricetable') {
+    if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS');
+  } else if (!calc.value) {
+    throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+  }
 
   const id = genId('L');
   const now = nowIso();

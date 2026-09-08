@@ -106,6 +106,7 @@ const SEED = {
     },
     { k: "cda_pct", ar: "CDA نسبة %", mode: "pct", en: "CDA (%)" },
     { k: "cda_fix", ar: "CDA ثابت (Fixed)", mode: "value", en: "CDA (Fixed)" },
+    { k: "changeprice", ar: "تحديث بيانات / تغيير سعر", mode: "pricetable", en: "Price Update" },
   ],
   supervisors: [
     "Mahmoud Abu Zaid",

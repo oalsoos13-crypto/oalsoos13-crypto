@@ -329,6 +329,22 @@ const T = {
   notesCsv: { ar: "الإشعارات CSV", en: "Notes CSV" },
   lettersCsv: { ar: "الكتب CSV", en: "Letters CSV" },
   auditCsv: { ar: "التدقيق CSV", en: "Audit CSV" },
+  /* price-update letter type + letterhead */
+  priceRows: { ar: "أصناف تحديث السعر", en: "Price-update items" },
+  addRow: { ar: "إضافة صف", en: "Add row" },
+  addRowFirst: { ar: "أضف صنفًا واحدًا على الأقل", en: "Add at least one item" },
+  th_item: { ar: "رقم الصنف", en: "Item #" },
+  th_name: { ar: "اسم الصنف", en: "Name" },
+  th_pack: { ar: "الشد", en: "Pack" },
+  th_barcode: { ar: "باركود الحبة", en: "Barcode" },
+  coopOld: { ar: "جمعية-قديم", en: "Coop-old" },
+  coopNew: { ar: "جمعية-جديد", en: "Coop-new" },
+  consOld: { ar: "مستهلك-قديم", en: "Cons-old" },
+  consNew: { ar: "مستهلك-جديد", en: "Cons-new" },
+  st_letterOnly: { ar: "كتاب فقط", en: "Letter only" },
+  lhFull: { ar: "ليتر هيد كامل", en: "Full letterhead" },
+  lhBlank: { ar: "ورق مطبوع مسبقًا", en: "Pre-printed paper" },
+  lhToggleHint: { ar: "تبديل: طباعة الليتر هيد كامل أو ترك مساحة للورق المطبوع", en: "Toggle full letterhead vs blank margins" },
 };
 function t(k) {
   const e = T[k];
@@ -960,6 +976,7 @@ function vSupervisor() {
 }
 /* ---------- salesman ---------- */
 let draftItems = [{ name: "", price: "" }];
+let draftPrice = [];
 function vSalesman() {
   const me = scopeName();
   const myLetters = me ? DB.letters.filter((l) => l.sales === me) : DB.letters;
@@ -970,10 +987,19 @@ function tblSalesLetters(list) {
   if (!list.length) return `<div class="empty">${t("noLetters")}</div>`;
   return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("coop")}</th><th>${t("th_brand")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list
     .map((L) => {
+      const isPrice = L.type === "changeprice";
       const done = L.status === "noted";
       const n = DB.notes.find((x) => x.letterId === L.id);
       const na = (n && n.attachments && n.attachments.length) || 0;
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.coop)}</td><td>${esc(L.brand || "")}</td><td class="mono">${KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${n ? noteStatusTag(n) : `<span class="tag draft">${t("st_pending")}</span>`}${na ? ` <span class="pill-info" style="padding:1px 7px">📎 ${na}</span>` : ""}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button>${done ? `<button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>` : `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
+      const statusCell = isPrice
+        ? `<span class="tag done">${t("st_letterOnly")}</span>`
+        : `${n ? noteStatusTag(n) : `<span class="tag draft">${t("st_pending")}</span>`}${na ? ` <span class="pill-info" style="padding:1px 7px">📎 ${na}</span>` : ""}`;
+      const dnBtn = isPrice
+        ? ""
+        : done
+          ? `<button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>`
+          : `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.coop)}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button>${dnBtn}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -1042,6 +1068,7 @@ function tblLetters(list) {
 }
 function openLetterForm() {
   draftItems = [{ name: "", price: "" }];
+  draftPrice = [emptyPriceRow()];
   const opts = DB.ref.coops
     .map(
       (c) =>
@@ -1072,7 +1099,15 @@ function typeChanged() {
   const k = document.getElementById("fType").value,
     mode = SEED.letterTypes.find((x) => x.k === k).mode,
     a = document.getElementById("typeArea");
-  if (mode === "items")
+  if (mode === "pricetable") {
+    a.innerHTML = `<label class="hint" style="font-weight:700">${t("priceRows")}</label>
+      <div class="tbl-scroll"><table class="price-edit"><thead><tr>
+        <th>${t("th_item")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th>
+        <th>${t("coopOld")}</th><th>${t("coopNew")}</th><th>${t("consOld")}</th><th>${t("consNew")}</th><th>${t("th_barcode")}</th><th></th>
+      </tr></thead><tbody id="priceRows"></tbody></table></div>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="addPriceRow()">＋ ${t("addRow")}</button>`;
+    renderPriceRows();
+  } else if (mode === "items")
     ((a.innerHTML = `<label class="hint" style="font-weight:700">${t("items")}</label><div id="itemRows" style="margin-top:8px"></div><button class="btn ghost sm" onclick="addItem()">＋ ${t("addItem")}</button><div class="total-line"><span>${t("valFormula")} (<b id="outCount">0</b>)</span><b><span id="calcVal">0.000</span> ${t("kd")}</b></div>`),
       renderItems());
   else if (mode === "pct")
@@ -1094,6 +1129,35 @@ function renderItems() {
 function addItem() {
   draftItems.push({ name: "", price: "" });
   renderItems();
+}
+/* price-update table editor */
+function emptyPriceRow() {
+  return { item: "", name: "", pack: "", coopOld: "", coopNew: "", consOld: "", consNew: "", barcode: "" };
+}
+function renderPriceRows() {
+  const box = document.getElementById("priceRows");
+  if (!box) return;
+  if (!draftPrice.length) draftPrice = [emptyPriceRow()];
+  const inp = (i, f, extra) =>
+    `<input value="${esc(draftPrice[i][f])}" oninput="draftPrice[${i}].${f}=this.value" ${extra || ""}>`;
+  box.innerHTML = draftPrice
+    .map(
+      (r, i) => `<tr>
+      <td>${inp(i, "item", 'style="width:70px"')}</td>
+      <td>${inp(i, "name", 'style="min-width:150px"')}</td>
+      <td>${inp(i, "pack", 'style="width:90px"')}</td>
+      <td>${inp(i, "coopOld", 'type="number" step="0.001" style="width:70px"')}</td>
+      <td>${inp(i, "coopNew", 'type="number" step="0.001" style="width:70px"')}</td>
+      <td>${inp(i, "consOld", 'type="number" step="0.001" style="width:70px"')}</td>
+      <td>${inp(i, "consNew", 'type="number" step="0.001" style="width:70px"')}</td>
+      <td>${inp(i, "barcode", 'style="width:120px;direction:ltr"')}</td>
+      <td><button class="rm" onclick="draftPrice.splice(${i},1);renderPriceRows()">✕</button></td></tr>`,
+    )
+    .join("");
+}
+function addPriceRow() {
+  draftPrice.push(emptyPriceRow());
+  renderPriceRows();
 }
 function calcVal() {
   const k = document.getElementById("fType").value,
@@ -1140,7 +1204,17 @@ async function saveLetter() {
   if (mode === "value") {
     body.value = +(document.getElementById("fValDirect") || {}).value || 0;
   }
-  if (!calcVal()) {
+  if (mode === "pricetable") {
+    body.priceRows = draftPrice
+      .filter((r) => r.name || r.item || r.barcode)
+      .map((r) => ({
+        item: r.item, name: r.name, pack: r.pack,
+        coopOld: +r.coopOld || 0, coopNew: +r.coopNew || 0,
+        consOld: +r.consOld || 0, consNew: +r.consNew || 0,
+        barcode: r.barcode,
+      }));
+    if (!body.priceRows.length) { toast(t("addRowFirst")); return; }
+  } else if (!calcVal()) {
     toast(t("enterVal"));
     return;
   }
@@ -1305,8 +1379,49 @@ function tblNotes(list) {
   if (!list.length) return `<div class="empty">${t("noNotes")}</div>`;
   return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("th_type")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(n.coop)}</td><td>${esc(ltName(n.type))}</td><td class="mono">${KD(n.value)}</td><td>${esc(n.date)}</td><td>${noteStatusTag(n)}</td><td><button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewPrint")}</button></td></tr>`).join("")}</tbody></table>`;
 }
-/* ---------- printable (Arabic official) ---------- */
-function docHTML(rec, isLetter) {
+/* ---------- printable (Arabic official, on company letterhead) ---------- */
+// Sales manager who signs the official letters (change here if it differs).
+const SIGNATORY = { role: "مدير المبيعات", name: "سائد الرمحي" };
+// Print mode: 'preprinted' = leave blank top/bottom margins for pre-printed
+// letterhead paper (no logo printed); 'full' = render the full letterhead.
+let LH_MODE = "preprinted";
+function setLhMode(m, rec, isLetter) {
+  LH_MODE = m;
+  openDoc(rec, isLetter);
+}
+
+function signBlock() {
+  return `<div class="sign"><div class="role">${esc(SIGNATORY.role)}</div><div class="who">${esc(SIGNATORY.name)}</div></div>`;
+}
+function metaBlock(rec, isLetter) {
+  return `<div class="meta"><span>التاريخ : <b>${esc(rec.date || "")}</b></span><span class="mono">${esc(rec.lysal || "")}</span></div>${
+    !isLetter && rec.coopDN ? `<div class="meta2">رقم الإشعار بالجمعية: <b>${esc(rec.coopDN)}</b></div>` : ""
+  }`;
+}
+function toBlock(rec) {
+  return `<div class="to">السـادة / جمعيـة ${esc(rec.coop)} التعاونيـة &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+}
+
+// Price-update ("change price") letter body.
+function priceLetterInner(rec) {
+  const rows = Array.isArray(rec.items) ? rec.items : [];
+  const table = `<table class="pt"><thead>
+    <tr><th rowspan="2">م</th><th rowspan="2">رقم الصنف</th><th rowspan="2">أسم الصنف</th><th rowspan="2">الشـد</th>
+        <th colspan="2">سعر البيع للجمعية</th><th colspan="2">سعر البيع للمستهلك</th><th rowspan="2">باركود الحبة</th></tr>
+    <tr><th>القديم</th><th>الجديد</th><th>القديم</th><th>الجديد</th></tr></thead>
+    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.item)}</td><td class="nm">${esc(r.name)}</td><td>${esc(r.pack)}</td><td>${KD(r.coopOld)}</td><td>${KD(r.coopNew)}</td><td>${KD(r.consOld)}</td><td>${KD(r.consNew)}</td><td class="bc">${esc(r.barcode)}</td></tr>`).join("")}</tbody></table>`;
+  return `${metaBlock(rec, true)}${toBlock(rec)}
+  <div class="subj">الموضـوع : تحديـث بيانـات</div>
+  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على تحديث بيانات الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :</div>
+  ${table}
+  ${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
+  <div class="body">شاكريـن لكـم حسـن تعاونكـم،،،،</div>
+  <div class="body">وتفضلـوا بقبـول فائـق الاحتـرام،،،</div>
+  ${signBlock()}`;
+}
+
+// Debit-note letter body (Listing/Stand/Pallet/Price Off/CDA).
+function debitLetterInner(rec, isLetter) {
   const c = coop(rec.coop),
     out = c ? c.m : 0;
   const items =
@@ -1314,24 +1429,24 @@ function docHTML(rec, isLetter) {
       ? `<table class="items"><thead><tr><th>السعر</th><th>اسم الصنف</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(rec.items.reduce((s, i) => s + i.price, 0))}</b></td><td><b>الإجمالي للأوتليت الواحد</b></td></tr></tbody></table><div class="body">وذلك مقابل اعتماد الأصناف أعلاه في <b>${out}</b> أوتليت (${KD(rec.items.reduce((s, i) => s + i.price, 0))} × ${out} = <span class="val-big">${KD(rec.value)} د.ك</span>).</div>`
       : "";
   const reason =
-    rec.type === "listing"
-      ? "مقابل اعتماد الأصناف التالية :"
-      : rec.type === "pallet"
-        ? "مقابل طبالي عرض وذلك القيمة."
-        : rec.type === "priceoff"
-          ? "مقابل تخفيض سعر (Price Off) وذلك القيمة."
-          : rec.type === "stand"
-            ? "مقابل ستاند عرض وذلك القيمة."
-            : "مقابل دعم تجاري (CDA) وذلك القيمة.";
-  return `<div class="doc"><div class="letterhead"><img src="${LOGOS.full}" alt="UDC"></div>
-  <div class="meta">التاريخ: <b>${esc(rec.date)}</b><br>رقم الكتاب: <b>${esc(rec.lysal || "")}</b>${!isLetter && rec.coopDN ? "<br>رقم الإشعار بالجمعية: <b>" + esc(rec.coopDN) + "</b>" : ""}</div>
-  <div class="to">السادة / ${esc(rec.coop)} التعاونية　المحترمين</div><div>تحية طيبة وبعد،،،</div>
-  <div class="subj">الموضوع: عمل إشعار خصم</div>
-  <div class="body">بالإشارة إلى الموضوع أعلاه، يرجى من سيادتكم التكرم بالموافقة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${reason}</div>
+    rec.type === "listing" ? "مقابل اعتماد الأصناف التالية :"
+    : rec.type === "pallet" ? "مقابل طبالي عرض وذلك القيمة."
+    : rec.type === "priceoff" ? "مقابل تخفيض سعر (Price Off) وذلك القيمة."
+    : rec.type === "stand" ? "مقابل ستاند عرض وذلك القيمة."
+    : "مقابل دعم تجاري (CDA) وذلك القيمة.";
+  return `${metaBlock(rec, isLetter)}${toBlock(rec)}
+  <div class="subj">الموضـوع : عمل إشعار خصم</div>
+  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${reason}</div>
   ${items}${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
-  <div class="body" style="margin-top:18px">وتفضلوا بقبول فائق الاحترام والتقدير،،،</div>
-  <div class="sign"><div class="role">مسؤول المبيعات</div><div style="margin-top:30px;border-top:1px solid #999;width:180px"></div></div>
-  <div class="foot"><div>الفروانية – شارع علي فهد الدويلة – مجمع الخرينج التجاري<br>ميزانين مكتب (1)<br>هاتف: 24774704 , 24774783 &nbsp; فاكس: 24729520</div><div class="en">Email: Sales.lays@unibevkw.com<br>Farwaniya, Ali Fahad Al-Dwailah St.<br>Al Khurainej Commercial Complex</div></div></div>`;
+  <div class="body" style="margin-top:14px">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
+  ${signBlock()}`;
+}
+
+function docHTML(rec, isLetter) {
+  const inner = rec.type === "changeprice" ? priceLetterInner(rec) : debitLetterInner(rec, isLetter);
+  const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
+  const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
+  return `<div class="doc lh-${LH_MODE}">${head}<div class="lh-body">${inner}</div>${foot}</div>`;
 }
 function fmtTs(s) {
   if (!s) return "";
@@ -1353,14 +1468,21 @@ function approvalTrail(n) {
     steps.push(`<div class="step" style="color:var(--danger)">✕ <b>${t("rejectedBy")} (${n.rejectedStage === "mgr" ? t("mgr") : t("sup")}):</b> ${esc(n.rejectedByName || "-")} — ${fmtTs(n.rejectedAt)}<br>${t("rejectReason")}: ${esc(n.rejectReason || "")}</div>`);
   return `<div class="approv-trail no-print"><b style="color:#123f70">${t("approvalTrail")}</b>${steps.join("")}</div>`;
 }
+let curDoc = null;
+function toggleLh() {
+  LH_MODE = LH_MODE === "full" ? "preprinted" : "full";
+  if (curDoc) openDoc(curDoc.rec, curDoc.isLetter);
+}
 function openDoc(rec, isLetter) {
+  curDoc = { rec, isLetter };
   const att =
     !isLetter && rec.attachments && rec.attachments.length
       ? `<div class="att-strip no-print"><b style="width:100%;color:#123f70;font-size:13px">${t("attachments")}</b>${rec.attachments.map((a) => (a.url.startsWith("data:image") ? `<a class="att-item" href="${a.url}" target="_blank"><img src="${a.url}"><div>${esc(a.name)}</div></a>` : `<a class="att-item" href="${a.url}" target="_blank"><div style="padding:14px;font-size:22px">📄</div><div>${esc(a.name)}</div></a>`)).join("")}</div>`
       : "";
   const trail = !isLetter ? `<div style="padding:0 24px 18px">${approvalTrail(rec)}</div>` : "";
+  const lhBtn = `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
   modal(
-    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions"><button class="btn gold sm" onclick="window.print()">${t("print")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
+    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}<button class="btn gold sm" onclick="window.print()">${t("print")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
   );
 }
 function openDocById(id) {
