@@ -359,6 +359,13 @@ const T = {
   search: { ar: "بحث…", en: "Search…" },
   noOutlets: { ar: "لا توجد منافذ.", en: "No outlets." },
   noSales: { ar: "لا توجد بيانات مبيعات.", en: "No sales data." },
+  sales: { ar: "المبيعات", en: "Sales" },
+  salesYtd: { ar: "المبيعات حتى الآن", en: "Sales YTD" },
+  yoy: { ar: "مقابل 2025", en: "vs 2025" },
+  atRisk: { ar: "تحت الخطر (Risk)", en: "At risk" },
+  annualTrend: { ar: "المبيعات السنوية (إجمالي)", en: "Annual sales (total)" },
+  top10_2026: { ar: "أعلى 10 جمعيات (2026)", en: "Top 10 co-ops (2026)" },
+  outletLinkHint: { ar: "المبلغ قابل للتعديل · اختر منفذًا لتعبئة WOB تلقائيًا", en: "Amount editable · pick an outlet to auto-fill WOB" },
 };
 function t(k) {
   const e = T[k];
@@ -945,17 +952,40 @@ function clearAmt(i) {
   delete DB.dist[i].amt;
   renderDistRows();
 }
-function vDivision() {
+let distOutlets = [];
+async function vDivision() {
   const pool = distPool(),
     tw = totalWob(),
     alloc = sum(DB.dist.map(rowAmt));
   document.getElementById("rv").innerHTML =
     `<div class="cards">${card("accent", t("c_coopBudget"), KD(pool), 1)}${card("", t("totalWob"), tw.toLocaleString("en-US"), 0)}${card("warn", t("c_distSup"), KD(alloc), 1)}</div>
   ${mgrApprovalsPanel()}
-  <div class="panel"><header><h3>${t("distTable")}</h3><div style="display:flex;gap:8px;align-items:center"><span class="pill-info">${t("amtEditable")}</span><button class="btn gold sm" onclick="addDist()">＋ ${t("add")}</button></div></header>
+  <div class="panel"><header><h3>${t("distTable")}</h3><div style="display:flex;gap:8px;align-items:center"><span class="pill-info">${t("outletLinkHint")}</span><button class="btn gold sm" onclick="addDist()">＋ ${t("add")}</button></div></header>
+   <datalist id="outletDL"></datalist>
    <div class="tbl-wrap"><table><thead><tr><th>${t("supervisor")}</th><th>${t("salesman")}</th><th>${t("mainCoop")}</th><th>${t("outlet")}</th><th>${t("wob")}</th><th>${t("amount")} (${t("kd")})</th><th></th></tr></thead><tbody id="distRows"></tbody></table></div>
    <div class="actions" style="padding:0 16px 16px"><button class="btn primary" onclick="saveDist()">${t("save")}</button></div></div>`;
   renderDistRows();
+  // Load real outlets (once) to power the outlet picker + WOB auto-fill.
+  if (!distOutlets.length) {
+    try { distOutlets = (await api("/outlets")).outlets; } catch (e) {}
+  }
+  const dl = document.getElementById("outletDL");
+  if (dl) dl.innerHTML = distOutlets.map((o) => `<option value="${esc(o.name)}">`).join("");
+}
+// Fill a distribution row from a chosen real outlet (keeps sup/salesman as-is).
+function pickDistOutlet(i, val) {
+  DB.dist[i].outlet = val;
+  const o = distOutlets.find((x) => x.name === val);
+  if (o) {
+    if (!DB.dist[i].coop) {
+      const short = String(o.parent || "").replace(/^P\d+-/, "").replace(/ PARENT$/i, "");
+      const hit = DB.ref.coops.find((c) => c.n.toUpperCase() === short.toUpperCase());
+      if (hit) DB.dist[i].coop = hit.n;
+    }
+    if (!(+DB.dist[i].wob) && o.lays_sales != null) DB.dist[i].wob = Math.round(+o.lays_sales);
+  }
+  renderDistRows();
+  refreshDistAmts();
 }
 function renderDistRows() {
   const box = document.getElementById("distRows");
@@ -967,7 +997,7 @@ function renderDistRows() {
    <td><select onchange="DB.dist[${i}].sup=this.value"><option value="">${t("choose")}</option>${DB.ref.supervisors.map((s) => `<option ${r.sup === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></td>
    <td><input value="${esc(r.sales)}" oninput="DB.dist[${i}].sales=this.value" style="min-width:110px"></td>
    <td><select onchange="DB.dist[${i}].coop=this.value"><option value="">${t("choose")}</option>${DB.ref.coops.map((c) => `<option ${r.coop === c.n ? "selected" : ""}>${esc(c.n)}</option>`).join("")}</select></td>
-   <td><input value="${esc(r.outlet)}" oninput="DB.dist[${i}].outlet=this.value" style="min-width:85px"></td>
+   <td><input value="${esc(r.outlet)}" list="outletDL" onchange="pickDistOutlet(${i},this.value)" oninput="DB.dist[${i}].outlet=this.value" style="min-width:120px"></td>
    <td><input type="number" step="0.01" value="${r.wob}" oninput="DB.dist[${i}].wob=+this.value||0;refreshDistAmts()" style="max-width:85px"></td>
    <td><div style="display:flex;gap:4px;align-items:center"><input type="number" step="0.001" class="amtIn" value="${Number(rowAmt(r)).toFixed(3)}" oninput="setAmt(${i},this.value)" style="max-width:96px;${r.manual ? "border-color:#1c4e8a;font-weight:700;color:#123f70" : ""}"><button class="rm" style="width:26px;height:26px;font-size:12px;flex:none" title="WOB" onclick="clearAmt(${i})">↺</button></div></td>
    <td><button class="rm" onclick="DB.dist.splice(${i},1);renderDistRows()">✕</button></td></tr>`,
@@ -1753,18 +1783,65 @@ function renderOutlets() {
 
 /* ---------- sales & targets (imported master data) ---------- */
 const SALE_YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+const ALL_YEARS = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+let salesCache = [];
 async function vSales() {
   document.getElementById("rv").innerHTML =
-    `<div class="panel"><header><h3>${t("salesTitle")}</h3><input id="slq" placeholder="${t("search")}" oninput="renderSales()" style="min-width:200px"></header><div class="tbl-wrap" id="salesBox"><div class="empty">${t("loading")}</div></div></div>`;
+    `<div id="salesDash"></div>
+     <div class="panel"><header><h3>${t("salesTitle")}</h3><input id="slq" placeholder="${t("search")}" oninput="renderSales()" style="min-width:200px"></header><div class="tbl-wrap" id="salesBox"><div class="empty">${t("loading")}</div></div></div>`;
   try {
     const r = await api("/sales");
     salesCache = r.sales;
+    renderSalesDash();
     renderSales();
   } catch (e) {
     document.getElementById("salesBox").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }
 }
-let salesCache = [];
+function yearTotal(y) {
+  return salesCache.reduce((a, s) => a + (+(s.years && s.years[y]) || 0), 0);
+}
+// Lightweight, dependency-free bar chart (vertical) — theme-consistent.
+function barChart(pairs, fmt) {
+  const max = Math.max(1, ...pairs.map((p) => p[1]));
+  return `<div class="bars">${pairs
+    .map(([label, v]) => {
+      const h = Math.round((v / max) * 100);
+      return `<div class="bar-col"><div class="bar-track"><div class="bar-fill" style="height:${h}%" title="${fmt ? fmt(v) : v}"></div></div><div class="bar-lbl">${esc(label)}</div></div>`;
+    })
+    .join("")}</div>`;
+}
+// Horizontal bars (for ranked lists).
+function hBars(pairs, fmt) {
+  const max = Math.max(1, ...pairs.map((p) => p[1]));
+  return `<div class="hbars">${pairs
+    .map(([label, v]) => `<div class="hbar-row"><div class="hbar-lbl" title="${esc(label)}">${esc(label)}</div><div class="hbar-track"><div class="hbar-fill" style="width:${Math.round((v / max) * 100)}%"></div></div><div class="hbar-val mono">${fmt ? fmt(v) : v}</div></div>`)
+    .join("")}</div>`;
+}
+function renderSalesDash() {
+  const box = document.getElementById("salesDash");
+  if (!box) return;
+  const t26 = yearTotal(2026), t25 = yearTotal(2025);
+  const yoy = t25 ? Math.round(((t26 - t25) / t25) * 100) : 0;
+  const listingDone = salesCache.filter((s) => String(s.listing || "").toUpperCase() === "DONE").length;
+  const risk = salesCache.filter((s) => /risk/i.test(String(s.target || ""))).length;
+  const trend = ALL_YEARS.map((y) => ["" + y, yearTotal(y)]);
+  const top = salesCache
+    .map((s) => [s.parent.replace(/^P\d+-/, "").replace(/ PARENT$/i, ""), +(s.years && s.years[2026]) || 0])
+    .filter((p) => p[1] > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  box.innerHTML = `
+  <div class="cards">
+    ${card("accent", t("salesYtd") + " 2026", KD(t26), 1)}
+    ${card("", t("sales") + " 2025", KD(t25), 1)}
+    ${card(yoy >= 0 ? "ok" : "warn", t("yoy"), `<bdi dir="ltr">${(yoy >= 0 ? "+" : "") + yoy}%</bdi>`, 0)}
+    ${card("", "LISTING", `<bdi dir="ltr">${listingDone} / ${salesCache.length}</bdi>`, 0)}
+    ${card(risk ? "warn" : "ok", t("atRisk"), risk, 0)}
+  </div>
+  <div class="panel"><header><h3>${t("annualTrend")}</h3></header><div class="body">${barChart(trend, KD)}</div></div>
+  <div class="panel"><header><h3>${t("top10_2026")}</h3></header><div class="body">${top.length ? hBars(top, KD) : `<div class="empty">${t("noSales")}</div>`}</div></div>`;
+}
 function renderSales() {
   const q = (document.getElementById("slq")?.value || "").trim().toLowerCase();
   const rows = salesCache.filter((s) => !q || [s.parent, s.salesman, s.fsm].some((v) => String(v || "").toLowerCase().includes(q)));
