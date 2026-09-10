@@ -93,6 +93,8 @@ function migrate() {
       base       REAL,
       pct        REAL,
       items      TEXT,               -- JSON array
+      recipient  TEXT,               -- free-text recipient (spec letters)
+      meta       TEXT,               -- JSON: extra fields + secondary table (spec letters)
       status     TEXT NOT NULL DEFAULT 'pending',
       created_by INTEGER,
       created_at TEXT NOT NULL,
@@ -203,6 +205,11 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_outlets_salesman ON outlets(salesman);
     CREATE INDEX IF NOT EXISTS idx_outlets_route ON outlets(route);
   `);
+
+  // Additive column migrations for existing databases (idempotent).
+  const letterCols = db.prepare("PRAGMA table_info(letters)").all().map((c) => c.name);
+  if (!letterCols.includes('recipient')) db.exec('ALTER TABLE letters ADD COLUMN recipient TEXT');
+  if (!letterCols.includes('meta')) db.exec('ALTER TABLE letters ADD COLUMN meta TEXT');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

@@ -2,6 +2,7 @@
 const db = require('./db');
 const { fromJson } = require('./util');
 const { SEED } = require('./seed-data');
+const { LETTER_SPECS } = require('./letter-specs');
 
 // Resolve user id -> display name (cached per call).
 function nameResolver() {
@@ -16,6 +17,7 @@ function mapLetter(r, nameOf) {
     brand: r.brand, sales: r.sales, date: r.date, principal: r.principal,
     note: r.note, value: r.value, base: r.base, pct: r.pct,
     items: fromJson(r.items, null), status: r.status,
+    recipient: r.recipient, meta: fromJson(r.meta, null),
     createdBy: r.created_by, createdByName: nameOf(r.created_by),
     createdAt: r.created_at,
   };
@@ -80,7 +82,10 @@ function buildState() {
       brands: SEED.brands,
       principals: SEED.principals,
       channels: SEED.channels,
-      letterTypes: SEED.letterTypes,
+      letterTypes: SEED.letterTypes.concat(
+        LETTER_SPECS.map((s) => ({ k: s.k, ar: s.ar, en: s.en, mode: 'spec' }))
+      ),
+      letterSpecs: LETTER_SPECS,
       supervisors: SEED.supervisors,
       channelsEn: SEED.channelsEn,
     },

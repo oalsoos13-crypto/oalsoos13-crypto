@@ -6,11 +6,17 @@ const audit = require('../audit');
 const { requireAuth, requireRole } = require('../auth');
 const { asyncH, genId, nowIso, num, toJson, badRequest, notFound, forbidden } = require('../util');
 const { SEED } = require('../seed-data');
+const { SPEC_BY_KEY } = require('../letter-specs');
 
 const router = express.Router();
 router.use(requireAuth);
 
 const typeMode = Object.fromEntries(SEED.letterTypes.map((t) => [t.k, t.mode]));
+function modeOf(type) {
+  if (typeMode[type]) return typeMode[type];
+  if (SPEC_BY_KEY[type]) return 'spec';
+  return null;
+}
 const getCoop = db.prepare('SELECT mains FROM coops WHERE name = ?');
 
 function nextCounter() {
@@ -36,6 +42,32 @@ function sanitizePriceRows(rows) {
   })).filter((r) => r.name || r.item || r.barcode);
 }
 
+// Sanitize table rows against a spec column list (keep known keys, coerce numbers).
+function sanitizeSpecRows(cols, rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, 300).map((r) => {
+    const o = {};
+    for (const c of cols) o[c.key] = c.type === 'num' ? num(r[c.key]) : String(r[c.key] == null ? '' : r[c.key]).slice(0, 300);
+    return o;
+  }).filter((r) => cols.some((c) => r[c.key] !== '' && r[c.key] !== 0 && r[c.key] != null));
+}
+
+// Compute a spec-driven letter: value (per valueMode), items (primary table),
+// and meta (scalar fields + secondary table).
+function computeSpec(spec, body) {
+  const items = spec.table ? sanitizeSpecRows(spec.table.cols, body.rows || body.items) : null;
+  const meta = {};
+  for (const f of spec.fields || []) meta[f.key] = f.type === 'number' ? num(body.fields && body.fields[f.key]) : String((body.fields && body.fields[f.key]) || '');
+  if (spec.table2) meta.rows2 = sanitizeSpecRows(spec.table2.cols, body.rows2);
+  let value = 0;
+  if (spec.valueMode === 'direct') value = num(meta.value != null ? meta.value : body.value);
+  else if (spec.valueMode && spec.valueMode.startsWith('sum:')) {
+    const col = spec.valueMode.slice(4);
+    value = (items || []).reduce((s, r) => s + num(r[col]), 0);
+  }
+  return { value, items, meta };
+}
+
 // Recompute the letter value server-side (never trust the client figure).
 function computeValue(type, body, coopName) {
   const mode = typeMode[type];
@@ -56,29 +88,46 @@ function computeValue(type, body, coopName) {
   return { value: num(body.value) };
 }
 
-// POST /api/letters  (salesman) — create a letter (auto-assigns LYSAL number).
-router.post('/letters', requireRole('salesman'), asyncH((req, res) => {
+// POST /api/letters — create a letter (auto-assigns LYSAL number).
+// Salesmen create co-op letters; management may also create the spec letters.
+router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH((req, res) => {
   const type = String(req.body.type || '');
-  if (!typeMode[type]) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
-  const coop = req.body.coop || '';
-  // Salesmen may only file under their own name; admin may specify.
-  const sales = req.user.role === 'salesman' ? req.user.name : (req.body.sales || req.user.name);
+  const mode = modeOf(type);
+  if (!mode) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
 
-  const calc = computeValue(type, req.body, coop);
-  if (typeMode[type] === 'pricetable') {
-    if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS');
-  } else if (!calc.value) {
-    throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+  let coop = req.body.coop || '';
+  let recipient = null;
+  let calc, metaJson = null;
+
+  if (mode === 'spec') {
+    const spec = SPEC_BY_KEY[type];
+    if (spec.recipient === 'coop') { recipient = null; }
+    else if (spec.recipient === 'fixed') { recipient = spec.recipientFixed; coop = ''; }
+    else { recipient = String(req.body.recipient || spec.recipientDefault || '').trim(); coop = ''; }
+    const r = computeSpec(spec, req.body);
+    if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
+    if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
+    calc = { value: r.value, items: r.items };
+    metaJson = toJson(r.meta);
+  } else {
+    calc = computeValue(type, req.body, coop);
+    if (mode === 'pricetable') {
+      if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS');
+    } else if (!calc.value) {
+      throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+    }
   }
 
+  // Salesmen file under their own name; others may specify.
+  const sales = req.user.role === 'salesman' ? req.user.name : (req.body.sales || req.user.name);
   const id = genId('L');
   const now = nowIso();
   const num_ = nextCounter();
   const lysal = refNo(num_);
 
   db.prepare(`INSERT INTO letters
-      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, status, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,'pending',@by,@now)`)
+      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, status, created_by, created_at)
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,'pending',@by,@now)`)
     .run({
       id, num: num_, lysal, type, coop,
       brand: req.body.brand || '', sales,
@@ -86,20 +135,21 @@ router.post('/letters', requireRole('salesman'), asyncH((req, res) => {
       principal: req.body.principal || '', note: req.body.note || '',
       value: calc.value, base: calc.base ?? null, pct: calc.pct ?? null,
       items: calc.items ? toJson(calc.items) : null,
+      recipient, meta: metaJson,
       by: req.user.id, now,
     });
 
   audit.fromReq(req, 'letter.create', {
     entityType: 'letter', entityId: id,
-    summary: `Created letter ${lysal} (${type}, ${coop}, ${calc.value})`,
-    details: { lysal, type, coop, brand: req.body.brand || '', sales, value: calc.value },
+    summary: `Created letter ${lysal} (${type}, ${coop || recipient || ''}, ${calc.value})`,
+    details: { lysal, type, coop, recipient, brand: req.body.brand || '', sales, value: calc.value },
   });
   const created = db.prepare('SELECT * FROM letters WHERE id = ?').get(id);
   res.json({ ok: true, id, lysal, num: num_, value: calc.value, letter: created });
 }));
 
-// DELETE /api/letters/:id  (salesman own draft, or admin)
-router.delete('/letters/:id', requireRole('salesman'), asyncH((req, res) => {
+// DELETE /api/letters/:id  (own draft, or admin)
+router.delete('/letters/:id', requireRole('salesman', 'marketing', 'division'), asyncH((req, res) => {
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
   if (req.user.role !== 'admin' && L.sales !== req.user.name) throw forbidden('لا يمكنك حذف كتاب مندوب آخر');

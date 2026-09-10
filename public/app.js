@@ -366,6 +366,7 @@ const T = {
   annualTrend: { ar: "المبيعات السنوية (إجمالي)", en: "Annual sales (total)" },
   top10_2026: { ar: "أعلى 10 جمعيات (2026)", en: "Top 10 co-ops (2026)" },
   outletLinkHint: { ar: "المبلغ قابل للتعديل · اختر منفذًا لتعبئة WOB تلقائيًا", en: "Amount editable · pick an outlet to auto-fill WOB" },
+  recipient: { ar: "المستلِم", en: "Recipient" },
 };
 function t(k) {
   const e = T[k];
@@ -1080,7 +1081,7 @@ function tblSalesLetters(list) {
   if (!list.length) return `<div class="empty">${t("noLetters")}</div>`;
   return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("coop")}</th><th>${t("th_brand")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list
     .map((L) => {
-      const isPrice = L.type === "changeprice";
+      const isPrice = L.type === "changeprice" || !!specOf(L.type);
       const done = L.status === "noted";
       const n = DB.notes.find((x) => x.letterId === L.id);
       const na = (n && n.attachments && n.attachments.length) || 0;
@@ -1159,39 +1160,100 @@ function tblLetters(list) {
     })
     .join("")}</tbody></table>`;
 }
+function specOf(k) {
+  return ((DB.ref && DB.ref.letterSpecs) || []).find((s) => s.k === k);
+}
+function typeLabel(x) {
+  return LANG === "en" ? x.en : x.ar;
+}
+function colLabel(c) {
+  return LANG === "en" ? c.en : c.ar;
+}
 function openLetterForm() {
   draftItems = [{ name: "", price: "" }];
   draftPrice = [emptyPriceRow()];
-  const opts = DB.ref.coops
-    .map(
-      (c) =>
-        `<option value="${esc(c.n)}">${esc(c.n)} — ${c.m} ${t("mainOut")}</option>`,
-    )
+  draftSpecRows = [];
+  draftSpecRows2 = [];
+  const coopOpts = DB.ref.coops
+    .map((c) => `<option value="${esc(c.n)}">${esc(c.n)} — ${c.m} ${t("mainOut")}</option>`)
     .join("");
-  const topts = SEED.letterTypes
-    .map(
-      (x) =>
-        `<option value="${x.k}">${esc(LANG === "en" ? x.en : x.ar)}</option>`,
-    )
+  const topts = DB.ref.letterTypes
+    .map((x) => `<option value="${x.k}">${esc(typeLabel(x))}</option>`)
     .join("");
   const today = new Date().toISOString().slice(0, 10);
   modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("newLetter")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
-  <div style="padding:22px 24px;max-height:74vh;overflow:auto"><div class="grid g3">
-   <div class="field"><label>${t("fType")}</label><select id="fType" onchange="typeChanged()">${topts}</select></div>
-   <div class="field"><label>${t("coop")}</label><select id="fCoop" onchange="calcVal()">${opts}</select></div>
-   <div class="field"><label>${t("fBrand")}</label><select id="fBrand">${DB.ref.brands.map((b) => `<option>${esc(b)}</option>`).join("")}</select></div>
-   <div class="field"><label>${t("salesman")}</label><input id="fSales" value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
-   <div class="field"><label>${t("fDate")}</label><input id="fDate" type="date" value="${today}"></div>
-   <div class="field"><label>${t("fPrin")}</label><select id="fPrin">${DB.ref.principals.map((p) => `<option>${p}</option>`).join("")}</select></div></div>
+  <div style="padding:22px 24px;max-height:74vh;overflow:auto">
+   <div class="grid g3">
+     <div class="field"><label>${t("fType")}</label><select id="fType" onchange="typeChanged()">${topts}</select></div>
+     <div class="field"><label>${t("fDate")}</label><input id="fDate" type="date" value="${today}"></div>
+   </div>
+   <div id="classicFields" class="grid g3" style="margin-top:12px">
+     <div class="field"><label>${t("coop")}</label><select id="fCoop" onchange="calcVal()">${coopOpts}</select></div>
+     <div class="field"><label>${t("fBrand")}</label><select id="fBrand">${DB.ref.brands.map((b) => `<option>${esc(b)}</option>`).join("")}</select></div>
+     <div class="field"><label>${t("salesman")}</label><input id="fSales" value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
+     <div class="field"><label>${t("fPrin")}</label><select id="fPrin">${DB.ref.principals.map((p) => `<option>${p}</option>`).join("")}</select></div>
+   </div>
    <div id="typeArea" style="margin-top:16px"></div>
    <div class="field" style="margin-top:14px"><label>${t("fNote")}</label><textarea id="fNote"></textarea></div>
    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveLetter()">${t("saveLetter")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
   typeChanged();
 }
+/* ---- spec-driven letter form ---- */
+let draftSpecRows = [], draftSpecRows2 = [];
+function specRowsArr(which) { return which === 2 ? draftSpecRows2 : draftSpecRows; }
+function curSpec() { return specOf(document.getElementById("fType").value); }
+function emptySpecRow(cols) { const o = {}; cols.forEach((c) => (o[c.key] = "")); return o; }
+function specTableEditor(tbl, which) {
+  return `<div style="margin-top:14px"><label class="hint" style="font-weight:700">${esc(LANG === "en" ? tbl.title.en : tbl.title.ar)}</label>
+    <div class="tbl-scroll"><table class="price-edit"><thead><tr>${tbl.cols.map((c) => `<th>${esc(colLabel(c))}</th>`).join("")}<th></th></tr></thead><tbody id="specRows${which}"></tbody></table></div>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="addSpecRow(${which})">＋ ${t("addRow")}</button></div>`;
+}
+function specFormHTML(spec) {
+  let h = "";
+  if (spec.recipient === "coop")
+    h += `<div class="field" style="max-width:360px"><label>${t("coop")}</label><select id="spCoop">${DB.ref.coops.map((c) => `<option value="${esc(c.n)}">${esc(c.n)}</option>`).join("")}</select></div>`;
+  else if (spec.recipient === "fixed")
+    h += `<div class="field" style="max-width:360px"><label>${t("recipient")}</label><input value="${esc(spec.recipientFixed)}" readonly></div>`;
+  else
+    h += `<div class="field" style="max-width:420px"><label>${t("recipient")}</label><input id="spRecipient" value="${esc(spec.recipientDefault || "")}"></div>`;
+  if (spec.fields && spec.fields.length)
+    h += `<div class="grid g3" style="margin-top:10px">${spec.fields.map((f) => `<div class="field"><label>${esc(LANG === "en" ? f.en : f.ar)}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}></div>`).join("")}</div>`;
+  if (spec.table) h += specTableEditor(spec.table, 1);
+  if (spec.table2) h += specTableEditor(spec.table2, 2);
+  return h;
+}
+function renderSpecRows(which) {
+  const s = curSpec();
+  if (!s) return;
+  const tbl = which === 2 ? s.table2 : s.table;
+  const arr = specRowsArr(which);
+  if (!arr.length) arr.push(emptySpecRow(tbl.cols));
+  const box = document.getElementById("specRows" + which);
+  if (!box) return;
+  box.innerHTML = arr
+    .map((r, i) => `<tr>${tbl.cols.map((c) => `<td><input value="${esc(r[c.key])}" ${c.type === "num" ? 'type="number" step="0.001"' : ""} oninput="specRowsArr(${which})[${i}].${c.key}=this.value" style="${c.wide ? "min-width:150px" : "width:90px"}"></td>`).join("")}<td><button class="rm" onclick="specRowsArr(${which}).splice(${i},1);renderSpecRows(${which})">✕</button></td></tr>`)
+    .join("");
+}
+function addSpecRow(which) {
+  const s = curSpec();
+  const tbl = which === 2 ? s.table2 : s.table;
+  specRowsArr(which).push(emptySpecRow(tbl.cols));
+  renderSpecRows(which);
+}
 function typeChanged() {
-  const k = document.getElementById("fType").value,
-    mode = SEED.letterTypes.find((x) => x.k === k).mode,
-    a = document.getElementById("typeArea");
+  const k = document.getElementById("fType").value;
+  const a = document.getElementById("typeArea");
+  const classic = document.getElementById("classicFields");
+  const spec = specOf(k);
+  if (spec) {
+    if (classic) classic.hidden = true;
+    a.innerHTML = specFormHTML(spec);
+    if (spec.table) renderSpecRows(1);
+    if (spec.table2) renderSpecRows(2);
+    return;
+  }
+  if (classic) classic.hidden = false;
+  const mode = (DB.ref.letterTypes.find((x) => x.k === k) || {}).mode;
   if (mode === "pricetable") {
     a.innerHTML = `<label class="hint" style="font-weight:700">${t("priceRows")}</label>
       <div class="tbl-scroll"><table class="price-edit"><thead><tr>
@@ -1274,9 +1336,34 @@ function calcVal() {
     return val;
   } else return +(document.getElementById("fValDirect") || {}).value || 0;
 }
+async function saveSpecLetter(spec) {
+  const g = (id) => document.getElementById(id);
+  const body = { type: spec.k, date: g("fDate").value, note: g("fNote").value };
+  if (spec.recipient === "coop") body.coop = g("spCoop").value;
+  else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
+  if (spec.fields) {
+    body.fields = {};
+    spec.fields.forEach((f) => { const el = g("spf_" + f.key); body.fields[f.key] = el ? el.value : ""; });
+  }
+  const nonEmpty = (rows, cols) => rows.filter((r) => cols.some((c) => String(r[c.key] || "").trim() !== ""));
+  if (spec.table) body.rows = nonEmpty(draftSpecRows, spec.table.cols);
+  if (spec.table2) body.rows2 = nonEmpty(draftSpecRows2, spec.table2.cols);
+  if (spec.table && (!body.rows || !body.rows.length)) { toast(t("addRowFirst")); return; }
+  try {
+    const r = await api("/letters", { method: "POST", body });
+    await loadState();
+    closeModal();
+    toast(t("savedLetter"));
+    render();
+    const L = DB.letters.find((x) => x.id === r.id);
+    if (L) openDoc(L, true);
+  } catch (e) { toast(e.message); }
+}
 async function saveLetter() {
-  const type = document.getElementById("fType").value,
-    mode = SEED.letterTypes.find((x) => x.k === type).mode;
+  const type = document.getElementById("fType").value;
+  const spec = specOf(type);
+  if (spec) return saveSpecLetter(spec);
+  const mode = (DB.ref.letterTypes.find((x) => x.k === type) || {}).mode;
   const body = {
     type,
     coop: document.getElementById("fCoop").value,
@@ -1535,7 +1622,48 @@ function debitLetterInner(rec, isLetter) {
   ${signBlock()}`;
 }
 
+// Substitute {placeholders} in spec subject/intro from the record.
+function specSubst(str, rec) {
+  const m = rec.meta || {};
+  return String(str || "").replace(/\{(\w+)\}/g, (_, k) => {
+    if (k === "value") return KD(rec.value);
+    if (k === "coop") return rec.coop || "";
+    if (k === "recipient") return rec.recipient || "";
+    if (k === "date") return rec.date || "";
+    if (k === "lysal") return rec.lysal || "";
+    return m[k] != null ? m[k] : "";
+  });
+}
+function specTablePrint(tbl, rows) {
+  if (!rows || !rows.length) return "";
+  const head = tbl.cols.map((c) => `<th>${esc(colLabel(c))}</th>`).join("");
+  const body = rows.map((r) => `<tr>${tbl.cols.map((c) => `<td class="${c.wide ? "nm" : ""}">${c.type === "num" ? KD(r[c.key]) : esc(r[c.key])}</td>`).join("")}</tr>`).join("");
+  return `<table class="pt"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+function specDocHTML(rec, spec) {
+  const en = spec.lang === "en";
+  const lg = en ? "en" : "ar";
+  const subject = specSubst(spec.subject[lg], rec);
+  const intro = specSubst(spec.intro[lg], rec);
+  const who = spec.recipient === "coop" ? rec.coop : (rec.recipient || spec.recipientFixed || "");
+  const to = en
+    ? `<div class="to">${esc(who)}</div>`
+    : `<div class="to">السـادة / ${esc(who)} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  const meta = `<div class="meta"><span>${en ? "Date" : "التاريخ"} : <b>${esc(rec.date || "")}</b></span><span class="mono">${esc(rec.lysal || "")}</span></div>`;
+  const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
+  const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
+  const closing = (spec.closing || []).map((l) => `<div class="body">${esc(l)}</div>`).join("");
+  const sign = spec.signatory && (spec.signatory.name || spec.signatory.role)
+    ? `<div class="sign"><div class="role">${esc(spec.signatory.role)}</div><div class="who">${esc(spec.signatory.name)}</div></div>`
+    : "";
+  const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
+  const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
+  const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
+  return `<div class="doc lh-${LH_MODE}${en ? " ltr" : ""}"${en ? ' dir="ltr"' : ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
+}
 function docHTML(rec, isLetter) {
+  const spec = specOf(rec.type);
+  if (spec) return specDocHTML(rec, spec);
   const inner = rec.type === "changeprice" ? priceLetterInner(rec) : debitLetterInner(rec, isLetter);
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
