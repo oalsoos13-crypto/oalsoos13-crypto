@@ -37,6 +37,7 @@ function migrate() {
     -- Reference: co-operatives (m = main outlets, b = branches).
     CREATE TABLE IF NOT EXISTS coops (
       name     TEXT PRIMARY KEY,
+      name_ar  TEXT,
       code     TEXT,
       mains    INTEGER NOT NULL DEFAULT 0,
       branches INTEGER NOT NULL DEFAULT 0
@@ -224,6 +225,8 @@ function migrate() {
   const letterCols = db.prepare("PRAGMA table_info(letters)").all().map((c) => c.name);
   if (!letterCols.includes('recipient')) db.exec('ALTER TABLE letters ADD COLUMN recipient TEXT');
   if (!letterCols.includes('meta')) db.exec('ALTER TABLE letters ADD COLUMN meta TEXT');
+  const coopCols = db.prepare("PRAGMA table_info(coops)").all().map((c) => c.name);
+  if (!coopCols.includes('name_ar')) db.exec('ALTER TABLE coops ADD COLUMN name_ar TEXT');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

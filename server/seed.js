@@ -15,6 +15,14 @@ function seedCoops() {
     for (const c of rows) stmt.run(c.n, c.p || '', c.m || 0, c.b || 0);
   });
   tx(SEED.coops);
+  // Fill Arabic co-op names (idempotent — only where missing).
+  let arMap;
+  try { arMap = require('./coop_ar.json'); } catch (e) { arMap = null; }
+  if (arMap) {
+    const upd = db.prepare('UPDATE coops SET name_ar = ? WHERE name = ? AND (name_ar IS NULL OR name_ar = \'\')');
+    const tx2 = db.transaction(() => { for (const [en, ar] of Object.entries(arMap)) upd.run(ar, en); });
+    tx2();
+  }
 }
 
 function seedDist() {

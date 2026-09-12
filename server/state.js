@@ -66,8 +66,8 @@ function buildState() {
 
   const counter = db.prepare("SELECT value FROM counters WHERE name='lysal'").get();
 
-  const coops = db.prepare('SELECT name, code, mains, branches FROM coops ORDER BY mains DESC, name ASC')
-    .all().map((c) => ({ n: c.name, p: c.code, m: c.mains, b: c.branches }));
+  const coops = db.prepare('SELECT name, name_ar, code, mains, branches FROM coops ORDER BY mains DESC, name ASC')
+    .all().map((c) => ({ n: c.name, ar: c.name_ar || '', p: c.code, m: c.mains, b: c.branches }));
 
   return {
     year: require('./config').refYear,

@@ -86,6 +86,7 @@ tbody tr:hover{background:#f5f9fd}
 .doc .greet{font-size:12pt;margin:2px 0}
 .doc .subj{text-align:center;margin:12px 0;font-weight:700;text-decoration:underline;text-underline-offset:4px;font-size:13pt}
 .doc .body{line-height:1.9;margin:6px 0}
+.doc .close{text-align:center;font-weight:700;margin:10px 0;line-height:1.9}
 .doc .val-big{font-weight:700;color:#123f70}
 .doc table.items{margin:14px auto;border-collapse:collapse;min-width:55%}
 .doc table.items th,.doc table.items td{border:1px solid #333;padding:6px 14px;text-align:center}

@@ -1650,8 +1650,13 @@ function metaBlock(rec, isLetter) {
     !isLetter && rec.coopDN ? `<div class="mono">رقم الإشعار بالجمعية: <b>${esc(rec.coopDN)}</b></div>` : ""
   }</div>`;
 }
+// Arabic co-op name when available (falls back to the stored name).
+function coopAr(name) {
+  const c = coop(name);
+  return c && c.ar ? c.ar : name;
+}
 function toBlock(rec) {
-  return `<div class="to">السـادة / جمعيـة ${esc(rec.coop)} التعاونيـة &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  return `<div class="to">السـادة / جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
 }
 
 // Price-update ("change price") letter body.
@@ -1667,8 +1672,8 @@ function priceLetterInner(rec) {
   <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على تحديث بيانات الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :</div>
   ${table}
   ${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
-  <div class="body">شاكريـن لكـم حسـن تعاونكـم،،،،</div>
-  <div class="body">وتفضلـوا بقبـول فائـق الاحتـرام،،،</div>
+  <div class="close">شاكريـن لكـم حسـن تعاونكـم،،،،</div>
+  <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام،،،</div>
   ${signBlock()}`;
 }
 
@@ -1690,7 +1695,7 @@ function debitLetterInner(rec, isLetter) {
   <div class="subj">الموضـوع : عمل إشعار خصم</div>
   <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) وذلك القيمة، مقابل ${reason}</div>
   ${items}${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
-  <div class="body" style="margin-top:14px">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
+  <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
   ${signBlock()}`;
 }
 
@@ -1717,14 +1722,14 @@ function specDocHTML(rec, spec) {
   const lg = en ? "en" : "ar";
   const subject = specSubst(spec.subject[lg], rec);
   const intro = specSubst(spec.intro[lg], rec);
-  const who = spec.recipient === "coop" ? rec.coop : (rec.recipient || spec.recipientFixed || "");
+  const who = spec.recipient === "coop" ? coopAr(rec.coop) : (rec.recipient || spec.recipientFixed || "");
   const to = en
     ? `<div class="to">${esc(who)}</div>`
     : `<div class="to">السـادة / ${esc(who)} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
   const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(rec.date || "")}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
-  const closing = (spec.closing || []).map((l) => `<div class="body">${esc(l)}</div>`).join("");
+  const closing = (spec.closing || []).map((l) => `<div class="close">${esc(l)}</div>`).join("");
   const sign = spec.signatory && (spec.signatory.name || spec.signatory.role)
     ? `<div class="sign"><div class="role">${esc(spec.signatory.role)}</div><div class="who">${esc(spec.signatory.name)}</div></div>`
     : "";
