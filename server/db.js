@@ -181,8 +181,11 @@ function migrate() {
       origin       TEXT,
       item         TEXT,
       brand        TEXT,
+      weight       TEXT,
       cons_piece   REAL,
       coop_carton  REAL,
+      circular     TEXT,
+      circular_date TEXT,
       updated_at   TEXT
     );
 
@@ -227,6 +230,10 @@ function migrate() {
   if (!letterCols.includes('meta')) db.exec('ALTER TABLE letters ADD COLUMN meta TEXT');
   const coopCols = db.prepare("PRAGMA table_info(coops)").all().map((c) => c.name);
   if (!coopCols.includes('name_ar')) db.exec('ALTER TABLE coops ADD COLUMN name_ar TEXT');
+  const prodCols = db.prepare("PRAGMA table_info(products)").all().map((c) => c.name);
+  for (const col of ['weight', 'circular', 'circular_date']) {
+    if (!prodCols.includes(col)) db.exec(`ALTER TABLE products ADD COLUMN ${col} TEXT`);
+  }
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

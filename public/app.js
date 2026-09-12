@@ -371,7 +371,7 @@ const T = {
   r_products_d: { ar: "كتالوج المنتجات — استيراد من ملف واستخدامه بالجداول.", en: "Product catalog — import from file, use in tables." },
   productsTitle: { ar: "المنتجات والباركود", en: "Products & barcodes" },
   importFile: { ar: "استيراد ملف", en: "Import file" },
-  importHint: { ar: "ارفع Excel/CSV فيه أعمدة: الباركود، اسم الصنف، الشد، بلد المنشأ، سعر المستهلك، سعر الجمعية — يُدمج حسب الباركود.", en: "Upload Excel/CSV with columns: barcode, name, pack, origin, consumer price, coop price — merged by barcode." },
+  importHint: { ar: "ارفع Excel/CSV فيه أعمدة: الباركود، اسم الصنف، الشد، الوزن، بلد المنشأ، العلامة التجارية، سعر المستهلك، سعر الجمعية، رقم التعميم، تاريخ التعميم — يُدمج حسب الباركود.", en: "Upload Excel/CSV with columns: barcode, name, pack, weight, origin, brand, consumer price, coop price, circular #, circular date — merged by barcode." },
   imported: { ar: "مستورد", en: "Imported" },
   skipped: { ar: "متجاوَز", en: "Skipped" },
   total: { ar: "الإجمالي", en: "Total" },
@@ -380,6 +380,7 @@ const T = {
   origin: { ar: "بلد المنشأ", en: "Origin" },
   consPiece: { ar: "سعر المستهلك", en: "Consumer" },
   coopCarton: { ar: "سعر الجمعية", en: "Coop" },
+  circularNo: { ar: "رقم التعميم", en: "Circular #" },
 };
 function t(k) {
   const e = T[k];
@@ -1202,20 +1203,35 @@ function fillRowFromProduct(row, cols, p) {
   const keys = new Set(cols.map((c) => c.key));
   const set = (k, v) => { if (keys.has(k) && v != null && v !== "") row[k] = v; };
   set("barcode", p.barcode); set("name", p.name); set("pack", p.pack);
-  set("origin", p.origin); set("item", p.item);
+  set("origin", p.origin); set("item", p.item); set("weight", p.weight);
   set("consPiece", p.consPiece); set("coopCarton", p.coopCarton);
   set("consOld", p.consPiece); set("coopOld", p.coopCarton);   // "current" columns (change-price / union)
   set("curCons", p.consPiece); set("curSell", p.coopCarton);
+  set("circular", p.circular); set("cdate", p.circularDate);
 }
 function lookupProduct(field, val) {
   if (field === "barcode") return prodByBC[String(val).replace(/\D/g, "")];
   return prodByName[String(val).trim()];
 }
 function specPick(which, i, field, val) {
+  const s = curSpec();
   const arr = specRowsArr(which);
   arr[i][field] = val;
   const p = lookupProduct(field, val);
-  if (p) fillRowFromProduct(arr[i], (which === 2 ? curSpec().table2 : curSpec().table).cols, p);
+  if (p) {
+    fillRowFromProduct(arr[i], (which === 2 ? s.table2 : s.table).cols, p);
+    // For the Union letter: picking a product in the price table also seeds its
+    // circular row in the second (circulars) table.
+    if (which === 1 && s.table2 && p.circular) {
+      if (!draftSpecRows2.some((r) => r.circular === p.circular)) {
+        const row = emptySpecRow(s.table2.cols);
+        row.circular = p.circular; row.cdate = p.circularDate || ""; row.weight = p.weight || "";
+        if (draftSpecRows2.length === 1 && !draftSpecRows2[0].circular) draftSpecRows2[0] = row;
+        else draftSpecRows2.push(row);
+        renderSpecRows(2);
+      }
+    }
+  }
   renderSpecRows(which);
 }
 function pricePick(i, field, val) {
@@ -2105,9 +2121,9 @@ function renderProducts() {
   const box = document.getElementById("productsBox");
   if (!box) return;
   box.innerHTML = rows.length
-    ? `<table><thead><tr><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("origin")}</th><th>${t("consPiece")}</th><th>${t("coopCarton")}</th></tr></thead><tbody>${rows
+    ? `<table><thead><tr><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("origin")}</th><th>${t("consPiece")}</th><th>${t("coopCarton")}</th><th>${t("circularNo")}</th><th>${t("th_date")}</th></tr></thead><tbody>${rows
         .slice(0, 500)
-        .map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name)}</td><td>${esc(p.pack || "")}</td><td>${esc(p.origin || "")}</td><td class="mono">${p.consPiece != null ? KD(p.consPiece) : "—"}</td><td class="mono">${p.coopCarton != null ? KD(p.coopCarton) : "—"}</td></tr>`)
+        .map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name)}</td><td>${esc(p.pack || "")}</td><td>${esc(p.origin || "")}</td><td class="mono">${p.consPiece != null ? KD(p.consPiece) : "—"}</td><td class="mono">${p.coopCarton != null ? KD(p.coopCarton) : "—"}</td><td class="mono-sm">${esc(p.circular || "")}</td><td class="mono-sm">${esc(p.circularDate || "")}</td></tr>`)
         .join("")}</tbody></table>${rows.length > 500 ? `<div class="hint" style="padding:8px 12px">${t("showing")} 500 / ${rows.length}</div>` : ""}`
     : `<div class="empty">${t("noProducts")}</div>`;
 }
