@@ -1645,9 +1645,10 @@ function signBlock() {
   return `<div class="sign"><div class="role">${esc(SIGNATORY.role)}</div><div class="who">${esc(SIGNATORY.name)}</div></div>`;
 }
 function metaBlock(rec, isLetter) {
-  return `<div class="meta"><span>التاريخ : <b>${esc(rec.date || "")}</b></span><span class="mono">${esc(rec.lysal || "")}</span></div>${
-    !isLetter && rec.coopDN ? `<div class="meta2">رقم الإشعار بالجمعية: <b>${esc(rec.coopDN)}</b></div>` : ""
-  }`;
+  // Date, then the LYSAL reference directly beneath it, both flush to the left.
+  return `<div class="meta"><div>التاريخ : <b>${esc(rec.date || "")}</b></div><div class="mono">${esc(rec.lysal || "")}</div>${
+    !isLetter && rec.coopDN ? `<div class="mono">رقم الإشعار بالجمعية: <b>${esc(rec.coopDN)}</b></div>` : ""
+  }</div>`;
 }
 function toBlock(rec) {
   return `<div class="to">السـادة / جمعيـة ${esc(rec.coop)} التعاونيـة &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
@@ -1680,14 +1681,14 @@ function debitLetterInner(rec, isLetter) {
       ? `<table class="items"><thead><tr><th>السعر</th><th>اسم الصنف</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(rec.items.reduce((s, i) => s + i.price, 0))}</b></td><td><b>الإجمالي للأوتليت الواحد</b></td></tr></tbody></table><div class="body">وذلك مقابل اعتماد الأصناف أعلاه في <b>${out}</b> أوتليت (${KD(rec.items.reduce((s, i) => s + i.price, 0))} × ${out} = <span class="val-big">${KD(rec.value)} د.ك</span>).</div>`
       : "";
   const reason =
-    rec.type === "listing" ? "مقابل اعتماد الأصناف التالية :"
-    : rec.type === "pallet" ? "مقابل طبالي عرض وذلك القيمة."
-    : rec.type === "priceoff" ? "مقابل تخفيض سعر (Price Off) وذلك القيمة."
-    : rec.type === "stand" ? "مقابل ستاند عرض وذلك القيمة."
-    : "مقابل دعم تجاري (CDA) وذلك القيمة.";
+    rec.type === "listing" ? "اعتماد الأصناف التالية :"
+    : rec.type === "pallet" ? "طبالي عرض."
+    : rec.type === "priceoff" ? "تخفيض سعر (Price Off)."
+    : rec.type === "stand" ? "ستاند عرض."
+    : "دعم تجاري (CDA).";
   return `${metaBlock(rec, isLetter)}${toBlock(rec)}
   <div class="subj">الموضـوع : عمل إشعار خصم</div>
-  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${reason}</div>
+  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) وذلك القيمة، مقابل ${reason}</div>
   ${items}${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
   <div class="body" style="margin-top:14px">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
   ${signBlock()}`;
@@ -1720,7 +1721,7 @@ function specDocHTML(rec, spec) {
   const to = en
     ? `<div class="to">${esc(who)}</div>`
     : `<div class="to">السـادة / ${esc(who)} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
-  const meta = `<div class="meta"><span>${en ? "Date" : "التاريخ"} : <b>${esc(rec.date || "")}</b></span><span class="mono">${esc(rec.lysal || "")}</span></div>`;
+  const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(rec.date || "")}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
   const closing = (spec.closing || []).map((l) => `<div class="body">${esc(l)}</div>`).join("");

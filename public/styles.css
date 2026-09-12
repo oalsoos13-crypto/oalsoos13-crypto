@@ -80,8 +80,8 @@ tbody tr:hover{background:#f5f9fd}
 .doc.lh-full .lh-h{position:absolute;top:0;left:0;right:0}
 .doc.lh-full .lh-f{position:absolute;bottom:0;left:0;right:0}
 .doc.lh-full .lh-h img,.doc.lh-full .lh-f img{display:block;width:100%}
-.doc .meta{display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px}
-.doc .meta2{font-weight:700;font-size:11.5pt;margin-bottom:6px}
+.doc .meta{display:block;text-align:left;font-weight:700;margin-bottom:10px}
+.doc .meta>div{line-height:1.6}
 .doc .to{margin:12px 0 4px;font-weight:700;font-size:13pt}
 .doc .greet{font-size:12pt;margin:2px 0}
 .doc .subj{text-align:center;margin:12px 0;font-weight:700;text-decoration:underline;text-underline-offset:4px;font-size:13pt}
