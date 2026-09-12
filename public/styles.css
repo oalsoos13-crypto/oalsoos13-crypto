@@ -97,7 +97,7 @@ tbody tr:hover{background:#f5f9fd}
 .doc table.pt thead th{background:#d9d9d9;font-weight:700}
 .doc table.pt td.nm{text-align:right;font-weight:600}
 .doc table.pt td.bc{direction:ltr;font-variant-numeric:tabular-nums}
-.doc .sign{margin-top:26px;font-weight:700;line-height:1.8}
+.doc .sign{margin-top:26px;font-weight:700;line-height:1.8;text-align:left}
 .doc .sign .role,.doc .sign .who{font-weight:700}
 .doc.ltr{direction:ltr;text-align:left}
 .doc.ltr .subj{text-align:center}
