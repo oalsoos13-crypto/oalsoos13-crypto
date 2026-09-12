@@ -367,6 +367,19 @@ const T = {
   top10_2026: { ar: "أعلى 10 جمعيات (2026)", en: "Top 10 co-ops (2026)" },
   outletLinkHint: { ar: "المبلغ قابل للتعديل · اختر منفذًا لتعبئة WOB تلقائيًا", en: "Amount editable · pick an outlet to auto-fill WOB" },
   recipient: { ar: "المستلِم", en: "Recipient" },
+  r_products: { ar: "المنتجات والباركود", en: "Products & Barcodes" },
+  r_products_d: { ar: "كتالوج المنتجات — استيراد من ملف واستخدامه بالجداول.", en: "Product catalog — import from file, use in tables." },
+  productsTitle: { ar: "المنتجات والباركود", en: "Products & barcodes" },
+  importFile: { ar: "استيراد ملف", en: "Import file" },
+  importHint: { ar: "ارفع Excel/CSV فيه أعمدة: الباركود، اسم الصنف، الشد، بلد المنشأ، سعر المستهلك، سعر الجمعية — يُدمج حسب الباركود.", en: "Upload Excel/CSV with columns: barcode, name, pack, origin, consumer price, coop price — merged by barcode." },
+  imported: { ar: "مستورد", en: "Imported" },
+  skipped: { ar: "متجاوَز", en: "Skipped" },
+  total: { ar: "الإجمالي", en: "Total" },
+  importDone: { ar: "تم الاستيراد", en: "Import done" },
+  noProducts: { ar: "لا توجد منتجات — استورد ملفًا.", en: "No products — import a file." },
+  origin: { ar: "بلد المنشأ", en: "Origin" },
+  consPiece: { ar: "سعر المستهلك", en: "Consumer" },
+  coopCarton: { ar: "سعر الجمعية", en: "Coop" },
 };
 function t(k) {
   const e = T[k];
@@ -525,11 +538,11 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "outlets"],
-    division: ["outlets", "sales"],
-    supervisor: ["outlets"],
-    doc: ["outlets", "sales"],
-    salesman: ["outlets"],
+    marketing: ["sales", "outlets", "products"],
+    division: ["outlets", "sales", "products"],
+    supervisor: ["outlets", "products"],
+    doc: ["outlets", "sales", "products"],
+    salesman: ["outlets", "products"],
   };
   let rk;
   if (isAdmin) rk = role;
@@ -564,6 +577,7 @@ function render() {
     backup: vBackup,
     outlets: vOutlets,
     sales: vSales,
+    products: vProducts,
   }[rk];
   if (view) view();
   else renderHome();
@@ -644,6 +658,7 @@ async function doChangePw() {
 }
 const ADMIN_ROLES = [
   { k: "outlets", ic: "🏪" },
+  { k: "products", ic: "📦" },
   { k: "sales", ic: "📈" },
   { k: "audit", ic: "🛡" },
   { k: "users", ic: "👥" },
@@ -1163,6 +1178,55 @@ function tblLetters(list) {
 function specOf(k) {
   return ((DB.ref && DB.ref.letterSpecs) || []).find((s) => s.k === k);
 }
+/* ---------- product catalog (barcodes) for table pickers ---------- */
+let productCache = [], prodByBC = {}, prodByName = {};
+async function ensureProducts() {
+  if (productCache.length) { buildProdDatalists(); return; }
+  try {
+    const r = await api("/products");
+    productCache = r.products || [];
+    prodByBC = {}; prodByName = {};
+    productCache.forEach((p) => { prodByBC[String(p.barcode)] = p; prodByName[(p.name || "").trim()] = p; });
+  } catch (e) {}
+  buildProdDatalists();
+}
+function buildProdDatalists() {
+  let host = document.getElementById("prodDLs");
+  if (!host) { host = document.createElement("div"); host.id = "prodDLs"; host.hidden = true; document.body.appendChild(host); }
+  const bc = productCache.map((p) => `<option value="${esc(p.barcode)}">${esc(p.name)}</option>`).join("");
+  const nm = productCache.map((p) => `<option value="${esc(p.name)}"></option>`).join("");
+  host.innerHTML = `<datalist id="prodBC">${bc}</datalist><datalist id="prodNM">${nm}</datalist>`;
+}
+// Fill a row object's known columns from a matched product.
+function fillRowFromProduct(row, cols, p) {
+  const keys = new Set(cols.map((c) => c.key));
+  const set = (k, v) => { if (keys.has(k) && v != null && v !== "") row[k] = v; };
+  set("barcode", p.barcode); set("name", p.name); set("pack", p.pack);
+  set("origin", p.origin); set("item", p.item);
+  set("consPiece", p.consPiece); set("coopCarton", p.coopCarton);
+  set("consOld", p.consPiece); set("coopOld", p.coopCarton);   // "current" columns (change-price / union)
+  set("curCons", p.consPiece); set("curSell", p.coopCarton);
+}
+function lookupProduct(field, val) {
+  if (field === "barcode") return prodByBC[String(val).replace(/\D/g, "")];
+  return prodByName[String(val).trim()];
+}
+function specPick(which, i, field, val) {
+  const arr = specRowsArr(which);
+  arr[i][field] = val;
+  const p = lookupProduct(field, val);
+  if (p) fillRowFromProduct(arr[i], (which === 2 ? curSpec().table2 : curSpec().table).cols, p);
+  renderSpecRows(which);
+}
+function pricePick(i, field, val) {
+  draftPrice[i][field] = val;
+  const p = lookupProduct(field, val);
+  if (p) {
+    const cols = [{ key: "barcode" }, { key: "name" }, { key: "consOld" }, { key: "coopOld" }];
+    fillRowFromProduct(draftPrice[i], cols, p);
+  }
+  renderPriceRows();
+}
 function typeLabel(x) {
   return LANG === "en" ? x.en : x.ar;
 }
@@ -1197,6 +1261,7 @@ function openLetterForm() {
    <div class="field" style="margin-top:14px"><label>${t("fNote")}</label><textarea id="fNote"></textarea></div>
    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveLetter()">${t("saveLetter")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
   typeChanged();
+  ensureProducts();
 }
 /* ---- spec-driven letter form ---- */
 let draftSpecRows = [], draftSpecRows2 = [];
@@ -1231,7 +1296,13 @@ function renderSpecRows(which) {
   const box = document.getElementById("specRows" + which);
   if (!box) return;
   box.innerHTML = arr
-    .map((r, i) => `<tr>${tbl.cols.map((c) => `<td><input value="${esc(r[c.key])}" ${c.type === "num" ? 'type="number" step="0.001"' : ""} oninput="specRowsArr(${which})[${i}].${c.key}=this.value" style="${c.wide ? "min-width:150px" : "width:90px"}"></td>`).join("")}<td><button class="rm" onclick="specRowsArr(${which}).splice(${i},1);renderSpecRows(${which})">✕</button></td></tr>`)
+    .map((r, i) => `<tr>${tbl.cols.map((c) => {
+      const pick = c.key === "barcode" || c.key === "name";
+      const attrs = pick
+        ? `list="${c.key === "barcode" ? "prodBC" : "prodNM"}" onchange="specPick(${which},${i},'${c.key}',this.value)" oninput="specRowsArr(${which})[${i}].${c.key}=this.value"`
+        : `${c.type === "num" ? 'type="number" step="0.001"' : ""} oninput="specRowsArr(${which})[${i}].${c.key}=this.value"`;
+      return `<td><input value="${esc(r[c.key])}" ${attrs} style="${c.wide ? "min-width:150px" : "width:90px"}"></td>`;
+    }).join("")}<td><button class="rm" onclick="specRowsArr(${which}).splice(${i},1);renderSpecRows(${which})">✕</button></td></tr>`)
     .join("");
 }
 function addSpecRow(which) {
@@ -1299,13 +1370,13 @@ function renderPriceRows() {
     .map(
       (r, i) => `<tr>
       <td>${inp(i, "item", 'style="width:70px"')}</td>
-      <td>${inp(i, "name", 'style="min-width:150px"')}</td>
+      <td><input value="${esc(r.name)}" list="prodNM" onchange="pricePick(${i},'name',this.value)" oninput="draftPrice[${i}].name=this.value" style="min-width:150px"></td>
       <td>${inp(i, "pack", 'style="width:90px"')}</td>
       <td>${inp(i, "coopOld", 'type="number" step="0.001" style="width:70px"')}</td>
       <td>${inp(i, "coopNew", 'type="number" step="0.001" style="width:70px"')}</td>
       <td>${inp(i, "consOld", 'type="number" step="0.001" style="width:70px"')}</td>
       <td>${inp(i, "consNew", 'type="number" step="0.001" style="width:70px"')}</td>
-      <td>${inp(i, "barcode", 'style="width:120px;direction:ltr"')}</td>
+      <td><input value="${esc(r.barcode)}" list="prodBC" onchange="pricePick(${i},'barcode',this.value)" oninput="draftPrice[${i}].barcode=this.value" style="width:120px;direction:ltr"></td>
       <td><button class="rm" onclick="draftPrice.splice(${i},1);renderPriceRows()">✕</button></td></tr>`,
     )
     .join("");
@@ -2000,6 +2071,58 @@ function renderSales() {
         .map((s) => `<tr><td>${esc(s.parent)}</td><td>${esc(s.salesman || "")}</td>${SALE_YEARS.map((y) => `<td class="mono">${s.years && s.years[y] != null ? KD(s.years[y]) : "—"}</td>`).join("")}<td class="mono">${esc(s.target || "—")}</td><td>${esc(s.listing || "")}</td></tr>`)
         .join("")}</tbody></table>`
     : `<div class="empty">${t("noSales")}</div>`;
+}
+
+/* ---------- products catalog (view + import) ---------- */
+async function vProducts() {
+  const isAdmin = currentUser.role === "admin";
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("productsTitle")}</h3>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="pq" placeholder="${t("search")}" oninput="renderProducts()" style="min-width:200px">
+      <span class="pill-info" id="pCount"></span>
+      ${isAdmin ? `<label class="btn gold sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="doImportProducts(this)"></label>` : ""}
+    </div>
+  </header>
+  ${isAdmin ? `<div class="hint" style="padding:8px 16px">${t("importHint")}</div>` : ""}
+  <div id="importMsg" class="hint" style="padding:0 16px"></div>
+  <div class="tbl-wrap" id="productsBox"><div class="empty">${t("loading")}</div></div></div>`;
+  productCache = [];
+  await ensureProducts();
+  renderProducts();
+}
+function renderProducts() {
+  const q = (document.getElementById("pq")?.value || "").trim().toLowerCase();
+  const rows = productCache.filter((p) => !q || [p.barcode, p.name, p.pack, p.origin].some((v) => String(v || "").toLowerCase().includes(q)));
+  const cc = document.getElementById("pCount");
+  if (cc) cc.textContent = rows.length + " / " + productCache.length;
+  const box = document.getElementById("productsBox");
+  if (!box) return;
+  box.innerHTML = rows.length
+    ? `<table><thead><tr><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("origin")}</th><th>${t("consPiece")}</th><th>${t("coopCarton")}</th></tr></thead><tbody>${rows
+        .slice(0, 500)
+        .map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name)}</td><td>${esc(p.pack || "")}</td><td>${esc(p.origin || "")}</td><td class="mono">${p.consPiece != null ? KD(p.consPiece) : "—"}</td><td class="mono">${p.coopCarton != null ? KD(p.coopCarton) : "—"}</td></tr>`)
+        .join("")}</tbody></table>${rows.length > 500 ? `<div class="hint" style="padding:8px 12px">${t("showing")} 500 / ${rows.length}</div>` : ""}`
+    : `<div class="empty">${t("noProducts")}</div>`;
+}
+function doImportProducts(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const msg = document.getElementById("importMsg");
+  msg.textContent = t("loading");
+  const rd = new FileReader();
+  rd.onload = async () => {
+    try {
+      const r = await api("/products/import", { method: "POST", body: { filename: f.name, contentB64: String(rd.result) } });
+      msg.textContent = `${t("imported")}: ${r.imported} · ${t("skipped")}: ${r.skipped} · ${t("total")}: ${r.total}`;
+      toast(t("importDone"));
+      productCache = [];
+      await ensureProducts();
+      renderProducts();
+    } catch (e) { msg.textContent = e.message; }
+    input.value = "";
+  };
+  rd.readAsDataURL(f);
 }
 
 /* ---------- init ---------- */

@@ -68,6 +68,25 @@ function seedMaster() {
   tx();
 }
 
+function seedProducts() {
+  if (db.prepare('SELECT COUNT(*) n FROM products').get().n > 0) return; // seed once
+  let list;
+  try { list = require('./products.json'); } catch (e) { return; }
+  const now = nowIso();
+  const ins = db.prepare(`INSERT OR IGNORE INTO products
+    (barcode,name,pack,origin,item,brand,cons_piece,coop_carton,updated_at)
+    VALUES (@barcode,@name,@pack,@origin,@item,@brand,@cons,@coop,@now)`);
+  const tx = db.transaction((rows) => {
+    for (const p of rows) ins.run({
+      barcode: String(p.barcode), name: p.name || '', pack: p.pack || '', origin: p.origin || '',
+      item: p.item || '', brand: p.brand || '',
+      cons: p.consPiece == null ? null : +p.consPiece,
+      coop: p.coopCarton == null ? null : +p.coopCarton, now,
+    });
+  });
+  tx(list);
+}
+
 function seedCounter() {
   db.prepare('INSERT OR IGNORE INTO counters (name, value) VALUES (?, ?)')
     .run('lysal', config.startCounter);
@@ -97,6 +116,7 @@ function run() {
   seedCoops();
   seedDist();
   seedMaster();
+  seedProducts();
   seedCounter();
   const createdUsers = seedUsers();
   return { createdUsers };

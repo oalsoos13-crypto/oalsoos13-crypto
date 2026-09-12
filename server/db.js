@@ -172,6 +172,19 @@ function migrate() {
       target         TEXT
     );
 
+    -- Product catalog (barcodes) for the letter table pickers.
+    CREATE TABLE IF NOT EXISTS products (
+      barcode      TEXT PRIMARY KEY,
+      name         TEXT,
+      pack         TEXT,
+      origin       TEXT,
+      item         TEXT,
+      brand        TEXT,
+      cons_piece   REAL,
+      coop_carton  REAL,
+      updated_at   TEXT
+    );
+
     -- Named atomic counters (LYSAL document sequence).
     CREATE TABLE IF NOT EXISTS counters (
       name  TEXT PRIMARY KEY,
@@ -204,6 +217,7 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_outlets_parent ON outlets(parent);
     CREATE INDEX IF NOT EXISTS idx_outlets_salesman ON outlets(salesman);
     CREATE INDEX IF NOT EXISTS idx_outlets_route ON outlets(route);
+    CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
   `);
 
   // Additive column migrations for existing databases (idempotent).

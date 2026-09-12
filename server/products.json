@@ -1,0 +1,290 @@
+[
+ {
+  "barcode": "6271020394804",
+  "name": "بسكوني رايت + هديه",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394798",
+  "name": "بسكوني مني شوكو + هديه",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6281036004925",
+  "name": "تسالـي شيبس جبنة كريمية حـارة 155 جـم",
+  "pack": "19",
+  "origin": "",
+  "consPiece": 0.525,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6281036004918",
+  "name": "تسالـي شيبس جبنة كريمية حـارة 55 جـم",
+  "pack": "20",
+  "origin": "",
+  "consPiece": 0.205,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394712",
+  "name": "تسالي حار 155 جم *2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394705",
+  "name": "تسالي كاتشب 155 جم *2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394736",
+  "name": "تسالي كريم حار 155 جم *2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394729",
+  "name": "تسالي كمون و ليمون 155 جم *2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020393296",
+  "name": "تسالي منوع 155جم *3",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020392992",
+  "name": "تشيتوس منوع 190 جم *3",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394675",
+  "name": "دوريتس جبن 180 جم *2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394668",
+  "name": "دوريتس حار حلو 180 جم *2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400284752",
+  "name": "دوريتوس رقائق الذرة جبن الناتشو الحارة 311.8 جم",
+  "pack": "311.8جم",
+  "origin": "",
+  "consPiece": 2.185,
+  "coopCarton": null
+ },
+ {
+  "barcode": "284002847690",
+  "name": "دوريتوس رقائق الذرة جبن الناتشو الحارة 92.1 جم",
+  "pack": "92.1جم",
+  "origin": "",
+  "consPiece": 0.675,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6281036008978",
+  "name": "دوريتوس رقائق الذرة كوول رانش 48 جم",
+  "pack": "20",
+  "origin": "",
+  "consPiece": 0.2,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394699",
+  "name": "شيتوس جبن 190 جم * 2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394682",
+  "name": "شيتوس حار نار 190 جم * 2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400017824",
+  "name": "فانينز حلقات البصل 163جم",
+  "pack": "8",
+  "origin": "",
+  "consPiece": 2.045,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400025140",
+  "name": "فانينز حلقات البصل حار نار 163جم",
+  "pack": "8",
+  "origin": "",
+  "consPiece": 2.045,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400034036",
+  "name": "فريتوس حبات شيبس بالباربكيو والعسل 283.5 جم",
+  "pack": "283.5جم",
+  "origin": "",
+  "consPiece": 1.635,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020392930",
+  "name": "لير منوع 155 جم *3",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020393326",
+  "name": "ليز تشيلي 155 جم *2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020393319",
+  "name": "ليز جنب فرنسي 155 جم* 2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020393340",
+  "name": "ليز خل و ملح 155 جم *2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394194",
+  "name": "ليز صندوق الوناسة مشكل نكهات مختلفة 220 جم",
+  "pack": "1x220 جم",
+  "origin": "",
+  "consPiece": 0.865,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394576",
+  "name": "ليز فورنو 160 جم * 2 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020393302",
+  "name": "ليز كاتشب 155 جم *2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020393333",
+  "name": "ليز ملح 155 جم *2",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6271020394583",
+  "name": "ليز ويفي 85 جم * 3 حبة",
+  "pack": "",
+  "origin": "",
+  "consPiece": null,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400070959",
+  "name": "ليـز صلصـة رانش ناعمة 425 جم",
+  "pack": "425جم",
+  "origin": "",
+  "consPiece": 1.54,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400070942",
+  "name": "ليـز صلصـة فرنسية بالبصل 425 جم",
+  "pack": "425جم",
+  "origin": "",
+  "consPiece": 1.54,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6281036003942",
+  "name": "ليـز كريسبـز بالكاتشب كيس 21x12 جم",
+  "pack": "5x(21x12 ) جم",
+  "origin": "",
+  "consPiece": 1.16,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6281036003935",
+  "name": "ليـز كريسبـز بالكاتشب كيس 21x12 جم",
+  "pack": "5x(21x12 ) جم",
+  "origin": "",
+  "consPiece": 1.16,
+  "coopCarton": null
+ },
+ {
+  "barcode": "6281036003980",
+  "name": "ليـز كريسبـز بالكاتشب كيس 21x12 جم",
+  "pack": "5x(21x12 ) جم",
+  "origin": "",
+  "consPiece": 1.16,
+  "coopCarton": null
+ },
+ {
+  "barcode": "02840023573",
+  "name": "مانشيز سناك مشكل جبن 262.2جم",
+  "pack": "8",
+  "origin": "",
+  "consPiece": 2.41,
+  "coopCarton": null
+ },
+ {
+  "barcode": "028400180924",
+  "name": "مانشيز سناك مشكل حار نار 262.2جم",
+  "pack": "8",
+  "origin": "",
+  "consPiece": 2.41,
+  "coopCarton": null
+ }
+]
