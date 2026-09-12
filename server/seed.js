@@ -82,14 +82,15 @@ function seedProducts() {
   try { list = require('./products.json'); } catch (e) { return; }
   const now = nowIso();
   const ins = db.prepare(`INSERT OR IGNORE INTO products
-    (barcode,name,pack,origin,item,brand,cons_piece,coop_carton,updated_at)
-    VALUES (@barcode,@name,@pack,@origin,@item,@brand,@cons,@coop,@now)`);
+    (barcode,name,pack,origin,item,brand,weight,cons_piece,coop_carton,circular,circular_date,updated_at)
+    VALUES (@barcode,@name,@pack,@origin,@item,@brand,@weight,@cons,@coop,@circular,@cdate,@now)`);
   const tx = db.transaction((rows) => {
     for (const p of rows) ins.run({
       barcode: String(p.barcode), name: p.name || '', pack: p.pack || '', origin: p.origin || '',
-      item: p.item || '', brand: p.brand || '',
+      item: p.item || '', brand: p.brand || '', weight: p.weight || '',
       cons: p.consPiece == null ? null : +p.consPiece,
-      coop: p.coopCarton == null ? null : +p.coopCarton, now,
+      coop: p.coopCarton == null ? null : +p.coopCarton,
+      circular: p.circular || '', cdate: p.circularDate || '', now,
     });
   });
   tx(list);
