@@ -25,9 +25,9 @@ const config = {
   adminPassword: process.env.ADMIN_PASSWORD || process.env.DEFAULT_PASSWORD || 'Udc@1234',
 
   // Starting value of the LYSAL document sequence.
-  startCounter: parseInt(process.env.START_COUNTER || '11251', 10),
+  startCounter: parseInt(process.env.START_COUNTER || '11636', 10),
 
-  // Document reference year, e.g. LYSAL/11251/2026.
+  // Document reference year, e.g. LYSAL/11636/2026.
   refYear: parseInt(process.env.REF_YEAR || '2026', 10),
 
   // Max request body size (attachments are base64 data URLs).
