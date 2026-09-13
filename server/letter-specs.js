@@ -106,6 +106,24 @@ const LETTER_SPECS = [
     signatory: SIGN.coop,
   },
 
+  /* ---------- 5b) Rent Debit Note (إشعار خصم إيجارات) ---------- */
+  {
+    k: 'rentdebit', ar: 'إشعار خصم — إيجارات', en: 'Rent Debit Note',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـة للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) وذلك القيمة إيجـارات عن الفتـرة من {from} حتى {to} وذلك بنـاءً على العقـد المبـرم بيننا.',
+      en: 'With reference to the above, kindly approve a debit note against the account of United Distinctive General Trading & Foodstuff Co. for (KD {value}) being rent for the period from {from} to {to}, as per the contract concluded between us.',
+    },
+    fields: [
+      { key: 'from', ar: 'الفترة من', en: 'From', type: 'text' },
+      { key: 'to', ar: 'حتى', en: 'To', type: 'text' },
+      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
+    ],
+    closing: ['وتفضـلوا بقبـول فائـق الاحـترام والتقـدير،،،'],
+    signatory: SIGN.coop,
+  },
+
   /* ---------- 11) Ramiz — new items (اعتماد أصناف جديدة) ---------- */
   {
     k: 'ramiz', ar: 'رامز — اعتماد أصناف جديدة', en: 'Ramiz — New Items',
