@@ -166,6 +166,12 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
       by: req.user.id, now,
     });
 
+  // Price-increase letters feed the price-update tracker automatically.
+  const PRICE_TYPES = ['changeprice', 'priceupd', 'uoc_union'];
+  if (PRICE_TYPES.includes(type) && Array.isArray(calc.items) && calc.items.length) {
+    try { require('./tracking.routes').addPriceProductsFromItems(calc.items, lysal, req.user.id); } catch (e) { /* non-fatal */ }
+  }
+
   audit.fromReq(req, 'letter.create', {
     entityType: 'letter', entityId: id,
     summary: `Created letter ${lysal} (${type}, ${coop || recipient || ''}, ${calc.value})`,

@@ -225,6 +225,30 @@ const T = {
   mainCoop: { ar: "الجمعية المين", en: "Main co-op" },
   outlet: { ar: "الأوتليت", en: "Outlet" },
   optional: { ar: "اختياري", en: "optional" },
+  r_priceTrack: { ar: "متابعة رفع الأسعار", en: "Price increase tracker" },
+  r_priceTrack_d: { ar: "تتبّع تنفيذ رفع السعر لكل منفذ.", en: "Track the price-increase rollout per outlet." },
+  r_priceUpdates: { ar: "تحديث الأسعار", en: "Price updates" },
+  r_priceUpdates_d: { ar: "أصناف تحديث/رفع الأسعار.", en: "Products under a price update." },
+  r_approveItems: { ar: "أصناف للاعتماد", en: "Items to approve" },
+  r_approveItems_d: { ar: "أصناف جديدة بحاجة اعتماد.", en: "New items awaiting approval." },
+  pickProduct: { ar: "اختر الصنف", en: "Pick product" },
+  saveRow: { ar: "حفظ", en: "Save" },
+  savedCell: { ar: "تم الحفظ", en: "Saved" },
+  addProductBtn: { ar: "＋ إضافة صنف", en: "+ Add item" },
+  trackImportHint: { ar: "ملف Excel بأعمدة: Barcode, Cust ID + أعمدة المتابعة — يُدمج حسب الصنف والمنفذ.", en: "Excel with columns: Barcode, Cust ID + tracker columns — merged by product & outlet." },
+  bookPrinting: { ar: "طباعة الكتاب", en: "Book printing" },
+  colUpdate: { ar: "تحديث", en: "Update" },
+  dateUpdate: { ar: "تاريخ التحديث", en: "Date update" },
+  dnNumber: { ar: "رقم الإشعار", en: "D.N number" },
+  dnType: { ar: "نوع الإشعار", en: "D.N type" },
+  dnAmount: { ar: "قيمة الإشعار", en: "D.N amount" },
+  dateSalesNew: { ar: "تاريخ البيع بالسعر الجديد", en: "Date, sales at new price" },
+  branchConnection: { ar: "ربط الفرع", en: "Branch connection" },
+  supplyBranch: { ar: "توريد للفرع", en: "Supply to branch" },
+  branchSupplyDate: { ar: "تاريخ توريد الفرع", en: "Branch supply date" },
+  stockCol: { ar: "المخزون", en: "Stock" },
+  priceCtnRcp: { ar: "سعر الكرتون الجديد", en: "New carton price" },
+  pricePecRsp: { ar: "سعر المستهلك الجديد", en: "New consumer price" },
   wob: { ar: "WOB", en: "WOB" },
   myAssignments: { ar: "توزيعاتي", en: "My assignments" },
   noAssign: {
@@ -594,11 +618,11 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "outlets", "products", "lettersHistory", "budgetHistory"],
-    division: ["outlets", "sales", "products", "lettersHistory", "budgetHistory"],
-    supervisor: ["outlets", "products", "lettersHistory"],
-    doc: ["outlets", "sales", "products", "lettersHistory", "budgetHistory"],
-    salesman: ["outlets", "products"],
+    marketing: ["sales", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    division: ["outlets", "sales", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory"],
+    doc: ["outlets", "sales", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    salesman: ["outlets", "products", "priceTrack", "approveItems"],
   };
   let rk;
   if (isAdmin) rk = role;
@@ -636,6 +660,9 @@ function render() {
     products: vProducts,
     lettersHistory: vLettersHistory,
     budgetHistory: vBudgetHistory,
+    priceTrack: vPriceTrack,
+    priceUpdates: vPriceUpdates,
+    approveItems: vApproveItems,
   }[rk];
   if (view) view();
   else renderHome();
@@ -718,6 +745,9 @@ const ADMIN_ROLES = [
   { k: "outlets", ic: "🏪" },
   { k: "products", ic: "📦" },
   { k: "sales", ic: "📈" },
+  { k: "priceUpdates", ic: "🏷" },
+  { k: "priceTrack", ic: "📊" },
+  { k: "approveItems", ic: "🆕" },
   { k: "lettersHistory", ic: "📜" },
   { k: "budgetHistory", ic: "💰" },
   { k: "audit", ic: "🛡" },
@@ -2277,6 +2307,96 @@ function doImportProducts(input) {
   };
   rd.readAsDataURL(f);
 }
+
+/* ---------- price-increase module (tracker + price updates + approvals) ---------- */
+let ptCache = { products: [], outlets: [], cells: {} };
+const canEditMgmt = () => ["admin", "marketing", "division"].includes(currentUser.role);
+function fileToApi(input, url, cb) {
+  const f = input.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = async () => { try { const r = await api(url, { method: "POST", body: { filename: f.name, contentB64: String(rd.result) } }); cb(null, r); } catch (e) { cb(e); } input.value = ""; };
+  rd.readAsDataURL(f);
+}
+/* -- price update products -- */
+async function vPriceUpdates() {
+  const mgmt = canEditMgmt();
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("r_priceUpdates")}</h3>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      ${mgmt ? `<button class="btn gold sm" onclick="addPriceProduct()">${t("addProductBtn")}</button><label class="btn ghost sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="doImportPrice(this)"></label>` : ""}
+    </div></header>
+    <div id="ppMsg" class="hint" style="padding:0 16px"></div>
+    <div class="tbl-wrap" id="ppBox"><div class="empty">${t("loading")}</div></div></div>`;
+  await loadPriceProducts();
+}
+async function loadPriceProducts() {
+  const r = await api("/price-products"); const mgmt = canEditMgmt();
+  const box = document.getElementById("ppBox"); if (!box) return;
+  box.innerHTML = r.products.length
+    ? `<table><thead><tr><th>#</th><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("priceCtnRcp")}</th><th>${t("pricePecRsp")}</th><th>${t("circularNo")}</th><th>${t("th_date")}</th><th>${t("letterNo")}</th>${mgmt ? "<th></th>" : ""}</tr></thead><tbody>${r.products.map((p, i) => `<tr><td>${p.seq || i + 1}</td><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.price_ctn_rcp || "")}</td><td class="mono">${esc(p.price_pec_rsp || "")}</td><td class="mono-sm">${esc(p.circular || "")}</td><td class="mono-sm">${esc(p.circular_date || "")}</td><td class="mono-sm">${esc(p.letter_lysal || "")}</td>${mgmt ? `<td><button class="btn danger sm" onclick="delPriceProduct('${esc(p.barcode)}')">${t("del")}</button></td>` : ""}</tr>`).join("")}</tbody></table>`
+    : `<div class="empty">${t("noProducts")}</div>`;
+}
+function doImportPrice(input) { const m = document.getElementById("ppMsg"); m.textContent = t("loading"); fileToApi(input, "/price-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadPriceProducts(); }); }
+async function addPriceProduct() { const barcode = prompt(t("th_barcode")); if (!barcode) return; const name = prompt(t("th_name")) || ""; try { await api("/price-products", { method: "POST", body: { barcode, nameAr: name } }); toast(t("importDone")); loadPriceProducts(); } catch (e) { toast(e.message); } }
+async function delPriceProduct(bc) { if (!confirm(t("del") + "?")) return; try { await api("/price-products/" + encodeURIComponent(bc), { method: "DELETE" }); loadPriceProducts(); } catch (e) { toast(e.message); } }
+/* -- items to approve -- */
+async function vApproveItems() {
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("r_approveItems")}</h3>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn gold sm" onclick="addApproveItem()">${t("addProductBtn")}</button>
+      <label class="btn ghost sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="doImportApprove(this)"></label>
+    </div></header>
+    <div id="apMsg" class="hint" style="padding:0 16px"></div>
+    <div class="tbl-wrap" id="apBox"><div class="empty">${t("loading")}</div></div></div>`;
+  await loadApprove();
+}
+async function loadApprove() {
+  const r = await api("/approve-products");
+  const box = document.getElementById("apBox"); if (!box) return;
+  box.innerHTML = r.products.length
+    ? `<table><thead><tr><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("origin")}</th><th>${t("consPiece")}</th><th>${t("coopCarton")}</th><th></th></tr></thead><tbody>${r.products.map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.pack || "")}</td><td>${esc(p.origin || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono">${esc(p.coop_carton || "")}</td><td><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">${t("noProducts")}</div>`;
+}
+function doImportApprove(input) { const m = document.getElementById("apMsg"); m.textContent = t("loading"); fileToApi(input, "/approve-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadApprove(); }); }
+async function addApproveItem() { const barcode = prompt(t("th_barcode")); if (!barcode) return; const name = prompt(t("th_name")) || ""; try { await api("/approve-products", { method: "POST", body: { barcode, nameAr: name } }); loadApprove(); } catch (e) { toast(e.message); } }
+async function delApprove(bc) { if (!confirm(t("del") + "?")) return; try { await api("/approve-products/" + encodeURIComponent(bc), { method: "DELETE" }); loadApprove(); } catch (e) { toast(e.message); } }
+/* -- price tracker grid -- */
+const TRACK_COLS = [["book_printing", "bookPrinting"], ["upd", "colUpdate"], ["date_update", "dateUpdate"], ["dn_number", "dnNumber"], ["dn_type", "dnType"], ["dn_amount", "dnAmount"], ["date_sales_new", "dateSalesNew"], ["branch_connection", "branchConnection"], ["supply_branch", "supplyBranch"], ["branch_supply_date", "branchSupplyDate"], ["stock", "stockCol"]];
+async function vPriceTrack() {
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("r_priceTrack")}</h3>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="ptProd" onchange="renderTrackGrid()"></select>
+      <label class="btn ghost sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="doImportTrack(this)"></label>
+    </div></header>
+    <div class="hint" style="padding:6px 16px">${t("trackImportHint")}</div>
+    <div id="ptMsg" class="hint" style="padding:0 16px"></div>
+    <div class="tbl-wrap" id="ptGrid"><div class="empty">${t("loading")}</div></div></div>`;
+  const r = await api("/price-track"); ptCache = r;
+  const sel = document.getElementById("ptProd");
+  sel.innerHTML = r.products.length ? r.products.map((p) => `<option value="${esc(p.barcode)}">${esc(p.name_ar || p.name)}</option>`).join("") : `<option value="">${t("noProducts")}</option>`;
+  renderTrackGrid();
+}
+function renderTrackGrid() {
+  const box = document.getElementById("ptGrid"); if (!box) return;
+  const sel = document.getElementById("ptProd"); const bc = sel ? sel.value : "";
+  if (!bc) { box.innerHTML = `<div class="empty">${t("noProducts")}</div>`; return; }
+  const head = `<tr><th>${t("mainCoop")}</th><th>${t("outlet")}</th>${TRACK_COLS.map((c) => `<th>${t(c[1])}</th>`).join("")}</tr>`;
+  const rows = ptCache.outlets.map((o) => {
+    const cell = ptCache.cells[bc + "|" + o.cust_id] || {};
+    const inputs = TRACK_COLS.map((c) => `<td><input value="${esc(cell[c[0]] || "")}" onchange="saveTrack('${esc(bc)}','${esc(o.cust_id)}',this)" data-f="${c[0]}" style="width:110px"></td>`).join("");
+    return `<tr><td>${esc(o.parent || "")}</td><td>${esc(o.name || "")}</td>${inputs}</tr>`;
+  }).join("");
+  box.innerHTML = ptCache.outlets.length ? `<table class="price-edit"><thead>${head}</thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noAssign")}</div>`;
+}
+async function saveTrack(bc, cust, input) {
+  const key = bc + "|" + cust; const cur = ptCache.cells[key] || { barcode: bc, cust_id: cust };
+  cur[input.getAttribute("data-f")] = input.value; ptCache.cells[key] = cur;
+  const body = { barcode: bc, cust_id: cust }; TRACK_COLS.forEach((c) => (body[c[0]] = cur[c[0]] || ""));
+  try { await api("/price-track/cell", { method: "POST", body }); const m = document.getElementById("ptMsg"); if (m) { m.textContent = t("savedCell"); setTimeout(() => { if (m) m.textContent = ""; }, 1200); } } catch (e) { toast(e.message); }
+}
+function doImportTrack(input) { const m = document.getElementById("ptMsg"); m.textContent = t("loading"); fileToApi(input, "/price-track/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported}`; toast(t("importDone")); vPriceTrack(); }); }
 
 /* ---------- init ---------- */
 (async function () {

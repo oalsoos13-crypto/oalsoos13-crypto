@@ -189,6 +189,61 @@ function migrate() {
       updated_at   TEXT
     );
 
+    -- Products under a price update (source of the price-increase tracker).
+    CREATE TABLE IF NOT EXISTS price_products (
+      barcode        TEXT PRIMARY KEY,
+      item_no        TEXT,
+      name           TEXT,
+      name_ar        TEXT,
+      pack           TEXT,
+      origin         TEXT,
+      price_ctn_ptt  TEXT,
+      price_pec_ptt  TEXT,
+      price_pec_rsp  TEXT,
+      price_ctn_rcp  TEXT,
+      circular       TEXT,
+      circular_date  TEXT,
+      letter_lysal   TEXT,
+      seq            INTEGER,
+      added_by       INTEGER,
+      added_at       TEXT
+    );
+
+    -- Per-outlet rollout tracking of a price increase (one row per product+outlet).
+    CREATE TABLE IF NOT EXISTS price_track (
+      barcode           TEXT NOT NULL,
+      cust_id           TEXT NOT NULL,
+      book_printing     TEXT,
+      upd               TEXT,
+      date_update       TEXT,
+      dn_number         TEXT,
+      dn_type           TEXT,
+      dn_amount         TEXT,
+      date_sales_new    TEXT,
+      branch_connection TEXT,
+      supply_branch     TEXT,
+      branch_supply_date TEXT,
+      stock             TEXT,
+      updated_by        INTEGER,
+      updated_at        TEXT,
+      PRIMARY KEY (barcode, cust_id)
+    );
+
+    -- Products submitted for listing/approval (new items to be approved).
+    CREATE TABLE IF NOT EXISTS approve_products (
+      barcode      TEXT PRIMARY KEY,
+      name         TEXT,
+      name_ar      TEXT,
+      pack         TEXT,
+      origin       TEXT,
+      cons_piece   TEXT,
+      coop_carton  TEXT,
+      note         TEXT,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      added_by     INTEGER,
+      added_at     TEXT
+    );
+
     -- Named atomic counters (LYSAL document sequence).
     CREATE TABLE IF NOT EXISTS counters (
       name  TEXT PRIMARY KEY,

@@ -96,6 +96,24 @@ function seedProducts() {
   tx(list);
 }
 
+function seedPriceProducts() {
+  if (db.prepare('SELECT COUNT(*) n FROM price_products').get().n > 0) return; // seed once
+  let list;
+  try { list = require('./price_track_seed.json'); } catch (e) { return; }
+  const now = nowIso();
+  const ins = db.prepare(`INSERT OR IGNORE INTO price_products
+    (barcode,item_no,name,name_ar,pack,circular,circular_date,letter_lysal,seq,added_at)
+    VALUES (@barcode,@item_no,@name,@name_ar,@pack,@circular,@circular_date,@letter_lysal,@seq,@now)`);
+  const tx = db.transaction((rows) => {
+    for (const p of rows) ins.run({
+      barcode: String(p.barcode), item_no: p.itemNo || '', name: p.name || '', name_ar: p.nameAr || '',
+      pack: p.pack || '', circular: p.circular || '', circular_date: p.circularDate || '',
+      letter_lysal: p.letterLysal || '', seq: p.seq || 0, now,
+    });
+  });
+  tx(list);
+}
+
 function seedCounter() {
   db.prepare('INSERT OR IGNORE INTO counters (name, value) VALUES (?, ?)')
     .run('lysal', config.startCounter);
@@ -127,6 +145,7 @@ function run() {
   seedDist();
   seedMaster();
   seedProducts();
+  seedPriceProducts();
   seedCounter();
   const createdUsers = seedUsers();
   return { createdUsers };
