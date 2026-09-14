@@ -13,17 +13,30 @@ router.use(requireAuth);
 
 const MGMT = ['marketing', 'division']; // (+admin always, via requireRole)
 
+// Outlet display order taken verbatim from the Price Increase Progress sheet.
+let OUTLET_ORDER = [];
+try { OUTLET_ORDER = require('../outlet_order.json'); } catch (e) { /* optional */ }
+const ORDER_IDX = new Map(OUTLET_ORDER.map((id, i) => [String(id), i]));
+function bySheetOrder(a, b) {
+  const ia = ORDER_IDX.has(a.cust_id) ? ORDER_IDX.get(a.cust_id) : 1e9;
+  const ib = ORDER_IDX.has(b.cust_id) ? ORDER_IDX.get(b.cust_id) : 1e9;
+  if (ia !== ib) return ia - ib;
+  return String(a.parent || '').localeCompare(String(b.parent || '')) || String(a.name || '').localeCompare(String(b.name || ''));
+}
+
 // ---- helpers -------------------------------------------------------------
 
 // Outlets visible to the current user (scoped by PF for field roles).
 function scopedOutlets(user) {
+  let rows;
   if (user.role === 'salesman') {
-    return db.prepare('SELECT cust_id, name, parent, fsm, salesman FROM outlets WHERE salesman_pf = ? ORDER BY parent, name').all(user.username);
+    rows = db.prepare('SELECT cust_id, name, parent, fsm, salesman FROM outlets WHERE salesman_pf = ?').all(user.username);
+  } else if (user.role === 'supervisor') {
+    rows = db.prepare('SELECT cust_id, name, parent, fsm, salesman FROM outlets WHERE fsm_pf = ?').all(user.username);
+  } else {
+    rows = db.prepare('SELECT cust_id, name, parent, fsm, salesman FROM outlets').all();
   }
-  if (user.role === 'supervisor') {
-    return db.prepare('SELECT cust_id, name, parent, fsm, salesman FROM outlets WHERE fsm_pf = ? ORDER BY parent, name').all(user.username);
-  }
-  return db.prepare('SELECT cust_id, name, parent, fsm, salesman FROM outlets ORDER BY parent, name').all();
+  return rows.sort(bySheetOrder); // follow the Progress-sheet row order
 }
 function myCustIds(user) {
   if (user.role !== 'salesman' && user.role !== 'supervisor') return null; // unrestricted
