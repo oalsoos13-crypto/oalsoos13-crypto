@@ -263,6 +263,13 @@ const T = {
   r_priceUpdates_d: { ar: "أصناف تحديث/رفع الأسعار.", en: "Products under a price update." },
   r_approveItems: { ar: "أصناف للاعتماد", en: "Items to approve" },
   genBook: { ar: "توليد كتاب اعتماد", en: "Generate listing letter" },
+  r_coopTerms: { ar: "إعدادات حساب الجمعيات", en: "Co-op calc settings" },
+  r_coopTerms_d: { ar: "طريقة الحساب والمضاعف لكل جمعية.", en: "Calc mode and ratio per co-op." },
+  coopTermsHint: { ar: "لكل جمعية: طريقة الحساب (بالكرتون/بالحبة) والمضاعف (1+1 = 2). تُطبّق تلقائياً على كتب الاعتماد ورفع الأسعار.", en: "Per co-op calc mode and bonus ratio; applied to listing / price-increase letters." },
+  calcMode: { ar: "طريقة الحساب", en: "Calc mode" },
+  ratioCol: { ar: "المضاعف", en: "Ratio" },
+  byCarton: { ar: "بالكرتون", en: "By carton" },
+  byPiece: { ar: "بالحبة", en: "By piece" },
   r_approveItems_d: { ar: "أصناف جديدة بحاجة اعتماد.", en: "New items awaiting approval." },
   pickProduct: { ar: "اختر الصنف", en: "Pick product" },
   saveRow: { ar: "حفظ", en: "Save" },
@@ -534,6 +541,7 @@ async function loadState() {
   DB.notes = s.notes || [];
   DB.counter = s.counter || 0;
   DB.scope = s.scope || null;
+  DB.coopTerms = s.coopTerms || {};
   SEED = s.ref || SEED;
   DB.ref = SEED;
   if (s.year) YEAR = s.year;
@@ -619,6 +627,12 @@ function onCoopChange(prefix) {
   const coopSel = document.getElementById(prefix === "sp" ? "spCoop" : "fCoop");
   const box = document.getElementById(prefix === "sp" ? "spOutletBox" : "fOutletBox");
   if (box) box.innerHTML = outletSelectHTML(prefix === "sp" ? "spOutlet" : "fOutlet", coopSel ? coopSel.value : "");
+  // Default the listing/price calc mode + ratio from this co-op's saved terms.
+  const term = coopSel && DB.coopTerms ? DB.coopTerms[coopSel.value] : null;
+  if (term) {
+    const mEl = document.getElementById("spf_calcMode"); if (mEl && term.calcMode) mEl.value = term.calcMode;
+    const rEl = document.getElementById("spf_ratio"); if (rEl && term.ratio != null) rEl.value = term.ratio;
+  }
   if (prefix === "f" && typeof calcVal === "function") calcVal();
 }
 /* ---------- roles ---------- */
@@ -658,8 +672,8 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
-    division: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    marketing: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "lettersHistory", "budgetHistory"],
+    division: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "lettersHistory", "budgetHistory"],
     supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory"],
     doc: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
     salesman: ["outlets", "products", "priceTrack", "approveItems"],
@@ -703,6 +717,7 @@ function render() {
     priceTrack: vPriceTrack,
     priceUpdates: vPriceUpdates,
     approveItems: vApproveItems,
+    coopTerms: vCoopTerms,
     salesMonthly: vSalesMonthly,
   }[rk];
   if (view) view();
@@ -790,6 +805,7 @@ const ADMIN_ROLES = [
   { k: "priceUpdates", ic: "🏷" },
   { k: "priceTrack", ic: "📊" },
   { k: "approveItems", ic: "🆕" },
+  { k: "coopTerms", ic: "⚙" },
   { k: "lettersHistory", ic: "📜" },
   { k: "budgetHistory", ic: "💰" },
   { k: "audit", ic: "🛡" },
@@ -2486,6 +2502,31 @@ async function saveTrack(bc, cust, input) {
 }
 function doImportTrack(input) { const m = document.getElementById("ptMsg"); m.textContent = t("loading"); fileToApi(input, "/price-track/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported}`; toast(t("importDone")); vPriceTrack(); }); }
 
+/* ---------- per-coop calc settings ---------- */
+let ctData = { coops: [], terms: {} };
+async function vCoopTerms() {
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("r_coopTerms")}</h3><span class="pill-info" id="ctCount"></span></header>
+    <div class="hint" style="padding:6px 16px">${t("coopTermsHint")}</div>
+    <div class="tbl-wrap" id="ctBox"><div class="empty">${t("loading")}</div></div></div>`;
+  ctData = await api("/coop-terms");
+  const cc = document.getElementById("ctCount"); if (cc) cc.textContent = ctData.coops.length;
+  renderCoopTerms();
+}
+function renderCoopTerms() {
+  const box = document.getElementById("ctBox"); if (!box) return;
+  const modeOpts = (v) => `<option value="carton" ${v === "carton" ? "selected" : ""}>${t("byCarton")}</option><option value="piece" ${v === "piece" ? "selected" : ""}>${t("byPiece")}</option>`;
+  box.innerHTML = `<table><thead><tr><th>${t("coop")}</th><th>${t("calcMode")}</th><th>${t("ratioCol")}</th><th></th></tr></thead><tbody>${ctData.coops.map((c, i) => {
+    const tm = ctData.terms[c] || { calc_mode: "carton", ratio: 1 };
+    return `<tr><td>${esc(c)}</td><td><select id="ctm${i}">${modeOpts(tm.calc_mode)}</select></td><td><input id="ctr${i}" type="number" step="0.001" value="${esc(tm.ratio)}" style="width:90px"></td><td><button class="btn gold sm" onclick="saveCoopTerm(${i})">${t("saveRow")}</button></td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+async function saveCoopTerm(i) {
+  const coop = ctData.coops[i];
+  const mode = document.getElementById("ctm" + i).value;
+  const ratio = document.getElementById("ctr" + i).value;
+  try { await api("/coop-terms", { method: "POST", body: { coop, calc_mode: mode, ratio } }); ctData.terms[coop] = { calc_mode: mode, ratio: +ratio }; toast(t("savedCell")); } catch (e) { toast(e.message); }
+}
 /* ---------- monthly sales (reference) ---------- */
 let smState = { q: "", offset: 0, limit: 60, total: 0 };
 async function vSalesMonthly() {

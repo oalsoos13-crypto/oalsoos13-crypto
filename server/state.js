@@ -125,6 +125,11 @@ function buildState(user) {
     notes,
     counter: counter ? counter.value : 0,
     scope,
+    coopTerms: (() => {
+      const m = {};
+      try { db.prepare('SELECT coop, calc_mode, ratio FROM coop_terms').all().forEach((t) => { m[t.coop] = { calcMode: t.calc_mode, ratio: t.ratio }; }); } catch (e) { /* */ }
+      return m;
+    })(),
     ref: {
       coops,
       brands: SEED.brands,

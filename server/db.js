@@ -229,6 +229,16 @@ function migrate() {
       PRIMARY KEY (barcode, cust_id)
     );
 
+    -- Per-co-op listing/price calculation terms (calc mode + bonus ratio).
+    CREATE TABLE IF NOT EXISTS coop_terms (
+      coop       TEXT PRIMARY KEY,
+      calc_mode  TEXT NOT NULL DEFAULT 'carton',
+      ratio      REAL NOT NULL DEFAULT 1,
+      note       TEXT,
+      updated_by INTEGER,
+      updated_at TEXT
+    );
+
     -- Monthly sales reference data (per outlet x item), imported from the ERP.
     CREATE TABLE IF NOT EXISTS sales_monthly (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,

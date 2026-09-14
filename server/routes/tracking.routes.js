@@ -55,6 +55,27 @@ function readGrid(b64) {
   return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '', raw: false });
 }
 const clean = (v) => String(v == null ? '' : v).trim();
+const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();
+
+// ================= PER-COOP CALC TERMS =================
+router.get('/coop-terms', asyncH((req, res) => {
+  const coops = [...new Set(db.prepare('SELECT DISTINCT parent FROM outlets').all().map((r) => cleanCoop(r.parent)).filter(Boolean))].sort();
+  const terms = {};
+  db.prepare('SELECT coop, calc_mode, ratio, note FROM coop_terms').all().forEach((t) => { terms[t.coop] = { calc_mode: t.calc_mode, ratio: t.ratio, note: t.note || '' }; });
+  res.json({ coops, terms });
+}));
+router.post('/coop-terms', requireRole(...MGMT), asyncH((req, res) => {
+  const coop = clean(req.body.coop);
+  if (!coop) throw badRequest('الجمعية مطلوبة', 'BAD');
+  const mode = clean(req.body.calc_mode) || 'carton';
+  const ratio = parseFloat(req.body.ratio); const r = isNaN(ratio) ? 1 : ratio;
+  db.prepare(`INSERT INTO coop_terms (coop,calc_mode,ratio,note,updated_by,updated_at)
+    VALUES (@coop,@mode,@ratio,@note,@by,@now)
+    ON CONFLICT(coop) DO UPDATE SET calc_mode=excluded.calc_mode, ratio=excluded.ratio, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at`)
+    .run({ coop, mode, ratio: r, note: clean(req.body.note), by: req.user.id, now: nowIso() });
+  audit.fromReq(req, 'coop.terms.set', { entityType: 'coop_terms', entityId: coop, summary: `Terms ${coop}: ${mode} x${r}` });
+  res.json({ ok: true });
+}));
 
 // ================= PRICE-UPDATE PRODUCTS =================
 router.get('/price-products', asyncH((req, res) => {
