@@ -290,38 +290,52 @@ function migrate() {
 
     -- Contract header. A contract is per-outlet (level='outlet', cust_id set) or
     -- per-coop (level='coop'). Addenda (ملحق) point at a base contract via
-    -- parent_id with kind='addendum'.
+    -- parent_id with kind='addendum'. Value is a single agreed lump sum
+    -- (قيمة العقد) paid via debit note; the space placements below say what the
+    -- co-op grants in return.
     CREATE TABLE IF NOT EXISTS contract_hdr (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      code        TEXT,              -- contract number / reference
-      title       TEXT,
-      level       TEXT NOT NULL DEFAULT 'outlet',   -- 'outlet' | 'coop'
-      coop        TEXT,              -- parent co-op (cleaned name)
-      cust_id     TEXT,              -- outlet, when level='outlet'
-      period_from TEXT,
-      period_to   TEXT,
-      kind        TEXT NOT NULL DEFAULT 'base',      -- 'base' | 'addendum'
-      parent_id   INTEGER,           -- base contract id, when kind='addendum'
-      note        TEXT,
-      status      TEXT NOT NULL DEFAULT 'active',    -- 'active' | 'closed'
-      created_by  INTEGER,
-      created_at  TEXT,
-      updated_by  INTEGER,
-      updated_at  TEXT
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      code          TEXT,             -- contract number / reference
+      title         TEXT,
+      subject_year  TEXT,             -- السنة التسويقية (e.g. 2021)
+      is_renewal    INTEGER NOT NULL DEFAULT 0,   -- تجديد عقد
+      party_rep     TEXT,             -- ممثل الطرف الأول
+      contract_date TEXT,             -- تاريخ إبرام العقد
+      level         TEXT NOT NULL DEFAULT 'coop', -- 'outlet' | 'coop'
+      coop          TEXT,             -- parent co-op (cleaned name)
+      cust_id       TEXT,             -- outlet, when level='outlet'
+      period_from   TEXT,
+      period_to     TEXT,
+      renewable     INTEGER NOT NULL DEFAULT 1,    -- قابل للتجديد
+      value         REAL NOT NULL DEFAULT 0,       -- قيمة العقد (lump)
+      value_kind    TEXT NOT NULL DEFAULT 'rent',  -- 'rent'|'support'|'marketing'|'other'
+      grace_days    INTEGER NOT NULL DEFAULT 45,   -- فترة سماح السداد
+      pay_within    INTEGER NOT NULL DEFAULT 14,   -- الدفع خلال (يوم)
+      kind          TEXT NOT NULL DEFAULT 'base',  -- 'base' | 'addendum'
+      parent_id     INTEGER,          -- base contract id, when kind='addendum'
+      note          TEXT,
+      status        TEXT NOT NULL DEFAULT 'active',-- 'active' | 'closed'
+      created_by    INTEGER,
+      created_at    TEXT,
+      updated_by    INTEGER,
+      updated_at    TEXT
     );
 
-    -- Contract line-items. Multiple per contract. Each ties to a space (مساحة).
-    -- item_type: 'pct' (نسبة على العقد) | 'amount' (مبلغ ثابت) | 'support' (دعم) | 'other' (أخرى)
+    -- Contract space placements (البند الأول: الأدوات/المساحات). Each fixture
+    -- (جدولة / إستاند / طبلة / متر طولي / ثلاجة) has a scope (main market / all
+    -- branches / a specific outlet), a count, dimensions, product category, and
+    -- a shelf location.
     CREATE TABLE IF NOT EXISTS contract_items (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       contract_id INTEGER NOT NULL,
-      item_type   TEXT NOT NULL DEFAULT 'amount',
-      space_id    INTEGER,           -- FK contract_spaces.id (nullable)
-      space       TEXT,              -- resolved space name (denormalized)
-      label       TEXT,
-      pct         REAL NOT NULL DEFAULT 0,   -- when item_type='pct'
-      base_amount REAL NOT NULL DEFAULT 0,   -- contract base for pct calc
-      amount      REAL NOT NULL DEFAULT 0,   -- when amount/support/other
+      scope       TEXT NOT NULL DEFAULT 'main',  -- 'main'|'branches'|'outlet'|'all'
+      cust_id     TEXT,              -- outlet, when scope='outlet'
+      space_id    INTEGER,           -- FK contract_spaces.id (fixture type)
+      space       TEXT,              -- resolved fixture name (denormalized)
+      count       INTEGER NOT NULL DEFAULT 1,    -- العدد
+      dimensions  TEXT,              -- الأبعاد (free text)
+      category    TEXT,              -- الصنف / العلامة
+      location    TEXT,              -- الموقع على الرف
       note        TEXT,
       sort        INTEGER NOT NULL DEFAULT 0
     );
@@ -410,6 +424,32 @@ function migrate() {
       multiplier REAL NOT NULL DEFAULT 1, amount REAL NOT NULL DEFAULT 0, pct REAL NOT NULL DEFAULT 0,
       note TEXT, updated_by INTEGER, updated_at TEXT, PRIMARY KEY (coop, letter_type))`);
   }
+
+  // Contracts redesign: contract_items moved from priced line-items to space
+  // placements. Recreate if it still has the old 'item_type' column (no real
+  // contract data predates this change).
+  const ciInfo = db.prepare("PRAGMA table_info(contract_items)").all();
+  if (ciInfo.length && ciInfo.some((c) => c.name === 'item_type')) {
+    db.exec('DROP TABLE contract_items');
+    db.exec(`CREATE TABLE contract_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, contract_id INTEGER NOT NULL,
+      scope TEXT NOT NULL DEFAULT 'main', cust_id TEXT, space_id INTEGER, space TEXT,
+      count INTEGER NOT NULL DEFAULT 1, dimensions TEXT, category TEXT, location TEXT,
+      note TEXT, sort INTEGER NOT NULL DEFAULT 0)`);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_citems_contract ON contract_items(contract_id)');
+  }
+  // New contract_hdr columns (additive).
+  const chInfo = db.prepare("PRAGMA table_info(contract_hdr)").all().map((c) => c.name);
+  const addHdr = (name, decl) => { if (!chInfo.includes(name)) db.exec(`ALTER TABLE contract_hdr ADD COLUMN ${name} ${decl}`); };
+  addHdr('subject_year', 'TEXT');
+  addHdr('is_renewal', 'INTEGER NOT NULL DEFAULT 0');
+  addHdr('party_rep', 'TEXT');
+  addHdr('contract_date', 'TEXT');
+  addHdr('renewable', 'INTEGER NOT NULL DEFAULT 1');
+  addHdr('value', 'REAL NOT NULL DEFAULT 0');
+  addHdr('value_kind', "TEXT NOT NULL DEFAULT 'rent'");
+  addHdr('grace_days', 'INTEGER NOT NULL DEFAULT 45');
+  addHdr('pay_within', 'INTEGER NOT NULL DEFAULT 14');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

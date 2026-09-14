@@ -190,6 +190,24 @@ function seedUsers() {
   return created;
 }
 
+// Seed the default contract fixture/space types (أدوات العقد) once.
+function seedContractSpaces() {
+  const have = db.prepare('SELECT COUNT(*) n FROM contract_spaces').get().n;
+  if (have) return;
+  const rows = [
+    ['جدولة', 'Gondola'],
+    ['إستاند', 'Stand'],
+    ['طبلة', 'Promo table'],
+    ['متر طولي (رف)', 'Linear shelf meter'],
+    ['رف', 'Shelf'],
+    ['ثلاجة', 'Chiller'],
+    ['برواز / برندة', 'Frame'],
+  ];
+  const ins = db.prepare('INSERT INTO contract_spaces (name,name_en,active,sort) VALUES (?,?,1,?)');
+  const tx = db.transaction(() => { rows.forEach((r, i) => ins.run(r[0], r[1], i)); });
+  tx();
+}
+
 function run() {
   seedCoops();
   seedDist();
@@ -197,6 +215,7 @@ function run() {
   seedProducts();
   seedPriceProducts();
   seedSalesMonthly();
+  seedContractSpaces();
   seedCounter();
   const createdUsers = seedUsers();
   return { createdUsers };
