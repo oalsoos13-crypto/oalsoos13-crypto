@@ -100,7 +100,7 @@ const SEED = {
     { k: "pallet", ar: "طبالي (Pallet)", mode: "value", en: "Pallet" },
     {
       k: "priceoff",
-      ar: "برايس أوف (Price Off)",
+      ar: "فرق أسعار",
       mode: "value",
       en: "Price Off",
     },
