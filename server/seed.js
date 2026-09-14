@@ -1,6 +1,8 @@
 'use strict';
 // Idempotent database seeding: reference data, atomic counter, and default users.
 // Safe to run repeatedly — existing rows are left untouched.
+const fs = require('fs');
+const path = require('path');
 const db = require('./db');
 const config = require('./config');
 const { hashPassword } = require('./auth');
@@ -114,6 +116,54 @@ function seedPriceProducts() {
   tx(list);
 }
 
+function seedSalesMonthly() {
+  if (db.prepare('SELECT COUNT(*) n FROM sales_monthly').get().n > 0) return; // seed once
+  const fp = path.join(__dirname, 'seed_data', 'coops_sales.xlsx');
+  if (!fs.existsSync(fp)) return;
+  let rows;
+  try {
+    const XLSX = require('xlsx');
+    const wb = XLSX.read(fs.readFileSync(fp), { type: 'buffer' });
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: '' });
+  } catch (e) { return; }
+  // header rows: 1=metric, 2=year, 3=month labels; data from row 4.
+  const years = rows[2] || [];
+  const metrics = rows[1] || [];
+  const num = (v) => { const n = parseFloat(String(v).replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+  const ins = db.prepare(`INSERT INTO sales_monthly
+    (customer,sub_channel,route,item_code,item_desc,g2024,g2025,g2026,v2024,v2025,v2026,gross_json,value_json)
+    VALUES (@customer,@sub_channel,@route,@item_code,@item_desc,@g2024,@g2025,@g2026,@v2024,@v2025,@v2026,@gross_json,@value_json)`);
+  const tx = db.transaction(() => {
+    for (let i = 4; i < rows.length; i++) {
+      const r = rows[i]; if (!r || (!r[0] && !r[3])) continue;
+      const cust0 = String(r[0] || '').trim();
+      if (!cust0 || /^grand total/i.test(cust0)) continue; // skip totals rows
+      const gross = {}, value = {}; const tot = { g: {}, v: {} };
+      for (let c = 4; c < r.length; c++) {
+        const metric = String(metrics[c] || '').toLowerCase();
+        const yr = String(years[c] || '').trim();
+        const mon = String((rows[3] || [])[c] || '').trim();
+        if (!yr || !mon) continue;
+        const val = num(r[c]); if (!val) continue;
+        const bag = /invoic/.test(metric) ? value : gross;
+        const totBag = /invoic/.test(metric) ? tot.v : tot.g;
+        (bag[yr] = bag[yr] || {})[mon] = val;
+        totBag[yr] = (totBag[yr] || 0) + val;
+      }
+      const idesc = String(r[3] || '');
+      const codeMatch = idesc.match(/^(\d+)/);
+      ins.run({
+        customer: String(r[0] || ''), sub_channel: String(r[1] || ''), route: String(r[2] || ''),
+        item_code: codeMatch ? codeMatch[1] : '', item_desc: idesc,
+        g2024: tot.g['2024'] || 0, g2025: tot.g['2025'] || 0, g2026: tot.g['2026'] || 0,
+        v2024: tot.v['2024'] || 0, v2025: tot.v['2025'] || 0, v2026: tot.v['2026'] || 0,
+        gross_json: JSON.stringify(gross), value_json: JSON.stringify(value),
+      });
+    }
+  });
+  tx();
+}
+
 function seedCounter() {
   db.prepare('INSERT OR IGNORE INTO counters (name, value) VALUES (?, ?)')
     .run('lysal', config.startCounter);
@@ -146,6 +196,7 @@ function run() {
   seedMaster();
   seedProducts();
   seedPriceProducts();
+  seedSalesMonthly();
   seedCounter();
   const createdUsers = seedUsers();
   return { createdUsers };

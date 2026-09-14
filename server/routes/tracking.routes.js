@@ -318,6 +318,26 @@ router.delete('/approve-products/:barcode', requireRole('salesman', 'supervisor'
   res.json({ ok: true });
 }));
 
+// ================= MONTHLY SALES (reference) =================
+router.get('/sales-monthly', requireRole('marketing', 'division', 'doc'), asyncH((req, res) => {
+  const q = clean(req.query.q).toLowerCase();
+  const limit = Math.min(300, parseInt(req.query.limit || '60', 10) || 60);
+  const offset = parseInt(req.query.offset || '0', 10) || 0;
+  let where = '', args = [];
+  if (q) { where = 'WHERE lower(customer) LIKE ? OR lower(item_desc) LIKE ?'; args = ['%' + q + '%', '%' + q + '%']; }
+  const total = db.prepare('SELECT COUNT(*) n FROM sales_monthly ' + where).get(...args).n;
+  const rows = db.prepare('SELECT id,customer,sub_channel,route,item_code,item_desc,g2024,g2025,g2026,v2024,v2025,v2026 FROM sales_monthly ' + where + ' ORDER BY v2026 DESC, id LIMIT ? OFFSET ?').all(...args, limit, offset);
+  res.json({ total, rows, limit, offset });
+}));
+router.get('/sales-monthly/:id', requireRole('marketing', 'division', 'doc'), asyncH((req, res) => {
+  const r = db.prepare('SELECT * FROM sales_monthly WHERE id = ?').get(req.params.id);
+  if (!r) throw badRequest('غير موجود', 'NF');
+  let gross = {}, value = {};
+  try { gross = JSON.parse(r.gross_json || '{}'); } catch (e) { /* */ }
+  try { value = JSON.parse(r.value_json || '{}'); } catch (e) { /* */ }
+  res.json({ row: { id: r.id, customer: r.customer, item_desc: r.item_desc, gross, value } });
+}));
+
 module.exports = router;
 // Exported for the letter route to auto-add price-increase items to the tracker.
 module.exports.addPriceProductsFromItems = function (items, letterLysal, userId) {

@@ -249,6 +249,12 @@ const T = {
   stockCol: { ar: "المخزون", en: "Stock" },
   priceCtnRcp: { ar: "سعر الكرتون الجديد", en: "New carton price" },
   pricePecRsp: { ar: "سعر المستهلك الجديد", en: "New consumer price" },
+  r_salesMonthly: { ar: "مبيعات شهرية (مرجع)", en: "Monthly sales (ref)" },
+  r_salesMonthly_d: { ar: "مبيعات الأصناف بكل منفذ شهرياً 2024–2026.", en: "Per-outlet item sales by month 2024–2026." },
+  gross: { ar: "الكمية", en: "Gross weight" },
+  invValue: { ar: "القيمة", en: "Invoice value" },
+  prev: { ar: "السابق", en: "Prev" },
+  next: { ar: "التالي", en: "Next" },
   wob: { ar: "WOB", en: "WOB" },
   myAssignments: { ar: "توزيعاتي", en: "My assignments" },
   noAssign: {
@@ -619,10 +625,10 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
-    division: ["outlets", "sales", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    marketing: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    division: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
     supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory"],
-    doc: ["outlets", "sales", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
+    doc: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
     salesman: ["outlets", "products", "priceTrack", "approveItems"],
   };
   let rk;
@@ -664,6 +670,7 @@ function render() {
     priceTrack: vPriceTrack,
     priceUpdates: vPriceUpdates,
     approveItems: vApproveItems,
+    salesMonthly: vSalesMonthly,
   }[rk];
   if (view) view();
   else renderHome();
@@ -746,6 +753,7 @@ const ADMIN_ROLES = [
   { k: "outlets", ic: "🏪" },
   { k: "products", ic: "📦" },
   { k: "sales", ic: "📈" },
+  { k: "salesMonthly", ic: "🗓" },
   { k: "priceUpdates", ic: "🏷" },
   { k: "priceTrack", ic: "📊" },
   { k: "approveItems", ic: "🆕" },
@@ -2400,6 +2408,43 @@ async function saveTrack(bc, cust, input) {
   try { await api("/price-track/cell", { method: "POST", body }); const m = document.getElementById("ptMsg"); if (m) { m.textContent = t("savedCell"); setTimeout(() => { if (m) m.textContent = ""; }, 1200); } } catch (e) { toast(e.message); }
 }
 function doImportTrack(input) { const m = document.getElementById("ptMsg"); m.textContent = t("loading"); fileToApi(input, "/price-track/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported}`; toast(t("importDone")); vPriceTrack(); }); }
+
+/* ---------- monthly sales (reference) ---------- */
+let smState = { q: "", offset: 0, limit: 60, total: 0 };
+async function vSalesMonthly() {
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>${t("r_salesMonthly")}</h3>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="smq" placeholder="${t("search")}" style="min-width:220px">
+      <button class="btn ghost sm" onclick="smSearch()">${t("search")}</button>
+      <span class="pill-info" id="smCount"></span>
+    </div></header>
+    <div class="tbl-wrap" id="smBox"><div class="empty">${t("loading")}</div></div>
+    <div style="padding:10px 16px;display:flex;gap:8px"><button class="btn ghost sm" onclick="smPage(-1)">← ${t("prev")}</button><button class="btn ghost sm" onclick="smPage(1)">${t("next")} →</button></div></div>`;
+  const inp = document.getElementById("smq");
+  if (inp) inp.addEventListener("keydown", (e) => { if (e.key === "Enter") smSearch(); });
+  smState = { q: "", offset: 0, limit: 60, total: 0 };
+  await smLoad();
+}
+async function smLoad() {
+  const r = await api(`/sales-monthly?q=${encodeURIComponent(smState.q)}&limit=${smState.limit}&offset=${smState.offset}`);
+  smState.total = r.total;
+  const cc = document.getElementById("smCount");
+  if (cc) cc.textContent = `${r.total ? r.offset + 1 : 0}-${Math.min(r.offset + r.rows.length, r.total)} / ${r.total}`;
+  const box = document.getElementById("smBox"); if (!box) return;
+  box.innerHTML = r.rows.length
+    ? `<table><thead><tr><th>${t("outlet")}</th><th>${t("th_name")}</th><th>2024</th><th>2025</th><th>2026</th><th>2024 ${t("invValue")}</th><th>2025</th><th>2026</th><th></th></tr></thead><tbody>${r.rows.map((x) => `<tr><td>${esc(x.customer)}</td><td>${esc(x.item_desc)}</td><td class="mono">${KD(x.g2024)}</td><td class="mono">${KD(x.g2025)}</td><td class="mono">${KD(x.g2026)}</td><td class="mono">${KD(x.v2024)}</td><td class="mono">${KD(x.v2025)}</td><td class="mono">${KD(x.v2026)}</td><td><button class="btn ghost sm" onclick="smDetail(${x.id})">${t("view")}</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">${t("noSales")}</div>`;
+}
+function smSearch() { smState.q = (document.getElementById("smq").value || "").trim(); smState.offset = 0; smLoad(); }
+function smPage(d) { const no = smState.offset + d * smState.limit; if (no < 0 || no >= smState.total) return; smState.offset = no; smLoad(); }
+async function smDetail(id) {
+  const r = await api("/sales-monthly/" + id); const row = r.row;
+  const MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const yrs = ["2024", "2025", "2026"];
+  const tbl = (obj, title) => `<h4 style="margin:12px 0 4px;color:#123f70">${title}</h4><div class="tbl-scroll"><table class="pt"><thead><tr><th>${t("period")}</th>${MON.map((m) => `<th>${m}</th>`).join("")}</tr></thead><tbody>${yrs.map((y) => `<tr><td>${y}</td>${MON.map((m) => `<td class="mono">${obj[y] && obj[y][m] != null ? KD(obj[y][m]) : "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${esc(row.item_desc)} — ${esc(row.customer)}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div><div style="padding:16px;overflow:auto">${tbl(row.gross, t("gross"))}${tbl(row.value, t("invValue"))}</div>`);
+}
 
 /* ---------- init ---------- */
 (async function () {

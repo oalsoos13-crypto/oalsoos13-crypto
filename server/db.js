@@ -229,6 +229,22 @@ function migrate() {
       PRIMARY KEY (barcode, cust_id)
     );
 
+    -- Monthly sales reference data (per outlet x item), imported from the ERP.
+    CREATE TABLE IF NOT EXISTS sales_monthly (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer    TEXT,
+      sub_channel TEXT,
+      route       TEXT,
+      item_code   TEXT,
+      item_desc   TEXT,
+      g2024 REAL, g2025 REAL, g2026 REAL,
+      v2024 REAL, v2025 REAL, v2026 REAL,
+      gross_json  TEXT,
+      value_json  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_sm_customer ON sales_monthly(customer);
+    CREATE INDEX IF NOT EXISTS idx_sm_item ON sales_monthly(item_desc);
+
     -- Products submitted for listing/approval (new items to be approved).
     CREATE TABLE IF NOT EXISTS approve_products (
       barcode      TEXT PRIMARY KEY,
