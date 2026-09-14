@@ -128,16 +128,16 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
     if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
     if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
     calc = { value: r.value, items: r.items };
-    // Listing debit note: value comes from the co-op's stored calc terms.
-    if (type === 'listing_dn') {
-      try { calc.value = require('./tracking.routes').listingValue(coop, r.items); } catch (e) { /* keep spec value */ }
-    }
+    // If this co-op + letter type has stored calc terms, they drive the value.
+    try { const lv = require('./tracking.routes').listingValue(coop, type, r.items); if (lv != null) calc.value = lv; } catch (e) { /* keep spec value */ }
     metaJson = toJson(r.meta);
   } else {
     // Classic co-op letters: the salesman picks a co-op then a specific outlet,
     // which becomes the addressed recipient.
     recipient = req.body.recipient ? String(req.body.recipient).trim() : null;
     calc = computeValue(type, req.body, coop, recipient);
+    // Stored co-op + letter-type calc terms override the value when configured.
+    try { const lv = require('./tracking.routes').listingValue(coop, type, calc.items); if (lv != null) calc.value = lv; } catch (e) { /* keep computed value */ }
     if (mode === 'pricetable') {
       if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS');
     } else if (!calc.value) {

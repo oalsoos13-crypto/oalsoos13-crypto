@@ -60,35 +60,40 @@ const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();
 // ================= PER-COOP CALC TERMS =================
 router.get('/coop-terms', asyncH((req, res) => {
   const coops = [...new Set(db.prepare('SELECT DISTINCT parent FROM outlets').all().map((r) => cleanCoop(r.parent)).filter(Boolean))].sort();
-  const terms = {};
-  db.prepare('SELECT coop, calc_type, unit, multiplier, amount, pct, note FROM coop_terms').all()
-    .forEach((t) => { terms[t.coop] = { calc_type: t.calc_type, unit: t.unit, multiplier: t.multiplier, amount: t.amount, pct: t.pct, note: t.note || '' }; });
-  res.json({ coops, terms });
+  const rows = db.prepare('SELECT coop, letter_type, calc_type, unit, multiplier, amount, pct, note FROM coop_terms ORDER BY coop, letter_type').all();
+  res.json({ coops, rows });
 }));
 router.post('/coop-terms', requireRole(...MGMT), asyncH((req, res) => {
   const coop = clean(req.body.coop);
-  if (!coop) throw badRequest('الجمعية مطلوبة', 'BAD');
+  const letter_type = clean(req.body.letter_type);
+  if (!coop || !letter_type) throw badRequest('الجمعية ونوع الكتاب مطلوبين', 'BAD');
   const b = req.body;
   const nm = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
   const row = {
-    coop,
+    coop, letter_type,
     calc_type: ['bonus', 'amount', 'amount_pct'].includes(clean(b.calc_type)) ? clean(b.calc_type) : 'bonus',
     unit: clean(b.unit) === 'piece' ? 'piece' : 'carton',
     multiplier: nm(b.multiplier, 1), amount: nm(b.amount, 0), pct: nm(b.pct, 0),
     note: clean(b.note), by: req.user.id, now: nowIso(),
   };
-  db.prepare(`INSERT INTO coop_terms (coop,calc_type,unit,multiplier,amount,pct,note,updated_by,updated_at)
-    VALUES (@coop,@calc_type,@unit,@multiplier,@amount,@pct,@note,@by,@now)
-    ON CONFLICT(coop) DO UPDATE SET calc_type=excluded.calc_type, unit=excluded.unit, multiplier=excluded.multiplier,
+  db.prepare(`INSERT INTO coop_terms (coop,letter_type,calc_type,unit,multiplier,amount,pct,note,updated_by,updated_at)
+    VALUES (@coop,@letter_type,@calc_type,@unit,@multiplier,@amount,@pct,@note,@by,@now)
+    ON CONFLICT(coop,letter_type) DO UPDATE SET calc_type=excluded.calc_type, unit=excluded.unit, multiplier=excluded.multiplier,
       amount=excluded.amount, pct=excluded.pct, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at`)
     .run(row);
-  audit.fromReq(req, 'coop.terms.set', { entityType: 'coop_terms', entityId: coop, summary: `Terms ${coop}: ${row.calc_type}` });
+  audit.fromReq(req, 'coop.terms.set', { entityType: 'coop_terms', entityId: coop + '/' + letter_type, summary: `Terms ${coop}/${letter_type}: ${row.calc_type}` });
+  res.json({ ok: true });
+}));
+router.post('/coop-terms/delete', requireRole(...MGMT), asyncH((req, res) => {
+  db.prepare('DELETE FROM coop_terms WHERE coop=? AND letter_type=?').run(clean(req.body.coop), clean(req.body.letter_type));
   res.json({ ok: true });
 }));
 
-// Value of a listing debit note for a co-op, from its stored calc terms.
-function listingValue(coop, items) {
-  const t = db.prepare('SELECT * FROM coop_terms WHERE coop = ?').get(coop) || { calc_type: 'bonus', unit: 'carton', multiplier: 1, amount: 0, pct: 0 };
+// Value of a letter for a co-op + letter type, from its stored calc terms.
+// Returns null when no term is configured (caller keeps its own value).
+function listingValue(coop, letterType, items) {
+  const t = db.prepare('SELECT * FROM coop_terms WHERE coop = ? AND letter_type = ?').get(coop, letterType);
+  if (!t) return null;
   const n = (v) => { const x = parseFloat(v); return isNaN(x) ? 0 : x; };
   const round3 = (x) => Math.round(x * 1000) / 1000;
   if (t.calc_type === 'amount') return round3(n(t.amount));

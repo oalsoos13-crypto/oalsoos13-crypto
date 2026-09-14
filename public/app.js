@@ -271,6 +271,7 @@ const T = {
   byCarton: { ar: "بالكرتون", en: "By carton" },
   byPiece: { ar: "بالحبة", en: "By piece" },
   calcType: { ar: "نوع الحسبة", en: "Calc type" },
+  letterKind: { ar: "نوع الكتاب", en: "Letter type" },
   unitCol: { ar: "الوحدة", en: "Unit" },
   multiplierCol: { ar: "المضاعفة", en: "Multiplier" },
   amountCol: { ar: "المبلغ", en: "Amount" },
@@ -2504,48 +2505,54 @@ async function saveTrack(bc, cust, input) {
 }
 function doImportTrack(input) { const m = document.getElementById("ptMsg"); m.textContent = t("loading"); fileToApi(input, "/price-track/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported}`; toast(t("importDone")); vPriceTrack(); }); }
 
-/* ---------- per-coop calc settings ---------- */
-let ctData = { coops: [], terms: {} };
+/* ---------- per-coop + letter-type calc settings ---------- */
+let ctData = { coops: [], rows: [] };
 async function vCoopTerms() {
+  const types = (DB.ref.letterTypes || []).map((x) => ({ k: x.k, label: typeLabel(x) }));
   document.getElementById("rv").innerHTML = `
-  <div class="panel"><header><h3>${t("r_coopTerms")}</h3><span class="pill-info" id="ctCount"></span></header>
+  <div class="panel"><header><h3>${t("r_coopTerms")}</h3></header>
     <div class="hint" style="padding:6px 16px">${t("coopTermsHint")}</div>
+    <div class="grid g3" style="padding:0 16px 6px">
+      <div class="field"><label>${t("coop")}</label><select id="ctCoop"></select></div>
+      <div class="field"><label>${t("letterKind")}</label><select id="ctLt">${types.map((x) => `<option value="${esc(x.k)}">${esc(x.label)}</option>`).join("")}</select></div>
+      <div class="field"><label>${t("calcType")}</label><select id="ctType" onchange="ctFormToggle()"><option value="bonus">${t("type_bonus")}</option><option value="amount">${t("type_amount")}</option><option value="amount_pct">${t("type_amount_pct")}</option></select></div>
+    </div>
+    <div class="grid g3" style="padding:0 16px 6px">
+      <div class="field" id="ctUnitW"><label>${t("unitCol")}</label><select id="ctUnit"><option value="carton">${t("byCarton")}</option><option value="piece">${t("byPiece")}</option></select></div>
+      <div class="field" id="ctMultW"><label>${t("multiplierCol")}</label><input id="ctMult" type="number" step="0.001" value="2"></div>
+      <div class="field" id="ctAmtW"><label>${t("amountCol")}</label><input id="ctAmt" type="number" step="0.001" value="0"></div>
+      <div class="field" id="ctPctW"><label>${t("pctCol")}</label><input id="ctPct" type="number" step="0.01" value="0"></div>
+    </div>
+    <div class="actions" style="padding:0 16px 12px"><button class="btn primary sm" onclick="saveCoopTerm()">＋ ${t("saveRow")}</button></div>
     <div class="tbl-wrap" id="ctBox"><div class="empty">${t("loading")}</div></div></div>`;
   ctData = await api("/coop-terms");
-  const cc = document.getElementById("ctCount"); if (cc) cc.textContent = ctData.coops.length;
-  renderCoopTerms();
+  const cs = document.getElementById("ctCoop"); if (cs) cs.innerHTML = ctData.coops.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  ctFormToggle(); renderCoopTermsList();
 }
-function ctToggle(i) {
-  const ty = document.getElementById("cty" + i).value;
-  const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.visibility = on ? "visible" : "hidden"; };
-  show("ctu" + i, ty === "bonus"); show("ctm" + i, ty === "bonus");
-  show("cta" + i, ty === "amount" || ty === "amount_pct"); show("ctp" + i, ty === "amount_pct");
+function ctFormToggle() {
+  const ty = (document.getElementById("ctType") || {}).value;
+  const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? "" : "none"; };
+  show("ctUnitW", ty === "bonus"); show("ctMultW", ty === "bonus");
+  show("ctAmtW", ty === "amount" || ty === "amount_pct"); show("ctPctW", ty === "amount_pct");
 }
-function renderCoopTerms() {
+function renderCoopTermsList() {
   const box = document.getElementById("ctBox"); if (!box) return;
-  const typeOpts = (v) => ["bonus", "amount", "amount_pct"].map((k) => `<option value="${k}" ${v === k ? "selected" : ""}>${t("type_" + k)}</option>`).join("");
-  const unitOpts = (v) => `<option value="carton" ${v === "carton" ? "selected" : ""}>${t("byCarton")}</option><option value="piece" ${v === "piece" ? "selected" : ""}>${t("byPiece")}</option>`;
-  box.innerHTML = `<table><thead><tr><th>${t("coop")}</th><th>${t("calcType")}</th><th>${t("unitCol")}</th><th>${t("multiplierCol")}</th><th>${t("amountCol")}</th><th>${t("pctCol")}</th><th></th></tr></thead><tbody>${ctData.coops.map((c, i) => {
-    const tm = ctData.terms[c] || { calc_type: "bonus", unit: "carton", multiplier: 1, amount: 0, pct: 0 };
-    return `<tr><td>${esc(c)}</td>
-      <td><select id="cty${i}" onchange="ctToggle(${i})">${typeOpts(tm.calc_type)}</select></td>
-      <td><select id="ctu${i}">${unitOpts(tm.unit)}</select></td>
-      <td><input id="ctm${i}" type="number" step="0.001" value="${esc(tm.multiplier)}" style="width:80px"></td>
-      <td><input id="cta${i}" type="number" step="0.001" value="${esc(tm.amount)}" style="width:90px"></td>
-      <td><input id="ctp${i}" type="number" step="0.01" value="${esc(tm.pct)}" style="width:70px"></td>
-      <td><button class="btn gold sm" onclick="saveCoopTerm(${i})">${t("saveRow")}</button></td></tr>`;
-  }).join("")}</tbody></table>`;
-  ctData.coops.forEach((c, i) => ctToggle(i));
+  const summ = (r) => r.calc_type === "bonus" ? `1+1 · ${r.unit === "piece" ? t("byPiece") : t("byCarton")} · ×${r.multiplier}`
+    : r.calc_type === "amount" ? `${t("type_amount")}: ${KD(r.amount)}`
+      : `${t("type_amount_pct")}: ${KD(r.amount)} + ${r.pct}%`;
+  box.innerHTML = ctData.rows.length
+    ? `<table><thead><tr><th>${t("coop")}</th><th>${t("letterKind")}</th><th>${t("calcType")}</th><th></th></tr></thead><tbody>${ctData.rows.map((r) => `<tr><td>${esc(r.coop)}</td><td>${esc(ltName(r.letter_type))}</td><td>${esc(summ(r))}</td><td><button class="btn danger sm" onclick="delCoopTerm('${esc(r.coop).replace(/'/g, "\\'")}','${esc(r.letter_type)}')">${t("del")}</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">—</div>`;
 }
-async function saveCoopTerm(i) {
-  const coop = ctData.coops[i];
-  const g = (p) => document.getElementById(p + i).value;
-  const body = { coop, calc_type: g("cty"), unit: g("ctu"), multiplier: g("ctm"), amount: g("cta"), pct: g("ctp") };
-  try {
-    await api("/coop-terms", { method: "POST", body });
-    ctData.terms[coop] = { calc_type: body.calc_type, unit: body.unit, multiplier: +body.multiplier, amount: +body.amount, pct: +body.pct };
-    toast(t("savedCell"));
-  } catch (e) { toast(e.message); }
+async function saveCoopTerm() {
+  const g = (id) => document.getElementById(id).value;
+  const body = { coop: g("ctCoop"), letter_type: g("ctLt"), calc_type: g("ctType"), unit: g("ctUnit"), multiplier: g("ctMult"), amount: g("ctAmt"), pct: g("ctPct") };
+  if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
+  try { await api("/coop-terms", { method: "POST", body }); toast(t("savedCell")); ctData = await api("/coop-terms"); renderCoopTermsList(); } catch (e) { toast(e.message); }
+}
+async function delCoopTerm(coop, lt) {
+  if (!confirm(t("del") + "?")) return;
+  try { await api("/coop-terms/delete", { method: "POST", body: { coop, letter_type: lt } }); ctData.rows = ctData.rows.filter((r) => !(r.coop === coop && r.letter_type === lt)); renderCoopTermsList(); } catch (e) { toast(e.message); }
 }
 /* ---------- monthly sales (reference) ---------- */
 let smState = { q: "", offset: 0, limit: 60, total: 0 };
