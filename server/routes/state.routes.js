@@ -8,7 +8,7 @@ const router = express.Router();
 
 // GET /api/state — full application state for the authenticated user.
 router.get('/state', requireAuth, asyncH((req, res) => {
-  res.json({ user: req.user, state: buildState() });
+  res.json({ user: req.user, state: buildState(req.user) });
 }));
 
 module.exports = router;

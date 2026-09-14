@@ -19,6 +19,18 @@ function modeOf(type) {
 }
 const getCoop = db.prepare('SELECT mains FROM coops WHERE name = ?');
 
+// The set of co-op (parent) names a salesman/supervisor may address, derived
+// from the outlets master via their PF code. null == unrestricted (management).
+const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();
+function scopeCoopSet(user) {
+  let col = null;
+  if (user.role === 'salesman') col = 'salesman_pf';
+  else if (user.role === 'supervisor') col = 'fsm_pf';
+  else return null;
+  const rows = db.prepare(`SELECT DISTINCT parent FROM outlets WHERE ${col} = ?`).all(user.username);
+  return new Set(rows.map((r) => cleanCoop(r.parent)).filter(Boolean));
+}
+
 function nextCounter() {
   // Atomic increment + return (RETURNING supported by better-sqlite3 / SQLite >= 3.35).
   const row = db.prepare('UPDATE counters SET value = value + 1 WHERE name = ? RETURNING value').get('lysal');
@@ -69,14 +81,16 @@ function computeSpec(spec, body) {
 }
 
 // Recompute the letter value server-side (never trust the client figure).
-function computeValue(type, body, coopName) {
+function computeValue(type, body, coopName, recipient) {
   const mode = typeMode[type];
   if (mode === 'pricetable') {
     return { value: 0, items: sanitizePriceRows(body.priceRows || body.items) };
   }
   if (mode === 'items') {
+    // Addressed to a single outlet (scoped salesman) -> multiplier of 1;
+    // otherwise multiply the per-outlet total by the co-op's main-outlet count.
     const c = getCoop.get(coopName);
-    const mains = c ? c.mains : 0;
+    const mains = recipient ? 1 : (c ? c.mains : 0);
     const items = Array.isArray(body.items) ? body.items : [];
     const perOutlet = items.reduce((s, it) => s + num(it.price), 0);
     return { value: perOutlet * mains, items: items.map((it) => ({ name: it.name || '', price: num(it.price) })) };
@@ -101,7 +115,7 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
 
   if (mode === 'spec') {
     const spec = SPEC_BY_KEY[type];
-    if (spec.recipient === 'coop') { recipient = null; }
+    if (spec.recipient === 'coop') { recipient = req.body.recipient ? String(req.body.recipient).trim() : null; }
     else if (spec.recipient === 'fixed') { recipient = spec.recipientFixed; coop = ''; }
     else { recipient = String(req.body.recipient || spec.recipientDefault || '').trim(); coop = ''; }
     const r = computeSpec(spec, req.body);
@@ -110,12 +124,21 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
     calc = { value: r.value, items: r.items };
     metaJson = toJson(r.meta);
   } else {
-    calc = computeValue(type, req.body, coop);
+    // Classic co-op letters: the salesman picks a co-op then a specific outlet,
+    // which becomes the addressed recipient.
+    recipient = req.body.recipient ? String(req.body.recipient).trim() : null;
+    calc = computeValue(type, req.body, coop, recipient);
     if (mode === 'pricetable') {
       if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS');
     } else if (!calc.value) {
       throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
     }
+  }
+
+  // Enforce recipient scope for field users: the co-op must be one they cover.
+  const allowed = scopeCoopSet(req.user);
+  if (allowed && coop && !allowed.has(coop)) {
+    throw forbidden('لا يمكنك إصدار كتاب لجمعية خارج نطاقك', 'SCOPE');
   }
 
   // Salesmen file under their own name; others may specify.

@@ -44,8 +44,34 @@ function mapDist(r) {
   };
 }
 
+// Per-user recipient scope: which co-ops (and their outlets) a salesman or
+// supervisor may address letters to. Derived from the outlets master via the
+// user's PF code (username). Other roles get no restriction (null).
+function buildScope(user) {
+  if (!user) return null;
+  let rows;
+  if (user.role === 'salesman') {
+    rows = db.prepare('SELECT cust_id, name, parent FROM outlets WHERE salesman_pf = ? ORDER BY parent, name').all(user.username);
+  } else if (user.role === 'supervisor') {
+    rows = db.prepare('SELECT cust_id, name, parent FROM outlets WHERE fsm_pf = ? ORDER BY parent, name').all(user.username);
+  } else {
+    return null; // admin / marketing / division / doc: full access
+  }
+  const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();
+  const cleanOut = (n) => String(n || '').replace(/^\d+\s*-\s*/, '').trim();
+  const map = new Map();
+  for (const r of rows) {
+    const coop = cleanCoop(r.parent) || r.parent || '';
+    if (!coop) continue;
+    if (!map.has(coop)) map.set(coop, []);
+    map.get(coop).push({ custId: r.cust_id, name: cleanOut(r.name) || r.name });
+  }
+  const coops = [...map.entries()].map(([coop, outlets]) => ({ coop, outlets }));
+  return { role: user.role, coops };
+}
+
 // Build the complete client state object (mirrors the original in-browser DB shape).
-function buildState() {
+function buildState(user) {
   const nameOf = nameResolver();
 
   const budgets = db.prepare('SELECT * FROM budgets ORDER BY created_at ASC').all().map((b) => ({
@@ -77,6 +103,7 @@ function buildState() {
     letters,
     notes,
     counter: counter ? counter.value : 0,
+    scope: buildScope(user),
     ref: {
       coops,
       brands: SEED.brands,

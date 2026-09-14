@@ -438,6 +438,7 @@ let DB = {
   letters: [],
   notes: [],
   counter: 0,
+  scope: null,
   ref: SEED,
 };
 
@@ -452,6 +453,7 @@ async function loadState() {
   DB.letters = s.letters || [];
   DB.notes = s.notes || [];
   DB.counter = s.counter || 0;
+  DB.scope = s.scope || null;
   SEED = s.ref || SEED;
   DB.ref = SEED;
   if (s.year) YEAR = s.year;
@@ -501,6 +503,34 @@ function coopChannelBudget() {
 }
 function scopeName() {
   return currentUser && currentUser.role !== "admin" ? currentUser.name : null;
+}
+/* ---- recipient scope: salesman/supervisor pick their own co-op then outlet ---- */
+function scopeCoops() {
+  return DB.scope && Array.isArray(DB.scope.coops) ? DB.scope.coops : null;
+}
+function coopSelectHTML(id, onchange) {
+  const oc = onchange ? ` onchange="${onchange}"` : "";
+  const sc = scopeCoops();
+  if (sc)
+    return `<select id="${id}"${oc}><option value="">${t("choose")}</option>${sc.map((c) => `<option value="${esc(c.coop)}">${esc(c.coop)}</option>`).join("")}</select>`;
+  return `<select id="${id}"${oc}>${DB.ref.coops.map((c) => `<option value="${esc(c.n)}">${esc(c.n)} — ${c.m} ${t("mainOut")}</option>`).join("")}</select>`;
+}
+function outletsForCoop(coopName) {
+  const sc = scopeCoops();
+  if (!sc) return null; // unrestricted role -> no outlet step
+  const e = sc.find((c) => c.coop === coopName);
+  return e ? e.outlets : [];
+}
+function outletSelectHTML(id, coopName) {
+  const outs = outletsForCoop(coopName);
+  if (outs == null) return "";
+  return `<select id="${id}"><option value="">${t("choose")}</option>${outs.map((o) => `<option value="${esc(o.name)}">${esc(o.name)}</option>`).join("")}</select>`;
+}
+function onCoopChange(prefix) {
+  const coopSel = document.getElementById(prefix === "sp" ? "spCoop" : "fCoop");
+  const box = document.getElementById(prefix === "sp" ? "spOutletBox" : "fOutletBox");
+  if (box) box.innerHTML = outletSelectHTML(prefix === "sp" ? "spOutlet" : "fOutlet", coopSel ? coopSel.value : "");
+  if (prefix === "f" && typeof calcVal === "function") calcVal();
 }
 /* ---------- roles ---------- */
 const ROLES = [
@@ -1254,9 +1284,6 @@ function openLetterForm() {
   draftPrice = [emptyPriceRow()];
   draftSpecRows = [];
   draftSpecRows2 = [];
-  const coopOpts = DB.ref.coops
-    .map((c) => `<option value="${esc(c.n)}">${esc(c.n)} — ${c.m} ${t("mainOut")}</option>`)
-    .join("");
   const topts = DB.ref.letterTypes
     .map((x) => `<option value="${x.k}">${esc(typeLabel(x))}</option>`)
     .join("");
@@ -1268,7 +1295,8 @@ function openLetterForm() {
      <div class="field"><label>${t("fDate")}</label><input id="fDate" type="date" value="${today}"></div>
    </div>
    <div id="classicFields" class="grid g3" style="margin-top:12px">
-     <div class="field"><label>${t("coop")}</label><select id="fCoop" onchange="calcVal()">${coopOpts}</select></div>
+     <div class="field"><label>${t("coop")}</label>${coopSelectHTML("fCoop", "onCoopChange('f')")}</div>
+     <div class="field" id="fOutletWrap"${scopeCoops() ? "" : " hidden"}><label>${t("outlet")}</label><span id="fOutletBox"></span></div>
      <div class="field"><label>${t("fBrand")}</label><select id="fBrand">${DB.ref.brands.map((b) => `<option>${esc(b)}</option>`).join("")}</select></div>
      <div class="field"><label>${t("salesman")}</label><input id="fSales" value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
      <div class="field"><label>${t("fPrin")}</label><select id="fPrin">${DB.ref.principals.map((p) => `<option>${p}</option>`).join("")}</select></div>
@@ -1292,7 +1320,7 @@ function specTableEditor(tbl, which) {
 function specFormHTML(spec) {
   let h = "";
   if (spec.recipient === "coop")
-    h += `<div class="field" style="max-width:360px"><label>${t("coop")}</label><select id="spCoop">${DB.ref.coops.map((c) => `<option value="${esc(c.n)}">${esc(c.n)}</option>`).join("")}</select></div>`;
+    h += `<div class="grid g3"><div class="field"><label>${t("coop")}</label>${coopSelectHTML("spCoop", "onCoopChange('sp')")}</div><div class="field" id="spOutletWrap"${scopeCoops() ? "" : " hidden"}><label>${t("outlet")}</label><span id="spOutletBox"></span></div></div>`;
   else if (spec.recipient === "fixed")
     h += `<div class="field" style="max-width:360px"><label>${t("recipient")}</label><input value="${esc(spec.recipientFixed)}" readonly></div>`;
   else
@@ -1405,8 +1433,10 @@ function calcVal() {
   const k = document.getElementById("fType").value,
     mode = SEED.letterTypes.find((x) => x.k === k).mode;
   if (mode === "items") {
+    // Scoped salesman addresses a single outlet -> multiplier 1; otherwise the
+    // co-op's main-outlet count from the reference table.
     const c = coop(document.getElementById("fCoop").value),
-      out = c ? c.m : 0,
+      out = scopeCoops() ? 1 : (c ? c.m : 0),
       s = draftItems.reduce((a, it) => a + (+it.price || 0), 0),
       val = s * out;
     const oc = document.getElementById("outCount");
@@ -1426,8 +1456,15 @@ function calcVal() {
 async function saveSpecLetter(spec) {
   const g = (id) => document.getElementById(id);
   const body = { type: spec.k, date: g("fDate").value, note: g("fNote").value };
-  if (spec.recipient === "coop") body.coop = g("spCoop").value;
-  else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
+  if (spec.recipient === "coop") {
+    body.coop = g("spCoop").value;
+    const o = g("spOutlet");
+    if (o && o.value) body.recipient = o.value;
+    if (scopeCoops()) {
+      if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
+      if (!body.recipient) { toast(t("choose") + " " + t("outlet")); return; }
+    }
+  } else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
   if (spec.fields) {
     body.fields = {};
     spec.fields.forEach((f) => { const el = g("spf_" + f.key); body.fields[f.key] = el ? el.value : ""; });
@@ -1460,6 +1497,12 @@ async function saveLetter() {
     principal: document.getElementById("fPrin").value,
     note: document.getElementById("fNote").value,
   };
+  const fo = document.getElementById("fOutlet");
+  if (fo && fo.value) body.recipient = fo.value;
+  if (scopeCoops()) {
+    if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
+    if (!body.recipient) { toast(t("choose") + " " + t("outlet")); return; }
+  }
   if (mode === "items")
     body.items = draftItems
       .filter((it) => it.name || it.price)
@@ -1672,7 +1715,10 @@ function coopAr(name) {
   return c && c.ar ? c.ar : name;
 }
 function toBlock(rec) {
-  return `<div class="to">السـادة / جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  // When a specific outlet was addressed (scoped salesman) show it directly;
+  // otherwise fall back to the "جمعية … التعاونية" wrapper around the co-op name.
+  const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
+  return `<div class="to">السـادة / ${who} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
 }
 
 // Price-update ("change price") letter body.
@@ -1738,7 +1784,7 @@ function specDocHTML(rec, spec) {
   const lg = en ? "en" : "ar";
   const subject = specSubst(spec.subject[lg], rec);
   const intro = specSubst(spec.intro[lg], rec);
-  const who = spec.recipient === "coop" ? coopAr(rec.coop) : (rec.recipient || spec.recipientFixed || "");
+  const who = rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopAr(rec.coop) : (spec.recipientFixed || ""));
   const to = en
     ? `<div class="to">${esc(who)}</div>`
     : `<div class="to">السـادة / ${esc(who)} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
