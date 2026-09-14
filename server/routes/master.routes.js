@@ -8,13 +8,20 @@ const router = express.Router();
 router.use(requireAuth);
 
 // GET /api/outlets — outlet master joined with contract terms.
-// Readable by any authenticated user (internal reference data).
+// Field users (salesman/supervisor) only see the outlets/contracts assigned to
+// their PF code; management and documentation see everything.
 router.get('/outlets', asyncH((req, res) => {
-  const rows = db.prepare(`
-    SELECT o.*, c.pct, c.lumsum, c.bonus, c.slap,
+  const base = `SELECT o.*, c.pct, c.lumsum, c.bonus, c.slap,
            c.category_total, c.lays AS c_lays, c.iec AS c_iec, c.iec_off_shelf, c.gondola
-    FROM outlets o LEFT JOIN contracts c ON c.cust_id = o.cust_id
-    ORDER BY o.parent, o.name`).all();
+    FROM outlets o LEFT JOIN contracts c ON c.cust_id = o.cust_id`;
+  let rows;
+  if (req.user.role === 'salesman') {
+    rows = db.prepare(`${base} WHERE o.salesman_pf = ? ORDER BY o.parent, o.name`).all(req.user.username);
+  } else if (req.user.role === 'supervisor') {
+    rows = db.prepare(`${base} WHERE o.fsm_pf = ? ORDER BY o.parent, o.name`).all(req.user.username);
+  } else {
+    rows = db.prepare(`${base} ORDER BY o.parent, o.name`).all();
+  }
   res.json({ total: rows.length, outlets: rows });
 }));
 

@@ -148,9 +148,12 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
   const num_ = nextCounter();
   const lysal = refNo(num_);
 
+  // Salesmen's letters need supervisor approval before printing; letters made
+  // by management are approved on creation.
+  const approval = req.user.role === 'salesman' ? 'pending' : 'approved';
   db.prepare(`INSERT INTO letters
-      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, status, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,'pending',@by,@now)`)
+      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, status, approval, approved_by, approved_at, created_by, created_at)
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,'pending',@approval,@appBy,@appAt,@by,@now)`)
     .run({
       id, num: num_, lysal, type, coop,
       brand: req.body.brand || '', sales,
@@ -159,6 +162,7 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
       value: calc.value, base: calc.base ?? null, pct: calc.pct ?? null,
       items: calc.items ? toJson(calc.items) : null,
       recipient, meta: metaJson,
+      approval, appBy: approval === 'approved' ? req.user.id : null, appAt: approval === 'approved' ? now : null,
       by: req.user.id, now,
     });
 
@@ -182,6 +186,44 @@ router.delete('/letters/:id', requireRole('salesman', 'marketing', 'division'), 
     entityType: 'letter', entityId: req.params.id,
     summary: `Deleted letter ${L.lysal}`, details: { lysal: L.lysal, value: L.value },
   });
+  res.json({ ok: true });
+}));
+
+// A supervisor may only moderate letters whose co-op is within their scope;
+// management may moderate any.
+function assertCanModerate(req, L) {
+  if (['marketing', 'division', 'admin'].includes(req.user.role)) return;
+  if (req.user.role === 'supervisor') {
+    const allowed = scopeCoopSet(req.user);
+    const c = cleanCoop(L.coop);
+    if (allowed && c && allowed.has(c)) return;
+    throw forbidden('لا يمكنك اعتماد كتاب خارج نطاقك', 'SCOPE');
+  }
+  throw forbidden('غير مصرح', 'ROLE');
+}
+
+// POST /api/letters/:id/approve — supervisor/management approve; enables print.
+router.post('/letters/:id/approve', requireRole('supervisor', 'marketing', 'division'), asyncH((req, res) => {
+  const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
+  if (!L) throw notFound('الكتاب غير موجود');
+  assertCanModerate(req, L);
+  const now = nowIso();
+  db.prepare("UPDATE letters SET approval='approved', approved_by=?, approved_at=?, rejected_by=NULL, rejected_at=NULL, reject_reason=NULL, updated_at=? WHERE id=?")
+    .run(req.user.id, now, now, L.id);
+  audit.fromReq(req, 'letter.approve', { entityType: 'letter', entityId: L.id, summary: `Approved letter ${L.lysal}` });
+  res.json({ ok: true });
+}));
+
+// POST /api/letters/:id/reject — supervisor/management reject with a reason.
+router.post('/letters/:id/reject', requireRole('supervisor', 'marketing', 'division'), asyncH((req, res) => {
+  const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
+  if (!L) throw notFound('الكتاب غير موجود');
+  assertCanModerate(req, L);
+  const reason = String(req.body.reason || '').trim();
+  const now = nowIso();
+  db.prepare("UPDATE letters SET approval='rejected', rejected_by=?, rejected_at=?, reject_reason=?, updated_at=? WHERE id=?")
+    .run(req.user.id, now, reason, now, L.id);
+  audit.fromReq(req, 'letter.reject', { entityType: 'letter', entityId: L.id, summary: `Rejected letter ${L.lysal}`, details: { reason } });
   res.json({ ok: true });
 }));
 

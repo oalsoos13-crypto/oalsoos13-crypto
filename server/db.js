@@ -234,6 +234,15 @@ function migrate() {
   for (const col of ['weight', 'circular', 'circular_date']) {
     if (!prodCols.includes(col)) db.exec(`ALTER TABLE products ADD COLUMN ${col} TEXT`);
   }
+  // Letter-level approval (salesman -> supervisor) gating the print step.
+  const letterCols2 = db.prepare("PRAGMA table_info(letters)").all().map((c) => c.name);
+  const addLetterCol = (name, type) => { if (!letterCols2.includes(name)) db.exec(`ALTER TABLE letters ADD COLUMN ${name} ${type}`); };
+  addLetterCol('approval', "TEXT NOT NULL DEFAULT 'pending'");
+  addLetterCol('approved_by', 'INTEGER');
+  addLetterCol('approved_at', 'TEXT');
+  addLetterCol('rejected_by', 'INTEGER');
+  addLetterCol('rejected_at', 'TEXT');
+  addLetterCol('reject_reason', 'TEXT');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

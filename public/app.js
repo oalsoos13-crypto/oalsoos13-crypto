@@ -79,6 +79,10 @@ const T = {
   kd: { ar: "د.ك", en: "KD" },
   totalBudget: { ar: "إجمالي البتجيت", en: "Total budget" },
   period: { ar: "الفترة", en: "Period" },
+  preset: { ar: "النوع", en: "Preset" },
+  createdOn: { ar: "أُنشئ في", en: "Created on" },
+  channelsTitle: { ar: "توزيع القنوات", en: "Channels allocation" },
+  channel: { ar: "القناة", en: "Channel" },
   save: { ar: "حفظ", en: "Save" },
   chanDist: {
     ar: "توزيع البتجيت على القنوات",
@@ -257,6 +261,18 @@ const T = {
   noPending: { ar: "لا يوجد إشعارات بانتظار.", en: "Nothing pending." },
   view: { ar: "عرض", en: "View" },
   reject: { ar: "رفض", en: "Reject" },
+  lt_pending: { ar: "بانتظار اعتماد المشرف", en: "Awaiting supervisor approval" },
+  lt_approved: { ar: "معتمد", en: "Approved" },
+  lt_rejected: { ar: "مرفوض", en: "Rejected" },
+  lettersToApprove: { ar: "كتب بانتظار الاعتماد", en: "Letters awaiting approval" },
+  approvedLetters: { ar: "الكتب المعتمدة", en: "Approved letters" },
+  approveLetterQ: { ar: "اعتماد هذا الكتاب؟", en: "Approve this letter?" },
+  rejectReasonPrompt: { ar: "سبب الرفض:", en: "Rejection reason:" },
+  needApproval: { ar: "بانتظار اعتماد المشرف للطباعة", en: "Awaiting supervisor approval to print" },
+  r_lettersHistory: { ar: "سجل الكتب", en: "Letters history" },
+  r_lettersHistory_d: { ar: "كل الكتب الصادرة وحالتها.", en: "All issued letters and their status." },
+  r_budgetHistory: { ar: "سجل الميزانية", en: "Budget history" },
+  r_budgetHistory_d: { ar: "سجل الميزانيات والتخصيصات.", en: "Budgets and allocations history." },
   rejected: { ar: "تم الرفض", en: "Rejected" },
   st_waitSup: { ar: "بانتظار موافقة المشرف", en: "Awaiting supervisor" },
   st_waitMgr: { ar: "بانتظار موافقة المدير", en: "Awaiting manager" },
@@ -578,10 +594,10 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "outlets", "products"],
-    division: ["outlets", "sales", "products"],
-    supervisor: ["outlets", "products"],
-    doc: ["outlets", "sales", "products"],
+    marketing: ["sales", "outlets", "products", "lettersHistory", "budgetHistory"],
+    division: ["outlets", "sales", "products", "lettersHistory", "budgetHistory"],
+    supervisor: ["outlets", "products", "lettersHistory"],
+    doc: ["outlets", "sales", "products", "lettersHistory", "budgetHistory"],
     salesman: ["outlets", "products"],
   };
   let rk;
@@ -618,6 +634,8 @@ function render() {
     outlets: vOutlets,
     sales: vSales,
     products: vProducts,
+    lettersHistory: vLettersHistory,
+    budgetHistory: vBudgetHistory,
   }[rk];
   if (view) view();
   else renderHome();
@@ -700,6 +718,8 @@ const ADMIN_ROLES = [
   { k: "outlets", ic: "🏪" },
   { k: "products", ic: "📦" },
   { k: "sales", ic: "📈" },
+  { k: "lettersHistory", ic: "📜" },
+  { k: "budgetHistory", ic: "💰" },
   { k: "audit", ic: "🛡" },
   { k: "users", ic: "👥" },
   { k: "backup", ic: "💾" },
@@ -1119,9 +1139,58 @@ function vSupervisor() {
   const recv = sum(myRows.map(rowAmt));
   document.getElementById("rv").innerHTML =
     `<div class="cards">${card("accent", t("c_recv"), KD(recv), 1)}${card("", t("c_rowsN"), myRows.length, 0)}</div>
+  ${supLettersPanels()}
   ${supApprovalsPanel(me)}
   <div class="panel"><header><h3>${t("myAssignments")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("salesman")}</th><th>${t("mainCoop")}</th><th>${t("outlet")}</th><th>${t("wob")}</th><th>${t("amount")} (${t("kd")})</th></tr></thead><tbody>${myRows.length ? myRows.map((r) => `<tr><td>${esc(r.sales)}</td><td>${esc(r.coop)}</td><td>${esc(r.outlet)}</td><td class="mono">${+r.wob || 0}</td><td class="mono">${KD(rowAmt(r))}</td></tr>`).join("") : `<tr><td colspan="5"><div class="empty">${t("noAssign")}</div></td></tr>`}</tbody></table></div></div>
   <div class="panel"><header><h3>${t("coopsRef")}</h3><span class="pill-info">${DB.ref.coops.length} ${t("coopsN")}</span></header><div class="tbl-wrap" style="max-height:300px"><table><thead><tr><th>${t("coop")}</th><th>${t("mainOut")}</th><th>${t("branches")}</th></tr></thead><tbody>${DB.ref.coops.map((c) => `<tr><td>${esc(c.n)}</td><td class="mono">${c.m}</td><td>${c.b}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+/* ---------- history views ---------- */
+function vLettersHistory() {
+  const list = DB.letters.slice().reverse();
+  const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
+  const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></td></tr>`).join("");
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+}
+function vBudgetHistory() {
+  const b = DB.budgets.slice().reverse();
+  const ch = DB.budget.channels || {};
+  const brows = b.map((x) => `<tr><td>${esc(x.from || "")} → ${esc(x.to || "")}</td><td>${esc(x.preset || "")}</td><td class="mono">${KD(x.amount)}</td><td>${esc(x.created || "")}</td><td>${esc(x.createdByName || "")}</td></tr>`).join("");
+  const crows = Object.keys(ch).map((k) => `<tr><td>${esc(k)}</td><td class="mono">${KD(ch[k])}</td></tr>`).join("");
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_budgetHistory")} (${b.length})</h3></header><div class="tbl-wrap">${b.length ? `<table><thead><tr><th>${t("period")}</th><th>${t("preset")}</th><th>${t("amount")}</th><th>${t("createdOn")}</th><th>${t("createdBy")}</th></tr></thead><tbody>${brows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>
+  <div class="panel"><header><h3>${t("channelsTitle")}</h3></header><div class="tbl-wrap">${crows ? `<table><thead><tr><th>${t("channel")}</th><th>${t("amount")}</th></tr></thead><tbody>${crows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>`;
+}
+/* ---------- letter approval (salesman -> supervisor) ---------- */
+function supLettersPanels() {
+  const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
+  const head = `<tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr>`;
+  const row = (L, acts) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${acts}</td></tr>`;
+  const pend = DB.letters.filter((l) => (l.approval || "pending") === "pending");
+  const appr = DB.letters.filter((l) => l.approval === "approved");
+  const pendTbl = pend.length
+    ? `<table><thead>${head}</thead><tbody>${pend.slice().reverse().map((L) => row(L, `<div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div>`)).join("")}</tbody></table>`
+    : `<div class="empty">${t("noLetters")}</div>`;
+  const apprTbl = appr.length
+    ? `<table><thead>${head}</thead><tbody>${appr.slice().reverse().map((L) => row(L, `<button class="btn primary sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button>`)).join("")}</tbody></table>`
+    : `<div class="empty">${t("noLetters")}</div>`;
+  return `<div class="panel"><header><h3>${t("lettersToApprove")} (${pend.length})</h3></header><div class="tbl-wrap">${pendTbl}</div></div>
+  <div class="panel"><header><h3>${t("approvedLetters")} (${appr.length})</h3></header><div class="tbl-wrap">${apprTbl}</div></div>`;
+}
+function letterApprovalTag(L) {
+  const a = (L && L.approval) || "pending";
+  if (a === "approved") return `<span class="tag done">${t("lt_approved")}</span>`;
+  if (a === "rejected") return `<span class="tag" style="background:#fde8e8;color:#b42318" title="${esc(L.rejectReason || "")}">${t("lt_rejected")}</span>`;
+  return `<span class="tag draft">${t("lt_pending")}</span>`;
+}
+async function approveLetter(id) {
+  if (!confirm(t("approveLetterQ"))) return;
+  try { await api("/letters/" + id + "/approve", { method: "POST" }); await loadState(); render(); toast(t("lt_approved")); }
+  catch (e) { toast(e.message); }
+}
+async function rejectLetter(id) {
+  const reason = prompt(t("rejectReasonPrompt"));
+  if (reason === null) return;
+  try { await api("/letters/" + id + "/reject", { method: "POST", body: { reason: reason || "" } }); await loadState(); render(); toast(t("lt_rejected")); }
+  catch (e) { toast(e.message); }
 }
 /* ---------- salesman ---------- */
 let draftItems = [{ name: "", price: "" }];
@@ -1140,15 +1209,13 @@ function tblSalesLetters(list) {
       const done = L.status === "noted";
       const n = DB.notes.find((x) => x.letterId === L.id);
       const na = (n && n.attachments && n.attachments.length) || 0;
-      const statusCell = isPrice
-        ? `<span class="tag done">${t("st_letterOnly")}</span>`
-        : `${n ? noteStatusTag(n) : `<span class="tag draft">${t("st_pending")}</span>`}${na ? ` <span class="pill-info" style="padding:1px 7px">📎 ${na}</span>` : ""}`;
+      const statusCell = `${letterApprovalTag(L)}${n ? " " + noteStatusTag(n) : ""}${na ? ` <span class="pill-info" style="padding:1px 7px">📎 ${na}</span>` : ""}`;
       const dnBtn = isPrice
         ? ""
         : done
           ? `<button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>`
           : `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.coop)}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button>${dnBtn}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -1850,8 +1917,17 @@ function openDoc(rec, isLetter) {
       : "";
   const trail = !isLetter ? `<div style="padding:0 24px 18px">${approvalTrail(rec)}</div>` : "";
   const lhBtn = `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
+  // A salesman can never print; a letter prints only once the supervisor has
+  // approved it. Debit notes keep their own print behaviour.
+  const canPrint = isLetter
+    ? (currentUser.role !== "salesman" && rec.approval === "approved")
+    : true;
+  const printBtn = canPrint
+    ? `<button class="btn gold sm" onclick="window.print()">${t("print")}</button>`
+    : (isLetter && currentUser.role === "salesman" && rec.approval !== "approved"
+      ? `<span class="pill-info" style="padding:3px 10px">${t("needApproval")}</span>` : "");
   modal(
-    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}<button class="btn gold sm" onclick="window.print()">${t("print")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
+    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
   );
 }
 function openDocById(id) {

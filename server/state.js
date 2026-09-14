@@ -19,6 +19,10 @@ function mapLetter(r, nameOf) {
     brand: r.brand, sales: r.sales, date: r.date, principal: r.principal,
     note: r.note, value: r.value, base: r.base, pct: r.pct,
     items: fromJson(r.items, null), status: r.status,
+    approval: r.approval || 'pending',
+    approvedBy: r.approved_by, approvedByName: nameOf(r.approved_by), approvedAt: r.approved_at,
+    rejectedBy: r.rejected_by, rejectedByName: nameOf(r.rejected_by), rejectedAt: r.rejected_at,
+    rejectReason: r.reject_reason,
     recipient: r.recipient, meta: fromJson(r.meta, null),
     createdBy: r.created_by, createdByName: nameOf(r.created_by),
     createdAt: r.created_at,
@@ -92,7 +96,19 @@ function buildState(user) {
   const dist = db.prepare(
     "SELECT * FROM dist ORDER BY (sup=''), sup, (sales=''), sales, (coop=''), coop, outlet"
   ).all().map(mapDist);
-  const letters = db.prepare('SELECT * FROM letters ORDER BY created_at ASC').all().map((r) => mapLetter(r, nameOf));
+  // Letters are scoped: a salesman sees their own; a supervisor sees the letters
+  // for co-ops within their scope; management/documentation see all.
+  const scope = buildScope(user);
+  let letterRows;
+  if (user && user.role === 'salesman') {
+    letterRows = db.prepare('SELECT * FROM letters WHERE created_by = ? ORDER BY created_at ASC').all(user.id);
+  } else if (user && user.role === 'supervisor') {
+    const allowed = new Set((scope ? scope.coops : []).map((c) => c.coop));
+    letterRows = db.prepare('SELECT * FROM letters ORDER BY created_at ASC').all().filter((r) => allowed.has(r.coop));
+  } else {
+    letterRows = db.prepare('SELECT * FROM letters ORDER BY created_at ASC').all();
+  }
+  const letters = letterRows.map((r) => mapLetter(r, nameOf));
   const notes = db.prepare('SELECT * FROM notes ORDER BY created_at ASC').all().map((r) => mapNote(r, nameOf));
 
   const counter = db.prepare("SELECT value FROM counters WHERE name='lysal'").get();
@@ -108,7 +124,7 @@ function buildState(user) {
     letters,
     notes,
     counter: counter ? counter.value : 0,
-    scope: buildScope(user),
+    scope,
     ref: {
       coops,
       brands: SEED.brands,
