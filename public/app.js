@@ -1994,7 +1994,7 @@ function debitLetterInner(rec, isLetter) {
   const reason =
     rec.type === "listing" ? "اعتماد الأصناف التالية :"
     : rec.type === "pallet" ? "طبالي عرض."
-    : rec.type === "priceoff" ? "فرق أسعار."
+    : rec.type === "priceoff" ? "فروق أسعار."
     : rec.type === "stand" ? "ستاند عرض."
     : "دعم تجاري (CDA).";
   return `${metaBlock(rec, isLetter)}${toBlock(rec)}
