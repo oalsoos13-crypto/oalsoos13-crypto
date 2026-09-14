@@ -298,6 +298,7 @@ function migrate() {
   addLetterCol('rejected_by', 'INTEGER');
   addLetterCol('rejected_at', 'TEXT');
   addLetterCol('reject_reason', 'TEXT');
+  addLetterCol('cust_id', 'TEXT'); // addressed outlet, links letters to the price tracker
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

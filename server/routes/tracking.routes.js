@@ -142,6 +142,28 @@ router.get('/price-track', asyncH((req, res) => {
     if (!ids.has(t.cust_id)) return; // only cells for outlets the user can see
     cells[t.barcode + '|' + t.cust_id] = t;
   });
+
+  // Auto-fill D.N fields from approved price-increase letters (same outlet+product).
+  const TYPE_LABEL = { changeprice: 'تحديث سعر', priceupd: 'تحديث بيانات', uoc_union: 'زيادة أسعار - اتحاد' };
+  const cc = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();
+  const coopOutlets = {};
+  outlets.forEach((o) => { const c = cc(o.parent); (coopOutlets[c] = coopOutlets[c] || []).push(o.cust_id); });
+  const appr = db.prepare("SELECT lysal, type, value, items, cust_id, coop FROM letters WHERE approval='approved' AND type IN ('changeprice','priceupd','uoc_union') ORDER BY created_at ASC").all();
+  for (const L of appr) {
+    let its = []; try { its = JSON.parse(L.items || '[]'); } catch (e) { /* skip */ }
+    const barcodes = its.map((it) => String(it.barcode || it.barcodeNew || '').replace(/\.0$/, '')).filter((b) => /^\d{6,14}$/.test(b));
+    if (!barcodes.length) continue;
+    const targets = L.cust_id ? [L.cust_id] : (coopOutlets[L.coop] || []);
+    const info = { dn_number: L.lysal || '', dn_type: TYPE_LABEL[L.type] || L.type, dn_amount: L.value != null ? String(L.value) : '' };
+    for (const b of barcodes) for (const cid of targets) {
+      if (!ids.has(cid)) continue;
+      const key = b + '|' + cid;
+      const cur = cells[key] || { barcode: b, cust_id: cid };
+      ['dn_number', 'dn_type', 'dn_amount'].forEach((f) => { if (!cur[f]) cur[f] = info[f]; });
+      cur._autoDn = true;
+      cells[key] = cur;
+    }
+  }
   res.json({ products, outlets, cells });
 }));
 

@@ -572,8 +572,9 @@ function outletsForCoop(coopName) {
 function outletSelectHTML(id, coopName) {
   const outs = outletsForCoop(coopName);
   if (outs == null) return "";
-  // Outlet is optional; value carries the Arabic name shown on the letter.
-  return `<select id="${id}"><option value="">${t("choose")} (${t("optional")})</option>${outs.map((o) => { const nm = o.nameAr || o.name; return `<option value="${esc(nm)}">${esc(nm)}</option>`; }).join("")}</select>`;
+  // Outlet is optional; option value is the cust_id (links the letter to the
+  // price tracker), the visible text is the Arabic name shown on the letter.
+  return `<select id="${id}"><option value="">${t("choose")} (${t("optional")})</option>${outs.map((o) => { const nm = o.nameAr || o.name; return `<option value="${esc(o.custId)}">${esc(nm)}</option>`; }).join("")}</select>`;
 }
 function onCoopChange(prefix) {
   const coopSel = document.getElementById(prefix === "sp" ? "spCoop" : "fCoop");
@@ -1568,8 +1569,9 @@ async function saveSpecLetter(spec) {
     if (scopeCoops()) {
       if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
       // Outlet is optional; fall back to the co-op's Arabic name for the letter.
-      body.recipient = o && o.value ? o.value : coopArOf(body.coop);
-    } else if (o && o.value) body.recipient = o.value;
+      if (o && o.value) { body.custId = o.value; body.recipient = o.options[o.selectedIndex].text; }
+      else body.recipient = coopArOf(body.coop);
+    } else if (o && o.value) { body.custId = o.value; body.recipient = o.options[o.selectedIndex].text; }
   } else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
   if (spec.fields) {
     body.fields = {};
@@ -1607,8 +1609,9 @@ async function saveLetter() {
   if (scopeCoops()) {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
     // Outlet is optional; fall back to the co-op's Arabic name for the letter.
-    body.recipient = fo && fo.value ? fo.value : coopArOf(body.coop);
-  } else if (fo && fo.value) body.recipient = fo.value;
+    if (fo && fo.value) { body.custId = fo.value; body.recipient = fo.options[fo.selectedIndex].text; }
+    else body.recipient = coopArOf(body.coop);
+  } else if (fo && fo.value) { body.custId = fo.value; body.recipient = fo.options[fo.selectedIndex].text; }
   if (mode === "items")
     body.items = draftItems
       .filter((it) => it.name || it.price)

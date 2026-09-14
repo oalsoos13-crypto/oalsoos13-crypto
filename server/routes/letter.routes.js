@@ -151,9 +151,10 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
   // Salesmen's letters need supervisor approval before printing; letters made
   // by management are approved on creation.
   const approval = req.user.role === 'salesman' ? 'pending' : 'approved';
+  const custId = String(req.body.custId || '').trim() || null;
   db.prepare(`INSERT INTO letters
-      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, status, approval, approved_by, approved_at, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,'pending',@approval,@appBy,@appAt,@by,@now)`)
+      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, approved_by, approved_at, created_by, created_at)
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending',@approval,@appBy,@appAt,@by,@now)`)
     .run({
       id, num: num_, lysal, type, coop,
       brand: req.body.brand || '', sales,
@@ -161,7 +162,7 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
       principal: req.body.principal || '', note: req.body.note || '',
       value: calc.value, base: calc.base ?? null, pct: calc.pct ?? null,
       items: calc.items ? toJson(calc.items) : null,
-      recipient, meta: metaJson,
+      recipient, meta: metaJson, custId,
       approval, appBy: approval === 'approved' ? req.user.id : null, appAt: approval === 'approved' ? now : null,
       by: req.user.id, now,
     });
