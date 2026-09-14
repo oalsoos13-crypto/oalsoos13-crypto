@@ -965,6 +965,19 @@ const DEFAULT_USERS = [
   { u: "waleed", p: "1234", name: "Waleed", role: "salesman" },
   { u: "yousef", p: "1234", name: "Yousef", role: "salesman" },
   { u: "ziad", p: "1234", name: "Ziad", role: "salesman" },
+
+  // Real salesmen & supervisors keyed by PF (username = password = PF code).
+  // Scope: letters show only the coops/outlets assigned to this PF in `outlets`.
+  { u: "5058", pw: "5058", name: "MAHMOUD REFAAT", role: "salesman" },
+  { u: "6373", pw: "6373", name: "AHMED FAWZY", role: "salesman" },
+  { u: "6468", pw: "6468", name: "Mahmoud Abo Zeid", role: "salesman" },
+  { u: "6678", pw: "6678", name: "AHMED MAHER", role: "salesman" },
+  { u: "6679", pw: "6679", name: "KHALED AHMED", role: "salesman" },
+  { u: "6872", pw: "6872", name: "Tamer Issua", role: "salesman" },
+  { u: "7044", pw: "7044", name: "Omar Sabri", role: "salesman" },
+  { u: "7055", pw: "7055", name: "MOHAMED ADEL", role: "salesman" },
+  { u: "6933", pw: "6933", name: "Ahmed Fadel", role: "supervisor" },
+  { u: "7056", pw: "7056", name: "Othman Saleh", role: "supervisor" },
 ];
 
 module.exports = { SEED, DEFAULT_DIST, DEFAULT_USERS };

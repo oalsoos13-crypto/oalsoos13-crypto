@@ -112,7 +112,8 @@ function seedUsers() {
   const tx = db.transaction((rows) => {
     for (const u of rows) {
       if (exists.get(u.u)) continue;
-      const pw = u.role === 'admin' ? config.adminPassword : config.defaultPassword;
+      // Explicit per-user password (u.pw) wins; otherwise fall back to the role default.
+      const pw = u.pw || (u.role === 'admin' ? config.adminPassword : config.defaultPassword);
       insert.run({ username: u.u, hash: hashPassword(pw), name: u.name, role: u.role, now });
       created++;
     }
