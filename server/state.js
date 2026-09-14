@@ -3,6 +3,8 @@ const db = require('./db');
 const { fromJson } = require('./util');
 const { SEED } = require('./seed-data');
 const { LETTER_SPECS } = require('./letter-specs');
+let AR = { coops: {}, outlets: {} };
+try { AR = require('./outlet_ar.json'); } catch (e) { /* optional Arabic name map */ }
 
 // Resolve user id -> display name (cached per call).
 function nameResolver() {
@@ -64,9 +66,12 @@ function buildScope(user) {
     const coop = cleanCoop(r.parent) || r.parent || '';
     if (!coop) continue;
     if (!map.has(coop)) map.set(coop, []);
-    map.get(coop).push({ custId: r.cust_id, name: cleanOut(r.name) || r.name });
+    const outName = cleanOut(r.name) || r.name;
+    map.get(coop).push({ custId: r.cust_id, name: outName, nameAr: AR.outlets[outName] || '' });
   }
-  const coops = [...map.entries()].map(([coop, outlets]) => ({ coop, outlets }));
+  const coops = [...map.entries()].map(([coop, outlets]) => ({
+    coop, coopAr: AR.coops[coop] || '', outlets,
+  }));
   return { role: user.role, coops };
 }
 

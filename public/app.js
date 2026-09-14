@@ -220,6 +220,7 @@ const T = {
   },
   mainCoop: { ar: "الجمعية المين", en: "Main co-op" },
   outlet: { ar: "الأوتليت", en: "Outlet" },
+  optional: { ar: "اختياري", en: "optional" },
   wob: { ar: "WOB", en: "WOB" },
   myAssignments: { ar: "توزيعاتي", en: "My assignments" },
   noAssign: {
@@ -512,19 +513,27 @@ function coopSelectHTML(id, onchange) {
   const oc = onchange ? ` onchange="${onchange}"` : "";
   const sc = scopeCoops();
   if (sc)
-    return `<select id="${id}"${oc}><option value="">${t("choose")}</option>${sc.map((c) => `<option value="${esc(c.coop)}">${esc(c.coop)}</option>`).join("")}</select>`;
+    return `<select id="${id}"${oc}><option value="">${t("choose")}</option>${sc.map((c) => `<option value="${esc(c.coop)}">${esc(c.coopAr || c.coop)}</option>`).join("")}</select>`;
   return `<select id="${id}"${oc}>${DB.ref.coops.map((c) => `<option value="${esc(c.n)}">${esc(c.n)} — ${c.m} ${t("mainOut")}</option>`).join("")}</select>`;
 }
-function outletsForCoop(coopName) {
+function scopeCoopEntry(coopName) {
   const sc = scopeCoops();
-  if (!sc) return null; // unrestricted role -> no outlet step
-  const e = sc.find((c) => c.coop === coopName);
+  return sc ? sc.find((c) => c.coop === coopName) : null;
+}
+function coopArOf(coopName) {
+  const e = scopeCoopEntry(coopName);
+  return e && e.coopAr ? e.coopAr : coopName;
+}
+function outletsForCoop(coopName) {
+  const e = scopeCoopEntry(coopName);
+  if (!scopeCoops()) return null; // unrestricted role -> no outlet step
   return e ? e.outlets : [];
 }
 function outletSelectHTML(id, coopName) {
   const outs = outletsForCoop(coopName);
   if (outs == null) return "";
-  return `<select id="${id}"><option value="">${t("choose")}</option>${outs.map((o) => `<option value="${esc(o.name)}">${esc(o.name)}</option>`).join("")}</select>`;
+  // Outlet is optional; value carries the Arabic name shown on the letter.
+  return `<select id="${id}"><option value="">${t("choose")} (${t("optional")})</option>${outs.map((o) => { const nm = o.nameAr || o.name; return `<option value="${esc(nm)}">${esc(nm)}</option>`; }).join("")}</select>`;
 }
 function onCoopChange(prefix) {
   const coopSel = document.getElementById(prefix === "sp" ? "spCoop" : "fCoop");
@@ -1459,11 +1468,11 @@ async function saveSpecLetter(spec) {
   if (spec.recipient === "coop") {
     body.coop = g("spCoop").value;
     const o = g("spOutlet");
-    if (o && o.value) body.recipient = o.value;
     if (scopeCoops()) {
       if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
-      if (!body.recipient) { toast(t("choose") + " " + t("outlet")); return; }
-    }
+      // Outlet is optional; fall back to the co-op's Arabic name for the letter.
+      body.recipient = o && o.value ? o.value : coopArOf(body.coop);
+    } else if (o && o.value) body.recipient = o.value;
   } else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
   if (spec.fields) {
     body.fields = {};
@@ -1498,11 +1507,11 @@ async function saveLetter() {
     note: document.getElementById("fNote").value,
   };
   const fo = document.getElementById("fOutlet");
-  if (fo && fo.value) body.recipient = fo.value;
   if (scopeCoops()) {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
-    if (!body.recipient) { toast(t("choose") + " " + t("outlet")); return; }
-  }
+    // Outlet is optional; fall back to the co-op's Arabic name for the letter.
+    body.recipient = fo && fo.value ? fo.value : coopArOf(body.coop);
+  } else if (fo && fo.value) body.recipient = fo.value;
   if (mode === "items")
     body.items = draftItems
       .filter((it) => it.name || it.price)
