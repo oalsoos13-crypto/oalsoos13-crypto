@@ -73,7 +73,13 @@ function computeSpec(spec, body) {
   if (spec.table2) meta.rows2 = sanitizeSpecRows(spec.table2.cols, body.rows2);
   let value = 0;
   if (spec.valueMode === 'direct') value = num(meta.value != null ? meta.value : body.value);
-  else if (spec.valueMode && spec.valueMode.startsWith('sum:')) {
+  else if (spec.valueMode === 'listingdn') {
+    // Per item: carton price, or consumer piece x pack; times the bonus ratio.
+    const mode = String(meta.calcMode || 'carton');
+    const ratio = num(meta.ratio) || 1;
+    const base = (items || []).reduce((s, r) => s + (mode === 'piece' ? num(r.consPiece) * num(r.pack) : num(r.coopCarton)), 0);
+    value = base * ratio;
+  } else if (spec.valueMode && spec.valueMode.startsWith('sum:')) {
     const col = spec.valueMode.slice(4);
     value = (items || []).reduce((s, r) => s + num(r[col]), 0);
   }

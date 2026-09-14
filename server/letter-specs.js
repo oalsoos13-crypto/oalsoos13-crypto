@@ -106,6 +106,35 @@ const LETTER_SPECS = [
     signatory: SIGN.coop,
   },
 
+  /* ---------- 4b) New-items Listing Debit Note (إشعار + جدول) ---------- */
+  {
+    k: 'listing_dn', ar: 'اعتماد أصناف جديدة (إشعار + جدول)', en: 'New Items Listing (DN + table)',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'listingdn',
+    subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـة للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل اعتماد أصناف جديدة.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the listing of new items.',
+    },
+    fields: [
+      { key: 'calcMode', ar: 'طريقة الحساب', en: 'Calc mode', type: 'select', opts: [{ v: 'carton', ar: 'بالكرتون', en: 'By carton' }, { v: 'piece', ar: 'بالحبة', en: 'By piece' }] },
+      { key: 'ratio', ar: 'المضاعف (1+1 = 2)', en: 'Ratio', type: 'number', def: 2 },
+    ],
+    table: {
+      title: { ar: 'الأصناف', en: 'Items' },
+      cols: [
+        { key: 'item', ar: 'رقم الصنف', en: 'Item #', type: 'text' },
+        { key: 'name', ar: 'اسم الصنف', en: 'Name', type: 'text', wide: true },
+        { key: 'origin', ar: 'بلد المنشأ', en: 'Origin', type: 'text' },
+        { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
+        { key: 'coopCarton', ar: 'سعر الكرتون للجمعية', en: 'Coop carton', type: 'num' },
+        { key: 'consPiece', ar: 'سعر الحبة للمستهلك', en: 'Consumer piece', type: 'num' },
+        { key: 'barcode', ar: 'رقم الباركود', en: 'Barcode', type: 'text' },
+      ],
+    },
+    closing: ['وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،'],
+    signatory: SIGN.coop,
+  },
+
   /* ---------- 5b) Rent Debit Note (إشعار خصم إيجارات) ---------- */
   {
     k: 'rentdebit', ar: 'إشعار خصم — إيجارات', en: 'Rent Debit Note',

@@ -19,6 +19,38 @@ const KD = (n) =>
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
+// Arabic amount-in-words (تفقيط) for Kuwaiti dinars + fils.
+function _below1000(n) {
+  const ones = ["", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة"];
+  const teens = ["عشرة", "أحد عشر", "اثنا عشر", "ثلاثة عشر", "أربعة عشر", "خمسة عشر", "ستة عشر", "سبعة عشر", "ثمانية عشر", "تسعة عشر"];
+  const tens = ["", "", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"];
+  const hund = ["", "مئة", "مئتان", "ثلاثمائة", "أربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة"];
+  const parts = []; const h = Math.floor(n / 100), r = n % 100;
+  if (h) parts.push(hund[h]);
+  if (r) {
+    if (r < 10) parts.push(ones[r]);
+    else if (r < 20) parts.push(teens[r - 10]);
+    else { const tt = Math.floor(r / 10), o = r % 10; parts.push(o ? ones[o] + " و" + tens[tt] : tens[tt]); }
+  }
+  return parts.join(" و");
+}
+function _intWords(n) {
+  if (n === 0) return "صفر";
+  const parts = [];
+  const mil = Math.floor(n / 1000000); n %= 1000000;
+  const th = Math.floor(n / 1000); const rest = n % 1000;
+  if (mil) parts.push(mil === 1 ? "مليون" : mil === 2 ? "مليونان" : (mil <= 10 ? _below1000(mil) + " ملايين" : _below1000(mil) + " مليون"));
+  if (th) parts.push(th === 1 ? "ألف" : th === 2 ? "ألفان" : (th <= 10 ? _below1000(th) + " آلاف" : _below1000(th) + " ألف"));
+  if (rest) parts.push(_below1000(rest));
+  return parts.join(" و");
+}
+function tafqitKD(value) {
+  const v = Math.round((Number(value) || 0) * 1000);
+  const dinars = Math.floor(v / 1000), fils = v % 1000;
+  let s = "فقط " + _intWords(dinars) + " دينار";
+  if (fils) s += " و" + _intWords(fils) + " فلس";
+  return s + " لا غير";
+}
 /* ---------- i18n ---------- */
 let LANG = "ar";
 const T = {
@@ -230,6 +262,7 @@ const T = {
   r_priceUpdates: { ar: "تحديث الأسعار", en: "Price updates" },
   r_priceUpdates_d: { ar: "أصناف تحديث/رفع الأسعار.", en: "Products under a price update." },
   r_approveItems: { ar: "أصناف للاعتماد", en: "Items to approve" },
+  genBook: { ar: "توليد كتاب اعتماد", en: "Generate listing letter" },
   r_approveItems_d: { ar: "أصناف جديدة بحاجة اعتماد.", en: "New items awaiting approval." },
   pickProduct: { ar: "اختر الصنف", en: "Pick product" },
   saveRow: { ar: "حفظ", en: "Save" },
@@ -1441,7 +1474,14 @@ function specFormHTML(spec) {
   else
     h += `<div class="field" style="max-width:420px"><label>${t("recipient")}</label><input id="spRecipient" value="${esc(spec.recipientDefault || "")}"></div>`;
   if (spec.fields && spec.fields.length)
-    h += `<div class="grid g3" style="margin-top:10px">${spec.fields.map((f) => `<div class="field"><label>${esc(LANG === "en" ? f.en : f.ar)}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}></div>`).join("")}</div>`;
+    h += `<div class="grid g3" style="margin-top:10px">${spec.fields.map((f) => {
+      const lbl = esc(LANG === "en" ? f.en : f.ar);
+      if (f.type === "select") {
+        return `<div class="field"><label>${lbl}</label><select id="spf_${f.key}">${(f.opts || []).map((o) => `<option value="${esc(o.v)}">${esc(LANG === "en" ? o.en : o.ar)}</option>`).join("")}</select></div>`;
+      }
+      const def = f.def != null ? ` value="${esc(f.def)}"` : "";
+      return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${def}></div>`;
+    }).join("")}</div>`;
   if (spec.table) h += specTableEditor(spec.table, 1);
   if (spec.table2) h += specTableEditor(spec.table2, 2);
   return h;
@@ -1872,7 +1912,7 @@ function debitLetterInner(rec, isLetter) {
     : "دعم تجاري (CDA).";
   return `${metaBlock(rec, isLetter)}${toBlock(rec)}
   <div class="subj">الموضـوع : عمل إشعار خصم</div>
-  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) وذلك القيمة، مقابل ${reason}</div>
+  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة، مقابل ${reason}</div>
   ${items}${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
   <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
   ${signBlock()}`;
@@ -1883,6 +1923,7 @@ function specSubst(str, rec) {
   const m = rec.meta || {};
   return String(str || "").replace(/\{(\w+)\}/g, (_, k) => {
     if (k === "value") return KD(rec.value);
+    if (k === "tafqit") return tafqitKD(rec.value);
     if (k === "coop") return rec.coop || "";
     if (k === "recipient") return rec.recipient || "";
     if (k === "date") return rec.date || "";
@@ -1897,6 +1938,9 @@ function specTablePrint(tbl, rows) {
   return `<table class="pt"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 function specDocHTML(rec, spec) {
+  // Listing debit note prints as TWO copies under one LYSAL: (1) the debit-note
+  // text with value + tafqit, (2) the items table (تحديث بيانات style).
+  if (spec.k === "listing_dn") return listingDnHTML(rec, spec);
   const en = spec.lang === "en";
   const lg = en ? "en" : "ar";
   const subject = specSubst(spec.subject[lg], rec);
@@ -1916,6 +1960,28 @@ function specDocHTML(rec, spec) {
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
   return `<div class="doc lh-${LH_MODE}${en ? " ltr" : ""}"${en ? ' dir="ltr"' : ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
+}
+// Two-copy listing debit note: page 1 = debit text, page 2 = items table.
+function listingDnHTML(rec, spec) {
+  const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
+  const meta = metaBlock(rec, true);
+  const to = `<div class="to">السـادة / ${who} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
+  const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
+  const wrap = (inner, extra) => `<div class="doc lh-${LH_MODE}"${extra || ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
+  // Page 1 — debit note text with value + tafqit
+  const p1 = `${meta}${to}
+    <div class="subj">الموضـوع : عمل إشعار خصم</div>
+    <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة مقابل اعتماد أصناف جديدة.</div>
+    <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock()}`;
+  // Page 2 — items table (تحديث بيانات)
+  const tbl = specTablePrint(spec.table, rec.items);
+  const p2 = `${meta}${to}
+    <div class="subj">الموضـوع : تحديـث بيانـات</div>
+    <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على اعتماد الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :</div>
+    ${tbl}
+    <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock()}`;
+  return wrap(p1) + wrap(p2, ' style="page-break-before:always"');
 }
 function docHTML(rec, isLetter) {
   const spec = specOf(rec.type);
@@ -2355,6 +2421,7 @@ async function vApproveItems() {
   document.getElementById("rv").innerHTML = `
   <div class="panel"><header><h3>${t("r_approveItems")}</h3>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn primary sm" onclick="bookFromApprove()">${t("genBook")}</button>
       <button class="btn gold sm" onclick="addApproveItem()">${t("addProductBtn")}</button>
       <label class="btn ghost sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="doImportApprove(this)"></label>
     </div></header>
@@ -2372,6 +2439,16 @@ async function loadApprove() {
 function doImportApprove(input) { const m = document.getElementById("apMsg"); m.textContent = t("loading"); fileToApi(input, "/approve-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadApprove(); }); }
 async function addApproveItem() { const barcode = prompt(t("th_barcode")); if (!barcode) return; const name = prompt(t("th_name")) || ""; try { await api("/approve-products", { method: "POST", body: { barcode, nameAr: name } }); loadApprove(); } catch (e) { toast(e.message); } }
 async function delApprove(bc) { if (!confirm(t("del") + "?")) return; try { await api("/approve-products/" + encodeURIComponent(bc), { method: "DELETE" }); loadApprove(); } catch (e) { toast(e.message); } }
+// Build a listing debit-note letter (اعتماد أصناف) pre-filled with the approve list.
+async function bookFromApprove() {
+  const r = await api("/approve-products");
+  if (!r.products.length) { toast(t("noProducts")); return; }
+  openLetterForm();
+  const sel = document.getElementById("fType");
+  if (sel) { sel.value = "listing_dn"; typeChanged(); }
+  draftSpecRows = r.products.map((p) => ({ item: "", name: p.name_ar || p.name || "", origin: p.origin || "", pack: p.pack || "", coopCarton: p.coop_carton || "", consPiece: p.cons_piece || "", barcode: p.barcode || "" }));
+  renderSpecRows(1);
+}
 /* -- price tracker grid -- */
 const TRACK_COLS = [["book_printing", "bookPrinting"], ["upd", "colUpdate"], ["date_update", "dateUpdate"], ["dn_number", "dnNumber"], ["dn_type", "dnType"], ["dn_amount", "dnAmount"], ["date_sales_new", "dateSalesNew"], ["branch_connection", "branchConnection"], ["supply_branch", "supplyBranch"], ["branch_supply_date", "branchSupplyDate"], ["stock", "stockCol"]];
 async function vPriceTrack() {
