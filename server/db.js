@@ -276,6 +276,74 @@ function migrate() {
       added_at     TEXT
     );
 
+    -- ===== Contracts module (rich model) =====
+    -- Space types (مساحات) used by contract line-items. Data-driven lookup;
+    -- populated in-system or imported from the co-op's spaces file.
+    CREATE TABLE IF NOT EXISTS contract_spaces (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      name     TEXT NOT NULL,        -- Arabic name of the space type
+      name_en  TEXT,
+      note     TEXT,
+      active   INTEGER NOT NULL DEFAULT 1,
+      sort     INTEGER NOT NULL DEFAULT 0
+    );
+
+    -- Contract header. A contract is per-outlet (level='outlet', cust_id set) or
+    -- per-coop (level='coop'). Addenda (ملحق) point at a base contract via
+    -- parent_id with kind='addendum'.
+    CREATE TABLE IF NOT EXISTS contract_hdr (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      code        TEXT,              -- contract number / reference
+      title       TEXT,
+      level       TEXT NOT NULL DEFAULT 'outlet',   -- 'outlet' | 'coop'
+      coop        TEXT,              -- parent co-op (cleaned name)
+      cust_id     TEXT,              -- outlet, when level='outlet'
+      period_from TEXT,
+      period_to   TEXT,
+      kind        TEXT NOT NULL DEFAULT 'base',      -- 'base' | 'addendum'
+      parent_id   INTEGER,           -- base contract id, when kind='addendum'
+      note        TEXT,
+      status      TEXT NOT NULL DEFAULT 'active',    -- 'active' | 'closed'
+      created_by  INTEGER,
+      created_at  TEXT,
+      updated_by  INTEGER,
+      updated_at  TEXT
+    );
+
+    -- Contract line-items. Multiple per contract. Each ties to a space (مساحة).
+    -- item_type: 'pct' (نسبة على العقد) | 'amount' (مبلغ ثابت) | 'support' (دعم) | 'other' (أخرى)
+    CREATE TABLE IF NOT EXISTS contract_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      contract_id INTEGER NOT NULL,
+      item_type   TEXT NOT NULL DEFAULT 'amount',
+      space_id    INTEGER,           -- FK contract_spaces.id (nullable)
+      space       TEXT,              -- resolved space name (denormalized)
+      label       TEXT,
+      pct         REAL NOT NULL DEFAULT 0,   -- when item_type='pct'
+      base_amount REAL NOT NULL DEFAULT 0,   -- contract base for pct calc
+      amount      REAL NOT NULL DEFAULT 0,   -- when amount/support/other
+      note        TEXT,
+      sort        INTEGER NOT NULL DEFAULT 0
+    );
+
+    -- Installments / payment delivery schedule (تسليم الدفعات).
+    CREATE TABLE IF NOT EXISTS contract_installments (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      contract_id INTEGER NOT NULL,
+      seq         INTEGER NOT NULL DEFAULT 1,
+      due_date    TEXT,
+      amount      REAL NOT NULL DEFAULT 0,
+      status      TEXT NOT NULL DEFAULT 'pending',   -- 'pending' | 'paid'
+      paid_date   TEXT,
+      note        TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_citems_contract ON contract_items(contract_id);
+    CREATE INDEX IF NOT EXISTS idx_cinst_contract  ON contract_installments(contract_id);
+    CREATE INDEX IF NOT EXISTS idx_chdr_coop       ON contract_hdr(coop);
+    CREATE INDEX IF NOT EXISTS idx_chdr_cust       ON contract_hdr(cust_id);
+    CREATE INDEX IF NOT EXISTS idx_chdr_parent     ON contract_hdr(parent_id);
+
     -- Named atomic counters (LYSAL document sequence).
     CREATE TABLE IF NOT EXISTS counters (
       name  TEXT PRIMARY KEY,

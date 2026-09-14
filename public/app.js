@@ -300,6 +300,51 @@ const T = {
   pricePecRsp: { ar: "سعر المستهلك الجديد", en: "New consumer price" },
   r_salesMonthly: { ar: "مبيعات شهرية (مرجع)", en: "Monthly sales (ref)" },
   r_salesMonthly_d: { ar: "مبيعات الأصناف بكل منفذ شهرياً 2024–2026.", en: "Per-outlet item sales by month 2024–2026." },
+  /* ---- contracts ---- */
+  r_contracts: { ar: "العقود", en: "Contracts" },
+  r_contracts_d: { ar: "عقود الجمعيات والمنافذ: فترة، بنود على المساحات، دفعات، وملاحق.", en: "Co-op / outlet contracts: period, space line-items, installments, and addenda." },
+  cxNew: { ar: "＋ عقد جديد", en: "+ New contract" },
+  cxManageSpaces: { ar: "المساحات", en: "Spaces" },
+  cxAddendum: { ar: "＋ ملحق", en: "+ Addendum" },
+  cxBase: { ar: "عقد", en: "Contract" },
+  cxIsAddendum: { ar: "ملحق", en: "Addendum" },
+  cxCode: { ar: "رقم العقد", en: "Contract no." },
+  cxTitle: { ar: "عنوان العقد", en: "Title" },
+  cxLevel: { ar: "مستوى العقد", en: "Contract level" },
+  cxLevelOutlet: { ar: "منفذ", en: "Outlet" },
+  cxLevelCoop: { ar: "جمعية (كامل)", en: "Whole co-op" },
+  cxPeriodFrom: { ar: "من تاريخ", en: "From" },
+  cxPeriodTo: { ar: "إلى تاريخ", en: "To" },
+  cxStatus: { ar: "الحالة", en: "Status" },
+  cxActive: { ar: "ساري", en: "Active" },
+  cxClosed: { ar: "منتهي", en: "Closed" },
+  cxItems: { ar: "بنود العقد", en: "Line items" },
+  cxItemType: { ar: "نوع البند", en: "Type" },
+  cx_pct: { ar: "نسبة على العقد", en: "% of contract" },
+  cx_amount: { ar: "مبلغ ثابت", en: "Fixed amount" },
+  cx_support: { ar: "دعم", en: "Support" },
+  cx_other: { ar: "أخرى", en: "Other" },
+  cxSpace: { ar: "المساحة", en: "Space" },
+  cxItemLabel: { ar: "الوصف", en: "Label" },
+  cxBaseAmount: { ar: "أساس العقد", en: "Base" },
+  cxItemAmount: { ar: "القيمة", en: "Value" },
+  cxAddItem: { ar: "＋ بند", en: "+ Item" },
+  cxInstallments: { ar: "الدفعات (تسليم الدفعات)", en: "Installments" },
+  cxAutoSplit: { ar: "تقسيم تلقائي", en: "Auto-split" },
+  cxSplitCount: { ar: "عدد الدفعات", en: "Count" },
+  cxDue: { ar: "تاريخ الاستحقاق", en: "Due date" },
+  cxSeq: { ar: "#", en: "#" },
+  cxAddInst: { ar: "＋ دفعة", en: "+ Installment" },
+  cxPaid: { ar: "مدفوعة", en: "Paid" },
+  cxPending: { ar: "مستحقة", en: "Pending" },
+  cxTotal: { ar: "إجمالي العقد", en: "Total" },
+  cxNoContracts: { ar: "لا توجد عقود بعد.", en: "No contracts yet." },
+  cxSpacesTitle: { ar: "أنواع المساحات (مساحات الجمعية)", en: "Space types" },
+  cxSpaceName: { ar: "اسم المساحة", en: "Space name" },
+  cxSpaceImportHint: { ar: "ملف Excel: العمود الأول اسم المساحة (اختياري: عمود ثانٍ بالإنجليزية).", en: "Excel: first column is the Arabic space name (optional 2nd column English)." },
+  cxRemove: { ar: "حذف", en: "Remove" },
+  cxOutletOpt: { ar: "المنفذ", en: "Outlet" },
+  cxAddSpace: { ar: "＋ مساحة", en: "+ Space" },
   gross: { ar: "الكمية", en: "Gross weight" },
   invValue: { ar: "القيمة", en: "Invoice value" },
   prev: { ar: "السابق", en: "Prev" },
@@ -675,11 +720,11 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "lettersHistory", "budgetHistory"],
-    division: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "lettersHistory", "budgetHistory"],
-    supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory"],
-    doc: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "lettersHistory", "budgetHistory"],
-    salesman: ["outlets", "products", "priceTrack", "approveItems"],
+    marketing: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
+    division: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
+    supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "contracts", "lettersHistory"],
+    doc: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "contracts", "lettersHistory", "budgetHistory"],
+    salesman: ["outlets", "products", "priceTrack", "approveItems", "contracts"],
   };
   let rk;
   if (isAdmin) rk = role;
@@ -722,6 +767,7 @@ function render() {
     approveItems: vApproveItems,
     coopTerms: vCoopTerms,
     salesMonthly: vSalesMonthly,
+    contracts: vContracts,
   }[rk];
   if (view) view();
   else renderHome();
@@ -809,6 +855,7 @@ const ADMIN_ROLES = [
   { k: "priceTrack", ic: "📊" },
   { k: "approveItems", ic: "🆕" },
   { k: "coopTerms", ic: "⚙" },
+  { k: "contracts", ic: "📝" },
   { k: "lettersHistory", ic: "📜" },
   { k: "budgetHistory", ic: "💰" },
   { k: "audit", ic: "🛡" },
@@ -2553,6 +2600,286 @@ async function saveCoopTerm() {
 async function delCoopTerm(coop, lt) {
   if (!confirm(t("del") + "?")) return;
   try { await api("/coop-terms/delete", { method: "POST", body: { coop, letter_type: lt } }); ctData.rows = ctData.rows.filter((r) => !(r.coop === coop && r.letter_type === lt)); renderCoopTermsList(); } catch (e) { toast(e.message); }
+}
+
+/* ================= CONTRACTS ================= */
+let cxData = { contracts: [], coops: [], spaces: [], canEdit: false };
+let cxEdit = null; // working copy of the contract being edited
+
+async function vContracts() {
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_contracts")}</h3></header><div class="tbl-wrap" id="cxBox"><div class="empty">${t("loading")}</div></div></div>`;
+  cxData = await api("/contracts");
+  cxRenderList();
+}
+function cxCoopLabel(c) { return c.coopAr || c.coop; }
+function cxOutletName(coop, custId) {
+  const e = cxData.coops.find((x) => x.coop === coop);
+  const o = e && e.outlets.find((y) => String(y.custId) === String(custId));
+  return o ? (o.nameAr || o.name) : (custId || "");
+}
+function cxItemTypeLabel(ty) { return t("cx_" + ty) || ty; }
+function cxRenderList() {
+  const box = document.getElementById("cxBox"); if (!box) return;
+  const can = cxData.canEdit;
+  const head = document.querySelector("#rv .panel header");
+  if (head) head.innerHTML = `<h3>${t("r_contracts")}</h3>` + (can
+    ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary sm" onclick="cxEditContract(null)">${t("cxNew")}</button><button class="btn ghost sm" onclick="cxSpaces()">⬛ ${t("cxManageSpaces")}</button></div>` : "");
+  const bases = cxData.contracts.filter((c) => c.kind !== "addendum");
+  const adds = cxData.contracts.filter((c) => c.kind === "addendum");
+  const rowHtml = (c, isAdd) => {
+    const who = c.level === "coop" ? cxCoopLabel(cxData.coops.find((x) => x.coop === c.coop) || { coop: c.coop, coopAr: c.coopAr })
+      : cxOutletName(c.coop, c.custId) + " — " + (c.coopAr || c.coop);
+    const per = (c.period.from || "") + (c.period.to ? " → " + c.period.to : "");
+    const badge = isAdd ? `<span class="pill-info">${t("cxIsAddendum")}</span> ` : "";
+    const lvl = c.level === "coop" ? t("cxLevelCoop") : t("cxLevelOutlet");
+    return `<tr${isAdd ? ' style="background:#fafafa"' : ""}>
+      <td>${isAdd ? "↳ " : ""}${badge}${esc(c.code || "#" + c.id)}${c.title ? " · " + esc(c.title) : ""}</td>
+      <td>${esc(who)}<div class="mono-sm" style="color:#888">${esc(lvl)}</div></td>
+      <td class="mono-sm">${esc(per)}</td>
+      <td class="mono">${c.items.length}</td>
+      <td class="mono">${KD(c.total)}</td>
+      <td>${c.status === "closed" ? t("cxClosed") : t("cxActive")}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost sm" onclick="cxView(${c.id})">👁</button>
+        ${can ? `<button class="btn ghost sm" onclick="cxEditContract(${c.id})">✎</button>` : ""}
+        ${can && !isAdd ? `<button class="btn ghost sm" onclick="cxEditContract(null,${c.id})">${t("cxAddendum")}</button>` : ""}
+        ${can ? `<button class="btn danger sm" onclick="cxDelete(${c.id})">${t("del")}</button>` : ""}
+      </td></tr>`;
+  };
+  let body = "";
+  for (const b of bases) {
+    body += rowHtml(b, false);
+    adds.filter((a) => a.parentId === b.id).forEach((a) => { body += rowHtml(a, true); });
+  }
+  // orphan addenda (parent out of scope)
+  adds.filter((a) => !bases.some((b) => b.id === a.parentId)).forEach((a) => { body += rowHtml(a, true); });
+  box.innerHTML = cxData.contracts.length
+    ? `<table><thead><tr><th>${t("cxCode")}</th><th>${t("coop")}/${t("cxOutletOpt")}</th><th>${t("cxPeriodFrom")}→${t("cxPeriodTo")}</th><th>${t("cxItems")}</th><th>${t("cxTotal")}</th><th>${t("cxStatus")}</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+    : `<div class="empty">${t("cxNoContracts")}</div>`;
+}
+
+function cxCoopOptions(sel) {
+  return `<option value="">${t("choose")}</option>` + cxData.coops.map((c) => `<option value="${esc(c.coop)}" ${sel === c.coop ? "selected" : ""}>${esc(cxCoopLabel(c))}</option>`).join("");
+}
+function cxOutletOptions(coop, sel) {
+  const e = cxData.coops.find((x) => x.coop === coop);
+  const outs = e ? e.outlets : [];
+  return `<option value="">${t("choose")}</option>` + outs.map((o) => `<option value="${esc(o.custId)}" ${String(sel) === String(o.custId) ? "selected" : ""}>${esc(o.nameAr || o.name)}</option>`).join("");
+}
+function cxSpaceOptions(sel) {
+  return `<option value="">—</option>` + (cxData.spaces || []).map((s) => `<option value="${s.id}" data-name="${esc(s.name)}" ${String(sel) === String(s.id) ? "selected" : ""}>${esc(s.name)}</option>`).join("");
+}
+
+function cxEditContract(id, parentId) {
+  if (id) {
+    const c = cxData.contracts.find((x) => x.id === id);
+    cxEdit = JSON.parse(JSON.stringify(c));
+  } else if (parentId) {
+    const p = cxData.contracts.find((x) => x.id === parentId);
+    cxEdit = { id: 0, kind: "addendum", parentId, code: "", title: "", level: p.level, coop: p.coop, custId: p.custId, period: { from: "", to: "" }, status: "active", note: "", items: [], installments: [] };
+  } else {
+    cxEdit = { id: 0, kind: "base", parentId: null, code: "", title: "", level: "outlet", coop: "", custId: "", period: { from: "", to: "" }, status: "active", note: "", items: [], installments: [] };
+  }
+  cxRenderEditor();
+}
+function cxRenderEditor() {
+  const c = cxEdit;
+  const isAdd = c.kind === "addendum";
+  const rv = document.getElementById("rv");
+  rv.innerHTML = `<div class="panel"><header><h3>${isAdd ? t("cxIsAddendum") : (c.id ? t("cxBase") : t("cxNew"))}</h3>
+    <button class="back" onclick="vContracts()">← ${t("back")}</button></header>
+  <div style="padding:12px 16px">
+    <div class="grid g3">
+      <div class="field"><label>${t("cxCode")}</label><input id="cxCode" value="${esc(c.code || "")}"></div>
+      <div class="field"><label>${t("cxTitle")}</label><input id="cxTitle" value="${esc(c.title || "")}"></div>
+      <div class="field"><label>${t("cxLevel")}</label><select id="cxLevel" onchange="cxLevelToggle()"><option value="outlet" ${c.level === "outlet" ? "selected" : ""}>${t("cxLevelOutlet")}</option><option value="coop" ${c.level === "coop" ? "selected" : ""}>${t("cxLevelCoop")}</option></select></div>
+    </div>
+    <div class="grid g3">
+      <div class="field"><label>${t("coop")}</label><select id="cxCoop" onchange="cxCoopChanged()">${cxCoopOptions(c.coop)}</select></div>
+      <div class="field" id="cxOutletW"><label>${t("cxOutletOpt")}</label><div id="cxOutletBox"><select id="cxCust">${cxOutletOptions(c.coop, c.custId)}</select></div></div>
+      <div class="field"><label>${t("cxStatus")}</label><select id="cxStatus"><option value="active" ${c.status !== "closed" ? "selected" : ""}>${t("cxActive")}</option><option value="closed" ${c.status === "closed" ? "selected" : ""}>${t("cxClosed")}</option></select></div>
+    </div>
+    <div class="grid g3">
+      <div class="field"><label>${t("cxPeriodFrom")}</label><input id="cxFrom" type="date" value="${esc(c.period.from || "")}"></div>
+      <div class="field"><label>${t("cxPeriodTo")}</label><input id="cxTo" type="date" value="${esc(c.period.to || "")}"></div>
+      <div class="field"><label>${t("fNote")}</label><input id="cxNote" value="${esc(c.note || "")}"></div>
+    </div>
+    <h4 style="margin:14px 0 6px">${t("cxItems")}</h4>
+    <div class="tbl-wrap"><table><thead><tr><th>${t("cxItemType")}</th><th>${t("cxSpace")}</th><th>${t("cxItemLabel")}</th><th>${t("cxBaseAmount")}</th><th>${t("pctCol")}</th><th>${t("cxItemAmount")}</th><th></th></tr></thead><tbody id="cxItemsBody"></tbody></table></div>
+    <div class="actions" style="margin-top:6px"><button class="btn ghost sm" onclick="cxAddItem()">${t("cxAddItem")}</button><span class="pill-info" id="cxTotalLbl"></span></div>
+
+    <h4 style="margin:14px 0 6px">${t("cxInstallments")}</h4>
+    <div class="grid g3" style="align-items:end">
+      <div class="field"><label>${t("cxSplitCount")}</label><input id="cxSplitN" type="number" min="1" value="3"></div>
+      <div class="actions"><button class="btn ghost sm" onclick="cxAutoSplit()">↔ ${t("cxAutoSplit")}</button></div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxItemAmount")}</th><th>${t("cxStatus")}</th><th></th></tr></thead><tbody id="cxInstBody"></tbody></table></div>
+    <div class="actions" style="margin-top:6px"><button class="btn ghost sm" onclick="cxAddInst()">${t("cxAddInst")}</button></div>
+
+    <div class="actions" style="margin-top:16px;gap:8px"><button class="btn primary" onclick="cxSave()">${t("save")}</button><button class="btn ghost" onclick="vContracts()">${t("cancel")}</button></div>
+  </div></div>`;
+  cxRenderItems();
+  cxRenderInst();
+  cxLevelToggle();
+}
+function cxLevelToggle() {
+  const lv = (document.getElementById("cxLevel") || {}).value;
+  const w = document.getElementById("cxOutletW");
+  if (w) w.style.display = lv === "outlet" ? "" : "none";
+}
+function cxCoopChanged() {
+  const coop = document.getElementById("cxCoop").value;
+  const box = document.getElementById("cxOutletBox");
+  if (box) box.innerHTML = `<select id="cxCust">${cxOutletOptions(coop, "")}</select>`;
+}
+function cxItemRow(it, i) {
+  const isPct = it.itemType === "pct";
+  return `<tr data-i="${i}">
+    <td><select class="cxItType" onchange="cxItToggle(this)"><option value="pct" ${it.itemType === "pct" ? "selected" : ""}>${t("cx_pct")}</option><option value="amount" ${it.itemType === "amount" ? "selected" : ""}>${t("cx_amount")}</option><option value="support" ${it.itemType === "support" ? "selected" : ""}>${t("cx_support")}</option><option value="other" ${it.itemType === "other" ? "selected" : ""}>${t("cx_other")}</option></select></td>
+    <td><select class="cxItSpace">${cxSpaceOptions(it.spaceId)}</select></td>
+    <td><input class="cxItLabel" value="${esc(it.label || "")}"></td>
+    <td><input class="cxItBase" type="number" step="0.001" value="${it.baseAmount || 0}" oninput="cxTotalUpd()" style="${isPct ? "" : "display:none"}"></td>
+    <td><input class="cxItPct" type="number" step="0.01" value="${it.pct || 0}" oninput="cxTotalUpd()" style="${isPct ? "" : "display:none"}"></td>
+    <td><input class="cxItAmt" type="number" step="0.001" value="${it.amount || 0}" oninput="cxTotalUpd()" style="${isPct ? "display:none" : ""}"></td>
+    <td><button class="btn danger sm" onclick="cxRemoveItem(${i})">✕</button></td></tr>`;
+}
+function cxRenderItems() {
+  const body = document.getElementById("cxItemsBody"); if (!body) return;
+  body.innerHTML = cxEdit.items.map(cxItemRow).join("");
+  cxTotalUpd();
+}
+function cxItToggle(sel) {
+  const tr = sel.closest("tr"); const ty = sel.value; const isPct = ty === "pct";
+  tr.querySelector(".cxItBase").style.display = isPct ? "" : "none";
+  tr.querySelector(".cxItPct").style.display = isPct ? "" : "none";
+  tr.querySelector(".cxItAmt").style.display = isPct ? "none" : "";
+  cxTotalUpd();
+}
+function cxSyncItems() {
+  cxEdit.items = [...document.querySelectorAll("#cxItemsBody tr")].map((tr) => {
+    const sp = tr.querySelector(".cxItSpace");
+    return {
+      itemType: tr.querySelector(".cxItType").value,
+      spaceId: sp.value || null,
+      space: sp.selectedOptions[0] ? (sp.selectedOptions[0].dataset.name || "") : "",
+      label: tr.querySelector(".cxItLabel").value,
+      baseAmount: parseFloat(tr.querySelector(".cxItBase").value) || 0,
+      pct: parseFloat(tr.querySelector(".cxItPct").value) || 0,
+      amount: parseFloat(tr.querySelector(".cxItAmt").value) || 0,
+    };
+  });
+}
+function cxItemsTotal() {
+  return (cxEdit.items || []).reduce((s, it) => s + (it.itemType === "pct" ? (it.baseAmount * it.pct / 100) : (+it.amount || 0)), 0);
+}
+function cxTotalUpd() {
+  cxSyncItems();
+  const l = document.getElementById("cxTotalLbl"); if (l) l.textContent = t("cxTotal") + ": " + KD(cxItemsTotal());
+}
+function cxAddItem() { cxSyncItems(); cxEdit.items.push({ itemType: "amount", spaceId: null, space: "", label: "", baseAmount: 0, pct: 0, amount: 0 }); cxRenderItems(); }
+function cxRemoveItem(i) { cxSyncItems(); cxEdit.items.splice(i, 1); cxRenderItems(); }
+
+function cxInstRow(p, i) {
+  return `<tr data-i="${i}">
+    <td><input class="cxInSeq" type="number" value="${p.seq || i + 1}" style="width:60px"></td>
+    <td><input class="cxInDue" type="date" value="${esc(p.dueDate || "")}"></td>
+    <td><input class="cxInAmt" type="number" step="0.001" value="${p.amount || 0}"></td>
+    <td><select class="cxInStat"><option value="pending" ${p.status !== "paid" ? "selected" : ""}>${t("cxPending")}</option><option value="paid" ${p.status === "paid" ? "selected" : ""}>${t("cxPaid")}</option></select></td>
+    <td><button class="btn danger sm" onclick="cxRemoveInst(${i})">✕</button></td></tr>`;
+}
+function cxRenderInst() {
+  const body = document.getElementById("cxInstBody"); if (!body) return;
+  body.innerHTML = cxEdit.installments.map(cxInstRow).join("");
+}
+function cxSyncInst() {
+  cxEdit.installments = [...document.querySelectorAll("#cxInstBody tr")].map((tr, i) => ({
+    seq: parseInt(tr.querySelector(".cxInSeq").value, 10) || i + 1,
+    dueDate: tr.querySelector(".cxInDue").value,
+    amount: parseFloat(tr.querySelector(".cxInAmt").value) || 0,
+    status: tr.querySelector(".cxInStat").value,
+  }));
+}
+function cxAddInst() { cxSyncInst(); cxEdit.installments.push({ seq: cxEdit.installments.length + 1, dueDate: "", amount: 0, status: "pending" }); cxRenderInst(); }
+function cxRemoveInst(i) { cxSyncInst(); cxEdit.installments.splice(i, 1); cxRenderInst(); }
+function cxAutoSplit() {
+  cxSyncItems();
+  const n = Math.max(1, parseInt(document.getElementById("cxSplitN").value, 10) || 1);
+  const total = cxItemsTotal();
+  const per = Math.round((total / n) * 1000) / 1000;
+  const from = document.getElementById("cxFrom").value;
+  const start = from ? new Date(from) : null;
+  const list = []; let acc = 0;
+  for (let i = 0; i < n; i++) {
+    const amt = i === n - 1 ? Math.round((total - acc) * 1000) / 1000 : per; acc += amt;
+    let due = "";
+    if (start && !isNaN(start)) due = new Date(start.getFullYear(), start.getMonth() + i, start.getDate()).toISOString().slice(0, 10);
+    list.push({ seq: i + 1, dueDate: due, amount: amt, status: "pending" });
+  }
+  cxEdit.installments = list; cxRenderInst();
+}
+async function cxSave() {
+  cxSyncItems(); cxSyncInst();
+  const g = (id) => document.getElementById(id).value;
+  const level = g("cxLevel");
+  const body = {
+    id: cxEdit.id || 0, kind: cxEdit.kind, parentId: cxEdit.parentId || null,
+    code: g("cxCode"), title: g("cxTitle"), level,
+    coop: g("cxCoop"), custId: level === "outlet" ? (document.getElementById("cxCust") ? g("cxCust") : "") : "",
+    periodFrom: g("cxFrom"), periodTo: g("cxTo"), status: g("cxStatus"), note: g("cxNote"),
+    items: cxEdit.items, installments: cxEdit.installments,
+  };
+  if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
+  if (level === "outlet" && !body.custId) { toast(t("choose") + " " + t("cxOutletOpt")); return; }
+  try { await api("/contracts", { method: "POST", body }); toast(t("savedCell")); vContracts(); } catch (e) { toast(e.message); }
+}
+async function cxDelete(id) {
+  if (!confirm(t("del") + "?")) return;
+  try { await api("/contracts/" + id + "/delete", { method: "POST", body: {} }); vContracts(); } catch (e) { toast(e.message); }
+}
+function cxView(id) {
+  const c = cxData.contracts.find((x) => x.id === id); if (!c) return;
+  const who = c.level === "coop" ? (c.coopAr || c.coop) : (cxOutletName(c.coop, c.custId) + " — " + (c.coopAr || c.coop));
+  const items = c.items.map((it) => `<tr><td>${esc(cxItemTypeLabel(it.itemType))}</td><td>${esc(it.space || "")}</td><td>${esc(it.label || "")}</td><td class="mono">${it.itemType === "pct" ? (it.pct + "% × " + KD(it.baseAmount)) : ""}</td><td class="mono">${KD(it.itemType === "pct" ? it.baseAmount * it.pct / 100 : it.amount)}</td></tr>`).join("");
+  const inst = c.installments.map((p) => `<tr><td>${p.seq}</td><td class="mono-sm">${esc(p.dueDate || "")}</td><td class="mono">${KD(p.amount)}</td><td>${p.status === "paid" ? t("cxPaid") : t("cxPending")}</td></tr>`).join("");
+  modal(`<div style="max-width:720px;padding:16px 20px">
+    <h3>${esc(c.code || "#" + c.id)}${c.kind === "addendum" ? " · " + t("cxIsAddendum") : ""}</h3>
+    <p>${esc(who)} · ${esc((c.period.from || "") + (c.period.to ? " → " + c.period.to : ""))}</p>
+    ${c.title ? `<p>${esc(c.title)}</p>` : ""}
+    <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxItemType")}</th><th>${t("cxSpace")}</th><th>${t("cxItemLabel")}</th><th>${t("pctCol")}</th><th>${t("cxItemAmount")}</th></tr></thead><tbody>${items || `<tr><td colspan=5>—</td></tr>`}</tbody></table>
+    <p style="text-align:end;font-weight:700">${t("cxTotal")}: ${KD(c.total)}</p>
+    <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxItemAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
+    <div class="actions" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
+}
+
+/* ---- contract space types ---- */
+async function cxSpaces() {
+  const r = await api("/contracts/spaces");
+  cxData.spaces = r.spaces;
+  const can = cxData.canEdit;
+  const rows = r.spaces.map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(s.nameEn || "")}</td>${can ? `<td><button class="btn danger sm" onclick="cxDelSpace(${s.id})">${t("del")}</button></td>` : ""}</tr>`).join("");
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("cxSpacesTitle")}</h3><button class="back" onclick="vContracts()">← ${t("back")}</button></header>
+    <div style="padding:12px 16px">
+    ${can ? `<div class="hint">${t("cxSpaceImportHint")}</div>
+      <div class="grid g3" style="align-items:end">
+        <div class="field"><label>${t("cxSpaceName")}</label><input id="cxSpName"></div>
+        <div class="field"><label>EN</label><input id="cxSpEn"></div>
+        <div class="actions"><button class="btn primary sm" onclick="cxAddSpace()">${t("cxAddSpace")}</button><label class="btn ghost sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="cxImportSpaces(this)"></label></div>
+      </div><div id="cxSpMsg" class="hint"></div>` : ""}
+      <div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>${t("cxSpaceName")}</th><th>EN</th>${can ? "<th></th>" : ""}</tr></thead><tbody>${rows || `<tr><td colspan="3" class="empty">—</td></tr>`}</tbody></table></div>
+    </div></div>`;
+}
+async function cxAddSpace() {
+  const name = document.getElementById("cxSpName").value.trim();
+  if (!name) { toast(t("cxSpaceName")); return; }
+  try { await api("/contracts/spaces", { method: "POST", body: { name, name_en: document.getElementById("cxSpEn").value } }); toast(t("savedCell")); cxSpaces(); } catch (e) { toast(e.message); }
+}
+async function cxDelSpace(id) {
+  if (!confirm(t("del") + "?")) return;
+  try { await api("/contracts/spaces/delete", { method: "POST", body: { id } }); cxSpaces(); } catch (e) { toast(e.message); }
+}
+function cxImportSpaces(input) {
+  const m = document.getElementById("cxSpMsg"); if (m) m.textContent = t("loading");
+  fileToApi(input, "/contracts/spaces/import", (e, r) => { if (e) { if (m) m.textContent = e.message; return; } if (m) m.textContent = `${t("imported")}: ${r.added}`; toast(t("importDone")); cxSpaces(); });
 }
 /* ---------- monthly sales (reference) ---------- */
 let smState = { q: "", offset: 0, limit: 60, total: 0 };
