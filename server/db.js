@@ -229,11 +229,15 @@ function migrate() {
       PRIMARY KEY (barcode, cust_id)
     );
 
-    -- Per-co-op listing/price calculation terms (calc mode + bonus ratio).
+    -- Per-co-op listing calculation terms. calc_type: 'bonus' (1+1: unit +
+    -- multiplier), 'amount' (fixed amount), 'amount_pct' (amount + amount*pct%).
     CREATE TABLE IF NOT EXISTS coop_terms (
       coop       TEXT PRIMARY KEY,
-      calc_mode  TEXT NOT NULL DEFAULT 'carton',
-      ratio      REAL NOT NULL DEFAULT 1,
+      calc_type  TEXT NOT NULL DEFAULT 'bonus',
+      unit       TEXT NOT NULL DEFAULT 'carton',
+      multiplier REAL NOT NULL DEFAULT 1,
+      amount     REAL NOT NULL DEFAULT 0,
+      pct        REAL NOT NULL DEFAULT 0,
       note       TEXT,
       updated_by INTEGER,
       updated_at TEXT
@@ -325,6 +329,14 @@ function migrate() {
   addLetterCol('rejected_at', 'TEXT');
   addLetterCol('reject_reason', 'TEXT');
   addLetterCol('cust_id', 'TEXT'); // addressed outlet, links letters to the price tracker
+  // coop_terms extended calc types (for tables created before the redesign).
+  const ctCols = db.prepare("PRAGMA table_info(coop_terms)").all().map((c) => c.name);
+  const addCt = (name, ddl) => { if (!ctCols.includes(name)) db.exec(`ALTER TABLE coop_terms ADD COLUMN ${ddl}`); };
+  addCt('calc_type', "calc_type TEXT NOT NULL DEFAULT 'bonus'");
+  addCt('unit', "unit TEXT NOT NULL DEFAULT 'carton'");
+  addCt('multiplier', 'multiplier REAL NOT NULL DEFAULT 1');
+  addCt('amount', 'amount REAL NOT NULL DEFAULT 0');
+  addCt('pct', 'pct REAL NOT NULL DEFAULT 0');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

@@ -115,10 +115,6 @@ const LETTER_SPECS = [
       ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـة للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل اعتماد أصناف جديدة.',
       en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the listing of new items.',
     },
-    fields: [
-      { key: 'calcMode', ar: 'طريقة الحساب', en: 'Calc mode', type: 'select', opts: [{ v: 'carton', ar: 'بالكرتون', en: 'By carton' }, { v: 'piece', ar: 'بالحبة', en: 'By piece' }] },
-      { key: 'ratio', ar: 'المضاعف (1+1 = 2)', en: 'Ratio', type: 'number', def: 2 },
-    ],
     table: {
       title: { ar: 'الأصناف', en: 'Items' },
       cols: [

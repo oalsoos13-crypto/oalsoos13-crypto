@@ -127,7 +127,7 @@ function buildState(user) {
     scope,
     coopTerms: (() => {
       const m = {};
-      try { db.prepare('SELECT coop, calc_mode, ratio FROM coop_terms').all().forEach((t) => { m[t.coop] = { calcMode: t.calc_mode, ratio: t.ratio }; }); } catch (e) { /* */ }
+      try { db.prepare('SELECT coop, calc_type, unit, multiplier, amount, pct FROM coop_terms').all().forEach((t) => { m[t.coop] = { calcType: t.calc_type, unit: t.unit, multiplier: t.multiplier, amount: t.amount, pct: t.pct }; }); } catch (e) { /* */ }
       return m;
     })(),
     ref: {

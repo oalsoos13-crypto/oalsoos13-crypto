@@ -61,21 +61,41 @@ const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();
 router.get('/coop-terms', asyncH((req, res) => {
   const coops = [...new Set(db.prepare('SELECT DISTINCT parent FROM outlets').all().map((r) => cleanCoop(r.parent)).filter(Boolean))].sort();
   const terms = {};
-  db.prepare('SELECT coop, calc_mode, ratio, note FROM coop_terms').all().forEach((t) => { terms[t.coop] = { calc_mode: t.calc_mode, ratio: t.ratio, note: t.note || '' }; });
+  db.prepare('SELECT coop, calc_type, unit, multiplier, amount, pct, note FROM coop_terms').all()
+    .forEach((t) => { terms[t.coop] = { calc_type: t.calc_type, unit: t.unit, multiplier: t.multiplier, amount: t.amount, pct: t.pct, note: t.note || '' }; });
   res.json({ coops, terms });
 }));
 router.post('/coop-terms', requireRole(...MGMT), asyncH((req, res) => {
   const coop = clean(req.body.coop);
   if (!coop) throw badRequest('الجمعية مطلوبة', 'BAD');
-  const mode = clean(req.body.calc_mode) || 'carton';
-  const ratio = parseFloat(req.body.ratio); const r = isNaN(ratio) ? 1 : ratio;
-  db.prepare(`INSERT INTO coop_terms (coop,calc_mode,ratio,note,updated_by,updated_at)
-    VALUES (@coop,@mode,@ratio,@note,@by,@now)
-    ON CONFLICT(coop) DO UPDATE SET calc_mode=excluded.calc_mode, ratio=excluded.ratio, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at`)
-    .run({ coop, mode, ratio: r, note: clean(req.body.note), by: req.user.id, now: nowIso() });
-  audit.fromReq(req, 'coop.terms.set', { entityType: 'coop_terms', entityId: coop, summary: `Terms ${coop}: ${mode} x${r}` });
+  const b = req.body;
+  const nm = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+  const row = {
+    coop,
+    calc_type: ['bonus', 'amount', 'amount_pct'].includes(clean(b.calc_type)) ? clean(b.calc_type) : 'bonus',
+    unit: clean(b.unit) === 'piece' ? 'piece' : 'carton',
+    multiplier: nm(b.multiplier, 1), amount: nm(b.amount, 0), pct: nm(b.pct, 0),
+    note: clean(b.note), by: req.user.id, now: nowIso(),
+  };
+  db.prepare(`INSERT INTO coop_terms (coop,calc_type,unit,multiplier,amount,pct,note,updated_by,updated_at)
+    VALUES (@coop,@calc_type,@unit,@multiplier,@amount,@pct,@note,@by,@now)
+    ON CONFLICT(coop) DO UPDATE SET calc_type=excluded.calc_type, unit=excluded.unit, multiplier=excluded.multiplier,
+      amount=excluded.amount, pct=excluded.pct, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at`)
+    .run(row);
+  audit.fromReq(req, 'coop.terms.set', { entityType: 'coop_terms', entityId: coop, summary: `Terms ${coop}: ${row.calc_type}` });
   res.json({ ok: true });
 }));
+
+// Value of a listing debit note for a co-op, from its stored calc terms.
+function listingValue(coop, items) {
+  const t = db.prepare('SELECT * FROM coop_terms WHERE coop = ?').get(coop) || { calc_type: 'bonus', unit: 'carton', multiplier: 1, amount: 0, pct: 0 };
+  const n = (v) => { const x = parseFloat(v); return isNaN(x) ? 0 : x; };
+  const round3 = (x) => Math.round(x * 1000) / 1000;
+  if (t.calc_type === 'amount') return round3(n(t.amount));
+  if (t.calc_type === 'amount_pct') return round3(n(t.amount) * (1 + n(t.pct) / 100));
+  const base = (items || []).reduce((s, r) => s + (t.unit === 'piece' ? n(r.consPiece) * n(r.pack) : n(r.coopCarton)), 0);
+  return round3(base * (n(t.multiplier) || 1));
+}
 
 // ================= PRICE-UPDATE PRODUCTS =================
 router.get('/price-products', asyncH((req, res) => {
@@ -360,6 +380,7 @@ router.get('/sales-monthly/:id', requireRole('marketing', 'division', 'doc'), as
 }));
 
 module.exports = router;
+module.exports.listingValue = listingValue;
 // Exported for the letter route to auto-add price-increase items to the tracker.
 module.exports.addPriceProductsFromItems = function (items, letterLysal, userId) {
   if (!Array.isArray(items) || !items.length) return;

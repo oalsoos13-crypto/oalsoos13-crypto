@@ -128,6 +128,10 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
     if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
     if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
     calc = { value: r.value, items: r.items };
+    // Listing debit note: value comes from the co-op's stored calc terms.
+    if (type === 'listing_dn') {
+      try { calc.value = require('./tracking.routes').listingValue(coop, r.items); } catch (e) { /* keep spec value */ }
+    }
     metaJson = toJson(r.meta);
   } else {
     // Classic co-op letters: the salesman picks a co-op then a specific outlet,
