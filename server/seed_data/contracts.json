@@ -5709,96 +5709,6 @@
   "verified": true
  },
  {
-  "id": "2021_MISHREF_CDA",
-  "code": "LAYS 37-4576",
-  "coopAr": "جمعية مشرف التعاونية",
-  "level": "coop",
-  "subjectYear": "2021",
-  "contractDate": "",
-  "isRenewal": false,
-  "kind": "base",
-  "partyRep": "علي فهد عبدالرحمن الفهد",
-  "periodFrom": "2021-01-01",
-  "periodTo": "2021-12-31",
-  "renewable": true,
-  "valueMode": "lump",
-  "value": 1500,
-  "pct": 0,
-  "payFreq": "semiannual",
-  "valueKind": "marketing",
-  "bonusTerms": "",
-  "graceDays": 45,
-  "payWithin": 14,
-  "note": "مبلغ 1500 دينار سنوي مقابل منحة موقع تسويقي تدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو | ⚠️ ٣ نسخ بنفس النص بمبالغ مختلفة (1500 / 8250 / 11812.5) — يلزم تأكيد المبلغ النهائي",
-  "items": [
-   {
-    "scope": "main",
-    "space": "صناديق بطاطا شيبس",
-    "count": 1,
-    "dimensions": "1 mtr block",
-    "category": "بطاطا فريتولي الامريكي",
-    "location": "السوق المركزي",
-    "amount": 1500,
-    "description": "صناديق بطاطا شيبس - 1 mtr block - بطاطا فريتولي الامريكي (Fretoli chips) - 1500.000 KD"
-   }
-  ],
-  "confidence": "medium",
-  "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA- with different value",
-  "pdf": "2021_MISHREF_CDA.pdf",
-  "title": "مبلغ 1500 (بحاجة تأكيد)",
-  "verified": true
- },
- {
-  "id": "2021_MISHREF_CDA-",
-  "code": "LAYS 37-4576",
-  "coopAr": "جمعية مشرف التعاونية",
-  "level": "coop",
-  "subjectYear": "2021",
-  "contractDate": "",
-  "isRenewal": false,
-  "kind": "base",
-  "partyRep": "علي فهد عبدالرحمن الفهد",
-  "periodFrom": "2021-01-01",
-  "periodTo": "2021-12-31",
-  "renewable": true,
-  "valueMode": "lump",
-  "value": 8250,
-  "pct": 0,
-  "payFreq": "semiannual",
-  "valueKind": "marketing",
-  "bonusTerms": "",
-  "graceDays": 45,
-  "payWithin": 14,
-  "note": "مبلغ 8250 دينار سنوي (ثمانية آلاف ومائتان وخمسون) مقابل منحة موقع تسويقي تدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو | ⚠️ ٣ نسخ بنفس النص بمبالغ مختلفة (1500 / 8250 / 11812.5) — يلزم تأكيد المبلغ النهائي",
-  "items": [
-   {
-    "scope": "main",
-    "space": "صناديق بطاطا شيبس",
-    "count": 1,
-    "dimensions": "5 mtr block",
-    "category": "بطاطا ليز",
-    "location": "السوق المركزي",
-    "amount": 7500,
-    "description": "صناديق بطاطا شيبس - 5 mtr block - بطاطا ليز (lays) - 7500.000 KD"
-   },
-   {
-    "scope": "main",
-    "space": "الارفف الداخلية",
-    "count": 1,
-    "dimensions": "50 cm block",
-    "category": "مخبوزات تويستوس صن بايتس",
-    "location": "السوق المركزي",
-    "amount": 750,
-    "description": "الارفف الداخلية - 50 cm block - مخبوزات تويستوس صن بايتس (Sun bites) - 750.000 KD"
-   }
-  ],
-  "confidence": "medium",
-  "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA with different value (8250 vs 1500)",
-  "pdf": "2021_MISHREF_CDA-.pdf",
-  "title": "مبلغ 8250 (بحاجة تأكيد)",
-  "verified": true
- },
- {
   "id": "2021_MISHREF_CDA_1",
   "code": "37-4576",
   "coopAr": "جمعية مشرف التعاونية",
@@ -5819,7 +5729,7 @@
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
-  "note": "يدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو مقابل منحة موقع تسويقي | ⚠️ ٣ نسخ بنفس النص بمبالغ مختلفة (1500 / 8250 / 11812.5) — يلزم تأكيد المبلغ النهائي",
+  "note": "منحة موقع تسويقي — 11,812.500 د.ك على دفعتين (يناير/يوليو). مجموع صفوف جدول المساحات = القيمة (متحقق)",
   "items": [
    {
     "scope": "outlet",
@@ -6025,7 +5935,7 @@
   "confidence": "high",
   "flags": "Header code MOTHIDA MOTAMYEZA (LAYS) 37-4576; no explicit document date, only period start",
   "pdf": "2021_MISHREF_CDA_1.pdf",
-  "title": "مبلغ 11812.5 (بحاجة تأكيد)",
+  "title": "عقد أنشطة تسويقية 2021",
   "verified": true
  },
  {
