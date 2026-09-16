@@ -193,8 +193,19 @@ function seedUsers() {
 // Seed real co-op contracts from server/seed_data/contracts.json (once, only if
 // the contracts table is empty). Each entry mirrors the /contracts POST body;
 // the co-op is matched from Arabic to our parent name when possible.
+const CONTRACTS_SEED_V = '2';
 function seedContracts() {
-  if (db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n) return 0;
+  const have = db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n;
+  const ver = (db.prepare("SELECT value FROM meta WHERE key='contracts_seed_v'").get() || {}).value;
+  if (have) {
+    // Already at the current seed version, or the user has created their own
+    // contracts (created_by set) — never overwrite those.
+    if (ver === CONTRACTS_SEED_V) return 0;
+    const userMade = db.prepare('SELECT COUNT(*) n FROM contract_hdr WHERE created_by IS NOT NULL').get().n;
+    if (userMade) return 0;
+    // Only seed-origin rows present and version is stale → refresh to the full set.
+    db.exec('DELETE FROM contract_items; DELETE FROM contract_hdr; DELETE FROM contract_installments');
+  }
   let list = [];
   try { list = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed_data', 'contracts.json'), 'utf8')); }
   catch (e) { return 0; }
@@ -202,15 +213,33 @@ function seedContracts() {
 
   let AR = { coops: {} };
   try { AR = require('./outlet_ar.json'); } catch (e) { /* optional */ }
-  const rev = new Map(); // Arabic coop name -> our English parent
-  for (const [en, ar] of Object.entries(AR.coops || {})) rev.set(String(ar).trim(), en);
-  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  // Normalize Arabic for matching: unify alef/hamza/ya/ta-marbuta, drop
+  // diacritics/tatweel and the generic words جمعية / التعاونية / الزراعية.
+  const norm = (s) => String(s || '')
+    .replace(/[ً-ْـ]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/جمعيه|التعاونيه|الزراعيه|التعاونيةه/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  const toks = (s) => new Set(norm(s).split(' ').filter((w) => w.length > 2 && w !== 'ال'));
+  const rev = new Map();      // exact normalized Arabic -> English parent
+  const revToks = [];         // [tokenSet, English] for fuzzy overlap
+  for (const [en, ar] of Object.entries(AR.coops || {})) { rev.set(norm(ar), en); revToks.push([toks(ar), en]); }
   const matchCoop = (e) => {
     if (e.coop) return e.coop;
     const a = norm(e.coopAr);
+    if (!a) return e.coopAr || '';
     if (rev.has(a)) return rev.get(a);
-    for (const [ar, en] of rev) { if (a && (ar.includes(a) || a.includes(ar))) return en; }
-    return e.coopAr || '';
+    for (const [nar, en] of rev) { if (nar && (nar.includes(a) || a.includes(nar))) return en; }
+    // token overlap: our coop's core tokens all present in the contract name
+    const at = toks(e.coopAr);
+    let best = '', bestScore = 0;
+    for (const [ct, en] of revToks) {
+      if (!ct.size) continue;
+      let inter = 0; for (const w of ct) if (at.has(w)) inter++;
+      const score = inter / ct.size;
+      if (score > bestScore) { bestScore = score; best = en; }
+    }
+    return bestScore >= 0.8 ? best : (e.coopAr || '');
   };
   const n = (v, d = 0) => { const x = parseFloat(v); return isNaN(x) ? d : x; };
   const now = nowIso();
@@ -246,6 +275,7 @@ function seedContracts() {
     }
   });
   tx(list);
+  db.prepare("INSERT INTO meta(key,value) VALUES('contracts_seed_v',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(CONTRACTS_SEED_V);
   return cnt;
 }
 
