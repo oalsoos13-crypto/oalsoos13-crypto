@@ -75,7 +75,9 @@
   ],
   "confidence": "high",
   "flags": "الطرف الثاني السوق المركزي للعاملين بوزارة الداخلية (ليست جمعية تعاونية)؛ ملخص CDA يشير إلى تجديد",
-  "pdf": "37_-_2024_MOI_CDA.pdf"
+  "pdf": "37_-_2024_MOI_CDA.pdf",
+  "title": "عقد إيجار مساحات 2024",
+  "verified": true
  },
  {
   "id": "3_-_2018_ABOU_HALEIFA_CDA_DISTINCTIVE",
@@ -94,7 +96,7 @@
   "value": 6000,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -163,7 +165,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "3_-_2018_ABOU_HALEIFA_CDA_DISTINCTIVE.pdf"
+  "pdf": "3_-_2018_ABOU_HALEIFA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2018",
+  "verified": true
  },
  {
   "id": "2018-_Abuhalifa",
@@ -201,7 +205,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2018-_Abuhalifa.pdf"
+  "pdf": "2018-_Abuhalifa.pdf",
+  "title": "ملحق عقد 2018",
+  "verified": true
  },
  {
   "id": "2023-_ABUFATIRA_CDA",
@@ -289,7 +295,9 @@
   ],
   "confidence": "high",
   "flags": "Page 3 is a separate support letter (LYSAL/4179/2022, 3,500 KD one-time) bundled in same file",
-  "pdf": "2023-_ABUFATIRA_CDA.pdf"
+  "pdf": "2023-_ABUFATIRA_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2023",
+  "verified": true
  },
  {
   "id": "2022_ESHBELIA_CDA_DISTINCTIVE_Lays__F_Lay",
@@ -337,7 +345,9 @@
   ],
   "confidence": "high",
   "flags": "Lays/F.Lay; 15% CDA discount plus annual sales-target rebate tiers (2000/2500/3000 KD)",
-  "pdf": "2022_ESHBELIA_CDA_DISTINCTIVE_Lays__F_Lay.pdf"
+  "pdf": "2022_ESHBELIA_CDA_DISTINCTIVE_Lays__F_Lay.pdf",
+  "title": "عقد دعم تجاري CDA 2022",
+  "verified": true
  },
  {
   "id": "6_-_2024_AHMADI_CDA_DISTINCTIVE",
@@ -425,7 +435,9 @@
   ],
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead; document dated 2023-11-16 for the 2024 marketing year",
-  "pdf": "6_-_2024_AHMADI_CDA_DISTINCTIVE.pdf"
+  "pdf": "6_-_2024_AHMADI_CDA_DISTINCTIVE.pdf",
+  "title": "عقد دعم تجاري CDA 2024",
+  "verified": true
  },
  {
   "id": "8_-_2024_ANDALUS_CDA_DISTINCTIVE",
@@ -493,7 +505,9 @@
   ],
   "confidence": "high",
   "flags": "تغيير نسب الخصم يتطلب موافقة اتحاد الجمعيات",
-  "pdf": "8_-_2024_ANDALUS_CDA_DISTINCTIVE.pdf"
+  "pdf": "8_-_2024_ANDALUS_CDA_DISTINCTIVE.pdf",
+  "title": "عقد دعم تجاري CDA 2024",
+  "verified": true
  },
  {
   "id": "8_-_2026_ANDALUS_CDA_DISTINCTIVE",
@@ -531,7 +545,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "8_-_2026_ANDALUS_CDA_DISTINCTIVE.pdf"
+  "pdf": "8_-_2026_ANDALUS_CDA_DISTINCTIVE.pdf",
+  "title": "ملحق عقد 2026",
+  "verified": true
  },
  {
   "id": "60_-_2016_LIVE_STOCK_CDA_DISTINCTIVE",
@@ -550,7 +566,7 @@
   "value": 2200,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -579,7 +595,9 @@
   ],
   "confidence": "medium",
   "flags": "الطرف الأول ممثله فيصل العيدان (المدير العام)؛ رقم عقد مكتوب بخط اليد بجانب الرقم المطبوع",
-  "pdf": "60_-_2016_LIVE_STOCK_CDA_DISTINCTIVE.pdf"
+  "pdf": "60_-_2016_LIVE_STOCK_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2016",
+  "verified": true
  },
  {
   "id": "24_-_2015_JABRIYA_CDA_DISTINCTIVE",
@@ -647,7 +665,9 @@
   ],
   "confidence": "high",
   "flags": "periodTo written as 2015/06/31 (invalid date, corrected to 06/30 per البند الحادي عشر); البند الحادي عشر states 1,325 KD for Jan-Jun 2015",
-  "pdf": "24_-_2015_JABRIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "24_-_2015_JABRIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2015",
+  "verified": true
  },
  {
   "id": "2022_-JAHRA",
@@ -685,7 +705,9 @@
   ],
   "confidence": "high",
   "flags": "partyRep signed as نائب المدير العام",
-  "pdf": "2022_-JAHRA.pdf"
+  "pdf": "2022_-JAHRA.pdf",
+  "title": "عقد أنشطة تسويقية 2022",
+  "verified": true
  },
  {
   "id": "25_-_2024_JAHRA_CDA_DISTINCTIVE",
@@ -803,7 +825,9 @@
   ],
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead",
-  "pdf": "25_-_2024_JAHRA_CDA_DISTINCTIVE.pdf"
+  "pdf": "25_-_2024_JAHRA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2024",
+  "verified": true
  },
  {
   "id": "34_-_2025_NATIONAL_GUARD_CDA_DISTINCTIVE",
@@ -871,7 +895,9 @@
   ],
   "confidence": "medium",
   "flags": "ورقة رسمية للحرس الوطني الكويتي؛ الأدوار معكوسة (الجمعية هي الطرف الأول والشركة المتحدة هي الطرف الثاني)؛ عقد إيجار مساحات؛ القطاع غذائي/استهلاكي/ثلاجات؛ رقم المورد 0678",
-  "pdf": "34_-_2025_NATIONAL_GUARD_CDA_DISTINCTIVE.pdf"
+  "pdf": "34_-_2025_NATIONAL_GUARD_CDA_DISTINCTIVE.pdf",
+  "title": "عقد إيجار مساحات 2025",
+  "verified": true
  },
  {
   "id": "2020-DAIYA",
@@ -909,7 +935,9 @@
   ],
   "confidence": "high",
   "flags": "Daiya Co-op letterhead (not UBC/United); parties reversed - co-op is الطرف الأول, United Distinctive is الطرف الثاني; rent contract; document date 2019/07/09 despite id 2020",
-  "pdf": "2020-DAIYA.pdf"
+  "pdf": "2020-DAIYA.pdf",
+  "title": "عقد إيجار مساحات 2019",
+  "verified": true
  },
  {
   "id": "2019-2020_DAIYA_CDA",
@@ -967,7 +995,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2019-2020_DAIYA_CDA.pdf"
+  "pdf": "2019-2020_DAIYA_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2019",
+  "verified": true
  },
  {
   "id": "41_-_2017_RABYA_-2017_CDA",
@@ -986,7 +1016,7 @@
   "value": 3000,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -1045,7 +1075,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "41_-_2017_RABYA_-2017_CDA.pdf"
+  "pdf": "41_-_2017_RABYA_-2017_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2017",
+  "verified": true
  },
  {
   "id": "43_-_2016_REHAB_CDA_DISTINCTIVE",
@@ -1123,7 +1155,9 @@
   ],
   "confidence": "high",
   "flags": "Two documents in file: Al-Rehab own promo agreement (dated 2015/01/25, ref N/2680) + United Distinctive marketing contract 287/2016; id says CDA but value is lump 6000 KD marketing",
-  "pdf": "43_-_2016_REHAB_CDA_DISTINCTIVE.pdf"
+  "pdf": "43_-_2016_REHAB_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2016",
+  "verified": true
  },
  {
   "id": "2021_-_Rumaithiya_Coop_CDA_-_FritoLay",
@@ -1142,7 +1176,7 @@
   "value": 1500,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -1171,7 +1205,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2021_-_Rumaithiya_Coop_CDA_-_FritoLay.pdf"
+  "pdf": "2021_-_Rumaithiya_Coop_CDA_-_FritoLay.pdf",
+  "title": "عقد أنشطة تسويقية 2021",
+  "verified": true
  },
  {
   "id": "71_-_2021_RAWDA_HAWALLI_CDA",
@@ -1289,7 +1325,9 @@
   ],
   "confidence": "high",
   "flags": "United Distinctive letterhead; sum of item amounts (16,550) matches contract value",
-  "pdf": "71_-_2021_RAWDA_HAWALLI_CDA.pdf"
+  "pdf": "71_-_2021_RAWDA_HAWALLI_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2021",
+  "verified": true
  },
  {
   "id": "2024-_ZAHRA_FritoLay",
@@ -1308,7 +1346,7 @@
   "value": 4000,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "marketing",
+  "valueKind": "rent",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -1328,7 +1366,8 @@
   "confidence": "medium",
   "flags": "ZAHRA co-op letterhead (contract drafted by the co-op; جمعية الزهراء = الطرف الأول, United Distinctive = الطرف الثاني); no explicit document date on page",
   "pdf": "2024-_ZAHRA_FritoLay.pdf",
-  "title": "فريتولي — استاند"
+  "title": "فريتولي — استاند",
+  "verified": true
  },
  {
   "id": "63_-_2024_ZAHRA_MAIN__BRANCHES",
@@ -1345,13 +1384,13 @@
   "renewable": false,
   "valueMode": "lump",
   "value": 11000,
-  "pct": 0,
+  "pct": 10,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "rent",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
-  "note": "الملف يحتوي اتفاقين على نفس الترويسة: السوق المركزي بمبلغ 11000 دك خصماً من الحساب، والفروع بنسبة 10% خصم على الفواتير",
+  "note": "الملف يحتوي اتفاقين على نفس الترويسة: السوق المركزي بمبلغ 11000 دك خصماً من الحساب، والفروع بنسبة 10% خصم على الفواتير | هجين: 11,000 د.ك للسوق المركزي + خصم 10% على فواتير الفروع (ق1/ق3/ق8)",
   "items": [
    {
     "scope": "main",
@@ -1377,7 +1416,8 @@
   "confidence": "low",
   "flags": "File contains two separate agreements (same co-op, both ref 1212): main market lump 11000 KD and branches 10% CDA - combined into one record; no document date; no named party rep",
   "pdf": "63_-_2024_ZAHRA_MAIN__BRANCHES.pdf",
-  "title": "السوق المركزي — عام"
+  "title": "السوق المركزي — عام",
+  "verified": true
  },
  {
   "id": "2023-_SALMIYA_-FRITOLAY_CDA",
@@ -1415,7 +1455,9 @@
   ],
   "confidence": "high",
   "flags": "United Distinctive letterhead",
-  "pdf": "2023-_SALMIYA_-FRITOLAY_CDA.pdf"
+  "pdf": "2023-_SALMIYA_-FRITOLAY_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2023",
+  "verified": true
  },
  {
   "id": "51_-_2026-2027_SALMIYA_CDA_DISTINCTIVE",
@@ -1513,7 +1555,9 @@
   ],
   "confidence": "high",
   "flags": "17-page file: pages 5-17 are supporting CDA summary, P&L and stand mockups, no second contract",
-  "pdf": "51_-_2026-2027_SALMIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "51_-_2026-2027_SALMIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد دعم تجاري CDA 2026",
+  "verified": true
  },
  {
   "id": "59_-_2021-_SURRA_CDA",
@@ -1581,7 +1625,9 @@
   ],
   "confidence": "medium",
   "flags": "ورقة رسمية لجمعية السرة التعاونية؛ الأدوار معكوسة (الجمعية هي الطرف الأول والشركة المتحدة هي الطرف الثاني)؛ السداد على ثلاث دفعات مقدماً (لا يطابق قيم payFreq)",
-  "pdf": "59_-_2021-_SURRA_CDA.pdf"
+  "pdf": "59_-_2021-_SURRA_CDA.pdf",
+  "title": "عقد إيجار مساحات 2021",
+  "verified": true
  },
  {
   "id": "2020-_Salam",
@@ -1619,7 +1665,9 @@
   ],
   "confidence": "high",
   "flags": "Al-Salam Co-op letterhead (not UBC/United); 'موافقة على عرض خاص' rent approval; co-op rep signatory فيصل حسين الكندري; single page",
-  "pdf": "2020-_Salam.pdf"
+  "pdf": "2020-_Salam.pdf",
+  "title": "عقد إيجار مساحات 2020",
+  "verified": true
  },
  {
   "id": "50_-_2020-SALAM_CDA",
@@ -1687,7 +1735,9 @@
   ],
   "confidence": "medium",
   "flags": "نموذج مختلف على ترويسة جمعية السلام (موافقة على عرض خاص)؛ رقم الملف 64؛ وقّع عن الجمعية فيصل حسين الكندري رئيس مجلس الإدارة؛ لا يوجد كود LYSAL",
-  "pdf": "50_-_2020-SALAM_CDA.pdf"
+  "pdf": "50_-_2020-SALAM_CDA.pdf",
+  "title": "عقد إيجار مساحات 2020",
+  "verified": true
  },
  {
   "id": "2020_SHAMIYA_CDA_DISTINCTIVE",
@@ -1745,7 +1795,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2020_SHAMIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "2020_SHAMIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد إيجار مساحات 2020",
+  "verified": true
  },
  {
   "id": "2020-Shamiya",
@@ -1783,7 +1835,9 @@
   ],
   "confidence": "high",
   "flags": "Same co-op as 2020_SHAMIYA (LYSAL/2112/2020); separate space-utilization contract for فريتولي",
-  "pdf": "2020-Shamiya.pdf"
+  "pdf": "2020-Shamiya.pdf",
+  "title": "عقد إيجار مساحات 2020",
+  "verified": true
  },
  {
   "id": "55_-_2016_SHARQ_CDA_DISTINCTIVE",
@@ -1821,7 +1875,9 @@
   ],
   "confidence": "medium",
   "flags": "preamble says لعام 2015 while subject/period are 2016; handwritten note labels the 600 د.ك as إيجار/تجديد",
-  "pdf": "55_-_2016_SHARQ_CDA_DISTINCTIVE.pdf"
+  "pdf": "55_-_2016_SHARQ_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2016",
+  "verified": true
  },
  {
   "id": "69-_2018_Shaab_CDA",
@@ -1909,7 +1965,9 @@
   ],
   "confidence": "high",
   "flags": "handwritten amendment to renewal clause (البند الثاني): contract not auto-renewable without new written agreement",
-  "pdf": "69-_2018_Shaab_CDA.pdf"
+  "pdf": "69-_2018_Shaab_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2018",
+  "verified": true
  },
  {
   "id": "56-_2023_SHOHADA_CDA",
@@ -1957,7 +2015,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "56-_2023_SHOHADA_CDA.pdf"
+  "pdf": "56-_2023_SHOHADA_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2023",
+  "verified": true
  },
  {
   "id": "2023-__Subhahiya_CDA_Completion_support",
@@ -1974,13 +2034,13 @@
   "renewable": false,
   "valueMode": "lump",
   "value": 4000,
-  "pct": 0,
+  "pct": 10,
   "payFreq": "once",
   "valueKind": "support",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
-  "note": "خطاب دعم مقابل تنفيذ المساحات في العقد الجديد لعام 2023؛ دعم بمبلغ 4,000 د.ك للجمعية لمرة واحدة فقط يخصم عن طريق اشعار خصم من الحساب؛ بالإضافة إلى نسبة خصم 10% على المبيعات لصالح الجمعية تخصم كل ثلاثة اشهر",
+  "note": "خطاب دعم مقابل تنفيذ المساحات في العقد الجديد لعام 2023؛ دعم بمبلغ 4,000 د.ك للجمعية لمرة واحدة فقط يخصم عن طريق اشعار خصم من الحساب؛ بالإضافة إلى نسبة خصم 10% على المبيعات لصالح الجمعية تخصم كل ثلاثة اشهر | هجين: دعم 4,000 د.ك لمرة واحدة + خصم 10% كل ٣ أشهر",
   "items": [
    {
     "scope": "main",
@@ -2015,7 +2075,9 @@
   ],
   "confidence": "medium",
   "flags": "United Distinctive letterhead; single-page support side-letter (خطاب دعم) accompanying renewal of the 2023 contract, not a full base contract; also cites ongoing 10% CDA on sales; no explicit period dates; market/scope for items not specified",
-  "pdf": "2023-__Subhahiya_CDA_Completion_support.pdf"
+  "pdf": "2023-__Subhahiya_CDA_Completion_support.pdf",
+  "title": "خطاب دعم 2023",
+  "verified": true
  },
  {
   "id": "2021_-_SIDDIQUE_COOP_Fritoaly_CDA",
@@ -2053,12 +2115,14 @@
   ],
   "confidence": "high",
   "flags": "partyRep signed as نائب المدير العام",
-  "pdf": "2021_-_SIDDIQUE_COOP_Fritoaly_CDA.pdf"
+  "pdf": "2021_-_SIDDIQUE_COOP_Fritoaly_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2021",
+  "verified": true
  },
  {
   "id": "57_-_2025-2026__SULAIBIKATH_CDA",
   "code": "LYSAL/7220/2025",
-  "coopAr": "جمعية الصليبخات التعاونية",
+  "coopAr": "جمعية الصليبيخات التعاونية",
   "level": "coop",
   "subjectYear": "2025-2026",
   "contractDate": "2025-04-07",
@@ -2121,7 +2185,9 @@
   ],
   "confidence": "high",
   "flags": "ختم الجمعية: جمعية الصليبخات والدوحة التعاونية؛ مدة العقد سنتان قابلة للتجديد",
-  "pdf": "57_-_2025-2026__SULAIBIKATH_CDA.pdf"
+  "pdf": "57_-_2025-2026__SULAIBIKATH_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2025-2026",
+  "verified": true
  },
  {
   "id": "58_-_2020_SULIBIYA_CDA_DISTINCTIVE",
@@ -2169,7 +2235,9 @@
   ],
   "confidence": "medium",
   "flags": "Al-Sulaibiya coop own investment form (نموذج استثمار); parties swapped - coop is الطرف الأول, United Distinctive is الطرف الثاني (rep راشد المنيع); no reference/code; '10% مجاني' at سوق الصناعية",
-  "pdf": "58_-_2020_SULIBIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "58_-_2020_SULIBIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد إيجار مساحات 2020",
+  "verified": true
  },
  {
   "id": "70-_2018_DAHER__CDA",
@@ -2188,7 +2256,7 @@
   "value": 5000,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -2247,7 +2315,9 @@
   ],
   "confidence": "high",
   "flags": "الطرف الأول ممثله فيصل العيدان (المدير العام)؛ رقم عقد مكتوب بخط اليد بجانب الرقم المطبوع",
-  "pdf": "70-_2018_DAHER__CDA.pdf"
+  "pdf": "70-_2018_DAHER__CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2018",
+  "verified": true
  },
  {
   "id": "2_-_2023_ABDALY_CDA",
@@ -2325,7 +2395,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2_-_2023_ABDALY_CDA.pdf"
+  "pdf": "2_-_2023_ABDALY_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2023",
+  "verified": true
  },
  {
   "id": "4_-_2026_ADDAN__QOSUR_CDA",
@@ -2483,7 +2555,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "4_-_2026_ADDAN__QOSUR_CDA.pdf"
+  "pdf": "4_-_2026_ADDAN__QOSUR_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2026",
+  "verified": true
  },
  {
   "id": "5_-_2015_ADELIYA_CDA_DISTINCTIVE",
@@ -2541,7 +2615,9 @@
   ],
   "confidence": "high",
   "flags": "عقد لمنتجات ليز فقط؛ ممثل الطرف الأول فيصل العيدان (المدير العام)؛ ترويسة United Distinctive",
-  "pdf": "5_-_2015_ADELIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "5_-_2015_ADELIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2015",
+  "verified": true
  },
  {
   "id": "2020-_Equaila",
@@ -2579,7 +2655,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2020-_Equaila.pdf"
+  "pdf": "2020-_Equaila.pdf",
+  "title": "عقد أنشطة تسويقية 2020",
+  "verified": true
  },
  {
   "id": "36_-_2015_OMARIYA_CDA_DISTINCTIVE",
@@ -2627,7 +2705,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "36_-_2015_OMARIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "36_-_2015_OMARIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2015",
+  "verified": true
  },
  {
   "id": "2024-FAHAHEEL_CDA_Frito-Lay",
@@ -2646,7 +2726,7 @@
   "value": 2000,
   "pct": 0,
   "payFreq": "quarterly",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -2665,7 +2745,9 @@
   ],
   "confidence": "high",
   "flags": "Body text dated 2023/03/06 but header التاريخ is 2024/03/06 (period is 2024); treated 2024-03-06 as contract date",
-  "pdf": "2024-FAHAHEEL_CDA_Frito-Lay.pdf"
+  "pdf": "2024-FAHAHEEL_CDA_Frito-Lay.pdf",
+  "title": "عقد أنشطة تسويقية 2024",
+  "verified": true
  },
  {
   "id": "16_-_2024_FAHAHEEL_CDA",
@@ -2753,7 +2835,9 @@
   ],
   "confidence": "high",
   "flags": "id labels CDA but value is a fixed lump (8,000 KD), not a %",
-  "pdf": "16_-_2024_FAHAHEEL_CDA.pdf"
+  "pdf": "16_-_2024_FAHAHEEL_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2024",
+  "verified": true
  },
  {
   "id": "20_-_2023_FERDOUS_CDA_DISTINCTIVE",
@@ -2851,7 +2935,9 @@
   ],
   "confidence": "high",
   "flags": "handwritten notes across top of page 1",
-  "pdf": "20_-_2023_FERDOUS_CDA_DISTINCTIVE.pdf"
+  "pdf": "20_-_2023_FERDOUS_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2023",
+  "verified": true
  },
  {
   "id": "17_-_2024_FARWANIYA_CDA",
@@ -2870,7 +2956,7 @@
   "value": 8100,
   "pct": 0,
   "payFreq": "quarterly",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -2959,7 +3045,9 @@
   ],
   "confidence": "high",
   "flags": "ختم استلام جمعية الفروانية 21 FEB 2024",
-  "pdf": "17_-_2024_FARWANIYA_CDA.pdf"
+  "pdf": "17_-_2024_FARWANIYA_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2024",
+  "verified": true
  },
  {
   "id": "19_-_2020_FINTAS_CDA_DISTINCTIVE",
@@ -2997,7 +3085,9 @@
   ],
   "confidence": "high",
   "flags": "United Distinctive letterhead; subject year 2021 though signed 2020-11-09; coop side signed by مبارك العازمي",
-  "pdf": "19_-_2020_FINTAS_CDA_DISTINCTIVE.pdf"
+  "pdf": "19_-_2020_FINTAS_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2021",
+  "verified": true
  },
  {
   "id": "2019-_FAIHA",
@@ -3015,8 +3105,8 @@
   "valueMode": "lump",
   "value": 3860,
   "pct": 0,
-  "payFreq": "once",
-  "valueKind": "marketing",
+  "payFreq": "yearly",
+  "valueKind": "rent",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -3055,7 +3145,9 @@
   ],
   "confidence": "high",
   "flags": "Al-Faiha coop-issued نموذج عرض (party 1 is the coop, party 2/supplier is United Distinctive); explicitly not a lease contract",
-  "pdf": "2019-_FAIHA.pdf"
+  "pdf": "2019-_FAIHA.pdf",
+  "title": "عقد إيجار مساحات 2019",
+  "verified": true
  },
  {
   "id": "38_-_2018_QADSIYA_CDA_DISTINCTIVE",
@@ -3113,7 +3205,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "38_-_2018_QADSIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "38_-_2018_QADSIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2018",
+  "verified": true
  },
  {
   "id": "39-_2023-2024_QAIRAWAN",
@@ -3181,7 +3275,9 @@
   ],
   "confidence": "high",
   "flags": "قيمة ثابتة 7,000 د.ك بالإضافة إلى 15% خصم للفروع على المبيعات الشهرية",
-  "pdf": "39-_2023-2024_QAIRAWAN.pdf"
+  "pdf": "39-_2023-2024_QAIRAWAN.pdf",
+  "title": "عقد أنشطة تسويقية 2023-2024",
+  "verified": true
  },
  {
   "id": "2023-AL_MASEAL_CDA",
@@ -3269,7 +3365,9 @@
   ],
   "confidence": "high",
   "flags": "United Distinctive letterhead; co-op is جمعية المسايل التعاونية (id transliterated as AL_MASEAL); signed by أحمد عباس الخضاري (rep of party-2 co-op)",
-  "pdf": "2023-AL_MASEAL_CDA.pdf"
+  "pdf": "2023-AL_MASEAL_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2023",
+  "verified": true
  },
  {
   "id": "65_-_2022_MANGAF_CDA",
@@ -3378,7 +3476,8 @@
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead; subject states تجديد (renewal)",
   "pdf": "65_-_2022_MANGAF_CDA.pdf",
-  "title": "تجديد — المنتجات العامة"
+  "title": "تجديد — المنتجات العامة",
+  "verified": true
  },
  {
   "id": "2022-_Mangaf",
@@ -3417,7 +3516,8 @@
   "confidence": "high",
   "flags": "",
   "pdf": "2022-_Mangaf.pdf",
-  "title": "المنتج الأمريكي (فريتولي)"
+  "title": "المنتج الأمريكي (فريتولي)",
+  "verified": true
  },
  {
   "id": "35_-_2015_NUZHA_CDA_DISTINCTIVE",
@@ -3465,7 +3565,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "35_-_2015_NUZHA_CDA_DISTINCTIVE.pdf"
+  "pdf": "35_-_2015_NUZHA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2015",
+  "verified": true
  },
  {
   "id": "33_-_2025_NASEEM_CDA_DISTINCTIVE",
@@ -3492,7 +3594,9 @@
   "items": [],
   "confidence": "low",
   "flags": "Renewal request cover letter only — no contract value, financial terms, or spaces table (contract body not included)",
-  "pdf": "33_-_2025_NASEEM_CDA_DISTINCTIVE.pdf"
+  "pdf": "33_-_2025_NASEEM_CDA_DISTINCTIVE.pdf",
+  "title": "طلب تجديد (خطاب) 2025",
+  "verified": true
  },
  {
   "id": "68-2024_Al_Naeem_CDA",
@@ -3560,7 +3664,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "68-2024_Al_Naeem_CDA.pdf"
+  "pdf": "68-2024_Al_Naeem_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2024",
+  "verified": true
  },
  {
   "id": "2021-WAFRA_CDA__Fritolay_-_From_Coop",
@@ -3598,7 +3704,9 @@
   ],
   "confidence": "high",
   "flags": "ALWAFRA coop letterhead (coop is party-1); body states it is an امتداد (extension) of prior contract dated 2020/1/27",
-  "pdf": "2021-WAFRA_CDA__Fritolay_-_From_Coop.pdf"
+  "pdf": "2021-WAFRA_CDA__Fritolay_-_From_Coop.pdf",
+  "title": "عقد دعم تجاري CDA 2021",
+  "verified": true
  },
  {
   "id": "61_-_2022_WAFRA_CDA_DISTINCTIVE",
@@ -3706,7 +3814,9 @@
   ],
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead; Saudi-product marketing contract",
-  "pdf": "61_-_2022_WAFRA_CDA_DISTINCTIVE.pdf"
+  "pdf": "61_-_2022_WAFRA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2022",
+  "verified": true
  },
  {
   "id": "2020_YARMOUK",
@@ -3744,7 +3854,9 @@
   ],
   "confidence": "medium",
   "flags": "AlYarmouk coop letterhead (not UBC); fixture checklist checkboxes on page 2 mostly blank/illegible so item counts uncertain",
-  "pdf": "2020_YARMOUK.pdf"
+  "pdf": "2020_YARMOUK.pdf",
+  "title": "عقد إيجار مساحات 2020",
+  "verified": true
  },
  {
   "id": "2022_YARMOUK_CDA_DISTINCTIVE",
@@ -3792,7 +3904,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2022_YARMOUK_CDA_DISTINCTIVE.pdf"
+  "pdf": "2022_YARMOUK_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2022",
+  "verified": true
  },
  {
   "id": "11_-_2017_BAYAN_CDA",
@@ -3860,7 +3974,9 @@
   ],
   "confidence": "high",
   "flags": "Bayan Co-op letterhead (coop is party-1); party-2 rep عماد الرفاعي",
-  "pdf": "11_-_2017_BAYAN_CDA.pdf"
+  "pdf": "11_-_2017_BAYAN_CDA.pdf",
+  "title": "عقد إيجار مساحات 2017",
+  "verified": true
  },
  {
   "id": "2024_Jaber_al_ahmed",
@@ -4018,7 +4134,9 @@
   ],
   "confidence": "high",
   "flags": "Annual target rebate table included",
-  "pdf": "2024_Jaber_al_ahmed.pdf"
+  "pdf": "2024_Jaber_al_ahmed.pdf",
+  "title": "عقد دعم تجاري CDA 2024",
+  "verified": true
  },
  {
   "id": "23_-_2018_JABER_EL_ALI_CDA_DISTINCTIVE",
@@ -4066,7 +4184,9 @@
   ],
   "confidence": "medium",
   "flags": "subject header says لعام 2017 but body/preamble and period are 2018",
-  "pdf": "23_-_2018_JABER_EL_ALI_CDA_DISTINCTIVE.pdf"
+  "pdf": "23_-_2018_JABER_EL_ALI_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2018",
+  "verified": true
  },
  {
   "id": "26_-2025__JLEEB_CDA_DISTINCTIVE",
@@ -4144,7 +4264,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "26_-2025__JLEEB_CDA_DISTINCTIVE.pdf"
+  "pdf": "26_-2025__JLEEB_CDA_DISTINCTIVE.pdf",
+  "title": "عقد دعم تجاري CDA 2025",
+  "verified": true
  },
  {
   "id": "2021-_Hateen_Fritoley_CDA",
@@ -4163,7 +4285,7 @@
   "value": 1500,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -4182,7 +4304,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2021-_Hateen_Fritoley_CDA.pdf"
+  "pdf": "2021-_Hateen_Fritoley_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2021",
+  "verified": true
  },
  {
   "id": "Hateen_Lays_CDA_2021",
@@ -4260,7 +4384,9 @@
   ],
   "confidence": "high",
   "flags": "وقّع عن الطرف الثاني أحمد خالد الإبراهيم (المدير العام بالتكليف)",
-  "pdf": "Hateen_Lays_CDA_2021.pdf"
+  "pdf": "Hateen_Lays_CDA_2021.pdf",
+  "title": "عقد أنشطة تسويقية 2021",
+  "verified": true
  },
  {
   "id": "28_-_2016_KHAITHAN_CDA_DISTINCTIVE",
@@ -4358,7 +4484,9 @@
   ],
   "confidence": "high",
   "flags": "Handwritten contract no. 2360 alongside printed 542/2016",
-  "pdf": "28_-_2016_KHAITHAN_CDA_DISTINCTIVE.pdf"
+  "pdf": "28_-_2016_KHAITHAN_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2016",
+  "verified": true
  },
  {
   "id": "46_-_2024_SAAD_ABDALLAH_CDA_DISTINCTIVE",
@@ -4526,7 +4654,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "46_-_2024_SAAD_ABDALLAH_CDA_DISTINCTIVE.pdf"
+  "pdf": "46_-_2024_SAAD_ABDALLAH_CDA_DISTINCTIVE.pdf",
+  "title": "عقد دعم تجاري CDA 2024",
+  "verified": true
  },
  {
   "id": "52_-_2023_SALWA_CDA_DISTINCTIVE",
@@ -4624,7 +4754,9 @@
   ],
   "confidence": "high",
   "flags": "handwritten red annotations with value breakdown (approx 8000 + 4000 = 13000 KD)",
-  "pdf": "52_-_2023_SALWA_CDA_DISTINCTIVE.pdf"
+  "pdf": "52_-_2023_SALWA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2023",
+  "verified": true
  },
  {
   "id": "52_-_2023_SALWA_CDA_DISTINCTIVE__",
@@ -4682,7 +4814,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "52_-_2023_SALWA_CDA_DISTINCTIVE__.pdf"
+  "pdf": "52_-_2023_SALWA_CDA_DISTINCTIVE__.pdf",
+  "title": "ملحق عقد 2023",
+  "verified": true
  },
  {
   "id": "2022-_NORTH_WEST_-SULAIABIKATH_CDA",
@@ -4750,7 +4884,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2022-_NORTH_WEST_-SULAIABIKATH_CDA.pdf"
+  "pdf": "2022-_NORTH_WEST_-SULAIABIKATH_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2022",
+  "verified": true
  },
  {
   "id": "48_-_2025_SABAH_AL_SALEM_CDA",
@@ -4764,7 +4900,7 @@
   "partyRep": "",
   "periodFrom": "2025-03-01",
   "periodTo": "2025-12-31",
-  "renewable": true,
+  "renewable": false,
   "valueMode": "pct",
   "value": 0,
   "pct": 10,
@@ -4773,7 +4909,7 @@
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 45,
-  "note": "عقد إيجار مساحات عرض داخل الاسواق المركزية 1،2،3،4 والفروع؛ القيمة الإيجارية مقابل نسبة خصم 10% على جميع التوريد؛ يجدد لمدة سنة اعتباراً من 2026/1/1 بموافقة الجمعية",
+  "note": "عقد إيجار مساحات عرض داخل الاسواق المركزية 1،2،3،4 والفروع؛ القيمة الإيجارية مقابل نسبة خصم 10% على جميع التوريد؛ يجدد لمدة سنة اعتباراً من 2026/1/1 بموافقة الجمعية | التجديد يتطلب موافقة الجمعية كتابياً (غير تلقائي)",
   "items": [
    {
     "scope": "main",
@@ -4828,7 +4964,9 @@
   ],
   "confidence": "high",
   "flags": "Sabah Al-Salem coop letterhead (coop is party-1); titled عقد إيجار but priced as نسبة خصم 10%; party-1 (coop) representative not named",
-  "pdf": "48_-_2025_SABAH_AL_SALEM_CDA.pdf"
+  "pdf": "48_-_2025_SABAH_AL_SALEM_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2025",
+  "verified": true
  },
  {
   "id": "47_-_2024_SABAH_AL_NASER_CDA_DISTINCTIVE",
@@ -4876,7 +5014,9 @@
   ],
   "confidence": "high",
   "flags": "Both a 12% CDA discount and a 1500 KD support (دعم) are present; value field holds the lump support amount",
-  "pdf": "47_-_2024_SABAH_AL_NASER_CDA_DISTINCTIVE.pdf"
+  "pdf": "47_-_2024_SABAH_AL_NASER_CDA_DISTINCTIVE.pdf",
+  "title": "عقد دعم تجاري CDA 2024",
+  "verified": true
  },
  {
   "id": "13_-_2016__2017_ABDULLA_SALEM__Dahiya",
@@ -4954,7 +5094,9 @@
   ],
   "confidence": "low",
   "flags": "Very poor scan with overlapping 'استيفاء بدل عرض' renewal receipts for 2016 & 2017 obscuring text; base contract is 2015 (ref 292/2015); items, value and grace terms partially obscured",
-  "pdf": "13_-_2016__2017_ABDULLA_SALEM__Dahiya.pdf"
+  "pdf": "13_-_2016__2017_ABDULLA_SALEM__Dahiya.pdf",
+  "title": "عقد أنشطة تسويقية 2015",
+  "verified": true
  },
  {
   "id": "2022-_ALI_SABAH_AL_SALEM",
@@ -5003,7 +5145,8 @@
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead",
   "pdf": "2022-_ALI_SABAH_AL_SALEM.pdf",
-  "title": "منتجات أمريكية"
+  "title": "منتجات أمريكية",
+  "verified": true
  },
  {
   "id": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE",
@@ -5092,7 +5235,8 @@
   "confidence": "high",
   "flags": "Includes annual sales-target bonus table in addition to the 10% CDA",
   "pdf": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE.pdf",
-  "title": "منتجات سعودية"
+  "title": "منتجات سعودية",
+  "verified": true
  },
  {
   "id": "P723-_West_Abdulla_al_Mubarak",
@@ -5270,7 +5414,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "P723-_West_Abdulla_al_Mubarak.pdf"
+  "pdf": "P723-_West_Abdulla_al_Mubarak.pdf",
+  "title": "عقد دعم تجاري CDA 2025",
+  "verified": true
  },
  {
   "id": "2019_GARNATA_CDA",
@@ -5318,7 +5464,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2019_GARNATA_CDA.pdf"
+  "pdf": "2019_GARNATA_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2019-2020",
+  "verified": true
  },
  {
   "id": "67-_2023_Fahad_al_Ahmed_CDA",
@@ -5386,7 +5534,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "67-_2023_Fahad_al_Ahmed_CDA.pdf"
+  "pdf": "67-_2023_Fahad_al_Ahmed_CDA.pdf",
+  "title": "عقد دعم تجاري CDA 2023",
+  "verified": true
  },
  {
   "id": "40_-_2015_QOURTOUBA_CDA",
@@ -5434,7 +5584,9 @@
   ],
   "confidence": "high",
   "flags": "Pepsi/UBC letterhead",
-  "pdf": "40_-_2015_QOURTOUBA_CDA.pdf"
+  "pdf": "40_-_2015_QOURTOUBA_CDA.pdf",
+  "title": "تجديد عقد 2015",
+  "verified": true
  },
  {
   "id": "29-_2021_KIFAN_CDA",
@@ -5472,7 +5624,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "29-_2021_KIFAN_CDA.pdf"
+  "pdf": "29-_2021_KIFAN_CDA.pdf",
+  "title": "عقد أنشطة تسويقية 2021",
+  "verified": true
  },
  {
   "id": "P247-_Mubarak_Al_Kabeer_1",
@@ -5550,7 +5704,9 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "P247-_Mubarak_Al_Kabeer_1.pdf"
+  "pdf": "P247-_Mubarak_Al_Kabeer_1.pdf",
+  "title": "عقد دعم تجاري CDA 2025",
+  "verified": true
  },
  {
   "id": "2021_MISHREF_CDA",
@@ -5569,7 +5725,7 @@
   "value": 1500,
   "pct": 0,
   "payFreq": "semiannual",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -5589,7 +5745,8 @@
   "confidence": "medium",
   "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA- with different value",
   "pdf": "2021_MISHREF_CDA.pdf",
-  "title": "مبلغ 1500 (بحاجة تأكيد)"
+  "title": "مبلغ 1500 (بحاجة تأكيد)",
+  "verified": true
  },
  {
   "id": "2021_MISHREF_CDA-",
@@ -5608,7 +5765,7 @@
   "value": 8250,
   "pct": 0,
   "payFreq": "semiannual",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -5638,7 +5795,8 @@
   "confidence": "medium",
   "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA with different value (8250 vs 1500)",
   "pdf": "2021_MISHREF_CDA-.pdf",
-  "title": "مبلغ 8250 (بحاجة تأكيد)"
+  "title": "مبلغ 8250 (بحاجة تأكيد)",
+  "verified": true
  },
  {
   "id": "2021_MISHREF_CDA_1",
@@ -5657,7 +5815,7 @@
   "value": 11812.5,
   "pct": 0,
   "payFreq": "semiannual",
-  "valueKind": "rent",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -5867,7 +6025,8 @@
   "confidence": "high",
   "flags": "Header code MOTHIDA MOTAMYEZA (LAYS) 37-4576; no explicit document date, only period start",
   "pdf": "2021_MISHREF_CDA_1.pdf",
-  "title": "مبلغ 11812.5 (بحاجة تأكيد)"
+  "title": "مبلغ 11812.5 (بحاجة تأكيد)",
+  "verified": true
  },
  {
   "id": "21_-_2020_HADIYA_CDA_DISTINCTIVE",
@@ -5886,7 +6045,7 @@
   "value": 8500,
   "pct": 0,
   "payFreq": "once",
-  "valueKind": "cda",
+  "valueKind": "marketing",
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
@@ -5955,6 +6114,8 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "21_-_2020_HADIYA_CDA_DISTINCTIVE.pdf"
+  "pdf": "21_-_2020_HADIYA_CDA_DISTINCTIVE.pdf",
+  "title": "عقد أنشطة تسويقية 2020",
+  "verified": true
  }
 ]

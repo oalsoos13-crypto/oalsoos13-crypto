@@ -60,7 +60,7 @@ function hydrate(c) {
     valueMode: c.value_mode || 'lump', value: c.value, pct: c.pct,
     payFreq: c.pay_freq || 'once', bonusTerms: c.bonus_terms,
     valueKind: c.value_kind, graceDays: c.grace_days, payWithin: c.pay_within,
-    kind: c.kind, parentId: c.parent_id, pdf: c.pdf || '', hasPdf: !!c.pdf, note: c.note, status: c.status,
+    kind: c.kind, parentId: c.parent_id, pdf: c.pdf || '', hasPdf: !!c.pdf, verified: !!c.verified, note: c.note, status: c.status,
     effStatus: eff.s, renewedCycles: eff.cycles, effectiveTo: eff.to,
     createdAt: c.created_at, updatedAt: c.updated_at,
     items, installments, total: c.value,

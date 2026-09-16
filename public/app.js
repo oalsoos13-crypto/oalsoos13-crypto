@@ -400,6 +400,8 @@ const T = {
   cxEffTo: { ar: "سارية حتى (تقديري)", en: "Effective until (est.)" },
   cxNoExpired: { ar: "لا يوجد عقود منتهية فعلاً 👍", en: "No truly-expired contracts 👍" },
   cxViewPdf: { ar: "📄 عرض العقد (PDF)", en: "📄 View contract PDF" },
+  cxVerified: { ar: "متحقق منه (إدخال مزدوج مستقل)", en: "Verified (blind double-entry)" },
+  cxNoRef: { ar: "بدون مرجع", en: "No ref." },
   cxNoPdf: { ar: "لا يوجد ملف PDF لهذا العقد", en: "No PDF for this contract" },
   cxKpiAddendum: { ar: "ملاحق", en: "Addenda" },
   cxByYear: { ar: "حسب السنة", en: "By year" },
@@ -2729,7 +2731,7 @@ function cxRenderList() {
     const badge = isAdd ? `<span class="pill-info">${t("cxIsAddendum")}</span> ` : (c.isRenewal ? `<span class="pill-info">${t("cxIsRenewal")}</span> ` : "");
     const lvl = c.level === "coop" ? t("cxLevelCoop") : t("cxLevelOutlet");
     return `<tr${isAdd ? ' style="background:#fafafa"' : ""}>
-      <td>${isAdd ? "↳ " : ""}${badge}${esc(c.code || "#" + c.id)}${c.title ? " · " + esc(c.title) : ""}</td>
+      <td>${isAdd ? "↳ " : ""}${badge}${c.verified ? `<span title="${t("cxVerified")}" style="color:#1e874b">✓</span> ` : ""}${c.code ? esc(c.code) : `<span style="color:#888">${t("cxNoRef")}</span>`}${c.title ? `<div class="mono-sm" style="color:#555">${esc(c.title)}</div>` : ""}</td>
       <td>${esc(who)}<div class="mono-sm" style="color:#888">${esc(lvl)}</div></td>
       <td class="mono-sm">${esc(per)}</td>
       <td class="mono">${c.items.length}</td>
