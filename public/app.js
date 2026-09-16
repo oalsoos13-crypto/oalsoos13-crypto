@@ -380,6 +380,8 @@ const T = {
   cxGenerate: { ar: "توليد الإشعار", en: "Generate" },
   cxDNCreated: { ar: "تم توليد إشعار الخصم", en: "Debit note generated" },
   months: { ar: "شهر", en: "months" },
+  cxExport: { ar: "تصدير العقود (Excel)", en: "Export contracts" },
+  cxExportItems: { ar: "تصدير المساحات (Excel)", en: "Export spaces" },
   gross: { ar: "الكمية", en: "Gross weight" },
   invValue: { ar: "القيمة", en: "Invoice value" },
   prev: { ar: "السابق", en: "Prev" },
@@ -2661,8 +2663,12 @@ function cxRenderList() {
   const box = document.getElementById("cxBox"); if (!box) return;
   const can = cxData.canEdit;
   const head = document.querySelector("#rv .panel header");
-  if (head) head.innerHTML = `<h3>${t("r_contracts")}</h3>` + (can
-    ? `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary sm" onclick="cxEditContract(null)">${t("cxNew")}</button><button class="btn ghost sm" onclick="cxSpaces()">⬛ ${t("cxManageSpaces")}</button></div>` : "");
+  if (head) head.innerHTML = `<h3>${t("r_contracts")} <span class="pill-info">${cxData.contracts.length}</span></h3>`
+    + `<div style="display:flex;gap:8px;flex-wrap:wrap">`
+    + (can ? `<button class="btn primary sm" onclick="cxEditContract(null)">${t("cxNew")}</button><button class="btn ghost sm" onclick="cxSpaces()">⬛ ${t("cxManageSpaces")}</button>` : "")
+    + `<button class="btn gold sm" onclick="dl('/export/contracts.csv')">⬇ ${t("cxExport")}</button>`
+    + `<button class="btn gold sm" onclick="dl('/export/contract-items.csv')">⬇ ${t("cxExportItems")}</button>`
+    + `</div>`;
   const bases = cxData.contracts.filter((c) => c.kind !== "addendum");
   const adds = cxData.contracts.filter((c) => c.kind === "addendum");
   const rowHtml = (c, isAdd) => {

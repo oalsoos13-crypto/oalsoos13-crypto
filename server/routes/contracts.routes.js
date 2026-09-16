@@ -157,6 +157,65 @@ router.get('/contracts', asyncH((req, res) => {
   res.json({ contracts: rows.map(hydrate), coops: pickerCoops(req.user), spaces, canEdit: canEdit(req.user) });
 }));
 
+// ---- exports (Excel-openable CSV, UTF-8 BOM) ----------------------------
+function csvCell(v) {
+  if (v == null) return '';
+  const s = String(v).replace(/"/g, '""');
+  return /[",\n\r]/.test(s) ? `"${s}"` : s;
+}
+function scopedContracts(user) {
+  const allowCoops = scopeCoops(user), allowCust = scopeCustIds(user);
+  let rows = db.prepare('SELECT * FROM contract_hdr ORDER BY coop, created_at').all();
+  if (allowCoops) rows = rows.filter((c) => (c.level === 'outlet' ? (allowCust && allowCust.has(c.cust_id)) : allowCoops.has(cleanCoop(c.coop))));
+  return rows;
+}
+const freqAr = { once: 'دفعة واحدة', monthly: 'شهري', quarterly: 'ربع سنوي', semiannual: 'نصف سنوي', yearly: 'سنوي' };
+const kindAr = { rent: 'إيجارات', support: 'دعم', cda: 'دعم تجاري CDA', marketing: 'تسويق', other: 'أخرى' };
+
+// One row per contract (header level).
+router.get('/export/contracts.csv', asyncH((req, res) => {
+  const rows = scopedContracts(req.user);
+  const cols = [
+    ['id', (c) => c.id], ['المرجع', (c) => c.code], ['الجمعية', (c) => AR.coops[c.coop] || c.coop],
+    ['المستوى', (c) => (c.level === 'coop' ? 'جمعية' : 'منفذ')], ['المنفذ', (c) => c.cust_id],
+    ['السنة', (c) => c.subject_year], ['النوع', (c) => (c.kind === 'addendum' ? 'ملحق' : (c.is_renewal ? 'تجديد' : 'عقد'))],
+    ['من', (c) => c.period_from], ['إلى', (c) => c.period_to],
+    ['طريقة القيمة', (c) => (c.value_mode === 'pct' ? 'نسبة' : 'مبلغ')],
+    ['القيمة', (c) => (c.value_mode === 'pct' ? '' : c.value)], ['النسبة%', (c) => (c.value_mode === 'pct' ? c.pct : '')],
+    ['الدورية', (c) => freqAr[c.pay_freq] || c.pay_freq], ['التصنيف', (c) => kindAr[c.value_kind] || c.value_kind],
+    ['فترة السماح', (c) => c.grace_days], ['الدفع خلال', (c) => c.pay_within],
+    ['1+1', (c) => c.bonus_terms], ['عدد المساحات', (c) => db.prepare('SELECT COUNT(*) n FROM contract_items WHERE contract_id=?').get(c.id).n],
+    ['الحالة', (c) => (c.status === 'closed' ? 'منتهي' : 'ساري')], ['ملاحظات', (c) => c.note],
+  ];
+  const lines = [cols.map((x) => x[0]).join(',')];
+  for (const c of rows) lines.push(cols.map((x) => csvCell(x[1](c))).join(','));
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="udc-contracts-${Date.now()}.csv"`);
+  res.send('﻿' + lines.join('\r\n'));
+}));
+
+// One row per space/fixture item (line level), joined to its contract.
+router.get('/export/contract-items.csv', asyncH((req, res) => {
+  const rows = scopedContracts(req.user);
+  const byId = new Map(rows.map((c) => [c.id, c]));
+  const ids = rows.map((c) => c.id);
+  let items = [];
+  if (ids.length) items = db.prepare(`SELECT * FROM contract_items WHERE contract_id IN (${ids.map(() => '?').join(',')}) ORDER BY contract_id, sort`).all(...ids);
+  const scAr = { main: 'السوق المركزي', branches: 'جميع الفروع', outlet: 'منفذ', all: 'الكل' };
+  const cols = [
+    ['contract_id', (it) => it.contract_id], ['المرجع', (it) => (byId.get(it.contract_id) || {}).code],
+    ['الجمعية', (it) => { const c = byId.get(it.contract_id) || {}; return AR.coops[c.coop] || c.coop; }],
+    ['النطاق', (it) => scAr[it.scope] || it.scope], ['الأداة', (it) => it.space], ['العدد', (it) => it.count],
+    ['الأبعاد', (it) => it.dimensions], ['الصنف', (it) => it.category], ['الموقع', (it) => it.location],
+    ['القيمة', (it) => it.amount || ''], ['الوصف', (it) => it.description],
+  ];
+  const lines = [cols.map((x) => x[0]).join(',')];
+  for (const it of items) lines.push(cols.map((x) => csvCell(x[1](it))).join(','));
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="udc-contract-items-${Date.now()}.csv"`);
+  res.send('﻿' + lines.join('\r\n'));
+}));
+
 // Months (inclusive) between two YYYY-MM-DD dates; 0 if unparseable.
 function monthsInclusive(from, to) {
   const a = from ? new Date(from) : null; const z = to ? new Date(to) : null;
