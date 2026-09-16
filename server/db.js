@@ -319,6 +319,7 @@ function migrate() {
       parent_id     INTEGER,          -- base contract id, when kind='addendum'
       pdf           TEXT,             -- original contract PDF (served via auth route)
       verified      INTEGER NOT NULL DEFAULT 0,    -- passed blind double-entry verification
+      coop_ar       TEXT,             -- authoritative Arabic co-op name (as printed in the contract)
       note          TEXT,
       status        TEXT NOT NULL DEFAULT 'active',-- 'active' | 'closed'
       created_by    INTEGER,
@@ -464,6 +465,7 @@ function migrate() {
   addHdr('bonus_terms', 'TEXT');
   addHdr('pdf', 'TEXT');
   addHdr('verified', 'INTEGER NOT NULL DEFAULT 0');
+  addHdr('coop_ar', 'TEXT'); // authoritative Arabic co-op name (from the contract itself)
   const ciCols = db.prepare("PRAGMA table_info(contract_items)").all().map((c) => c.name);
   if (!ciCols.includes('description')) db.exec('ALTER TABLE contract_items ADD COLUMN description TEXT');
   if (!ciCols.includes('amount')) db.exec('ALTER TABLE contract_items ADD COLUMN amount REAL NOT NULL DEFAULT 0');

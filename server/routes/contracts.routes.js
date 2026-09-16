@@ -55,7 +55,7 @@ function hydrate(c) {
   return {
     id: c.id, code: c.code, title: c.title, subjectYear: c.subject_year,
     isRenewal: !!c.is_renewal, partyRep: c.party_rep, contractDate: c.contract_date,
-    level: c.level, coop: c.coop, coopAr: AR.coops[c.coop] || '', custId: c.cust_id,
+    level: c.level, coop: c.coop, coopAr: c.coop_ar || AR.coops[c.coop] || c.coop || '', custId: c.cust_id,
     period: { from: c.period_from, to: c.period_to }, renewable: !!c.renewable,
     valueMode: c.value_mode || 'lump', value: c.value, pct: c.pct,
     payFreq: c.pay_freq || 'once', bonusTerms: c.bonus_terms,
@@ -428,6 +428,27 @@ router.get('/contracts/:id/debit-note', asyncH((req, res) => {
 // Stream the original contract PDF — authenticated and scope-checked, so only
 // users who can see the contract can open its PDF (files live outside /public).
 const PDF_DIR = path.join(__dirname, '..', 'contract_pdfs');
+
+// Build a clean, human-readable Arabic download name from the contract's own
+// data (co-op name + type + year + reference), instead of exposing the raw
+// internal file name (e.g. "52_-_2023_SALWA_CDA_DISTINCTIVE__.pdf"). Sets both
+// an RFC 5987 UTF-8 name (filename*) and a plain ASCII fallback (filename=).
+function contractPdfName(c) {
+  const coopAr = c.coop_ar || AR.coops[c.coop] || c.coop || 'عقد';
+  const typeAr = c.kind === 'addendum' ? 'ملحق عقد' : 'عقد';
+  const year = c.subject_year || (c.period_from || '').slice(0, 4) || '';
+  const ref = (c.code || '').replace(/[\\/:*?"<>|]+/g, '-'); // e.g. LYSAL/4218/2022
+  let name = [coopAr, typeAr + (year ? ' ' + year : ''), ref].filter(Boolean).join(' - ');
+  // Strip characters illegal in file names on common OSes; collapse whitespace.
+  name = name.replace(/[\\/:*?"<>|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return (name || ('contract-' + c.id)) + '.pdf';
+}
+function pdfDisposition(c) {
+  const name = contractPdfName(c);
+  // ASCII fallback: keep it meaningful but header-safe (no non-Latin, no quotes).
+  const ascii = ('contract-' + c.id + (c.kind === 'addendum' ? '-addendum' : '') + '.pdf');
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
 router.get('/contracts/:id/pdf', asyncH((req, res) => {
   const c = db.prepare('SELECT * FROM contract_hdr WHERE id=?').get(num(req.params.id, 0));
   if (!c || !c.pdf) throw badRequest('لا يوجد ملف', 'NO_PDF');
@@ -440,7 +461,7 @@ router.get('/contracts/:id/pdf', asyncH((req, res) => {
   const fp = path.join(PDF_DIR, safe);
   if (!fp.startsWith(PDF_DIR) || !fs.existsSync(fp)) throw badRequest('الملف غير موجود', 'NOT_FOUND');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="${safe}"`);
+  res.setHeader('Content-Disposition', pdfDisposition(c));
   fs.createReadStream(fp).pipe(res);
 }));
 

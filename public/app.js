@@ -400,6 +400,7 @@ const T = {
   cxEffTo: { ar: "سارية حتى (تقديري)", en: "Effective until (est.)" },
   cxNoExpired: { ar: "لا يوجد عقود منتهية فعلاً 👍", en: "No truly-expired contracts 👍" },
   cxViewPdf: { ar: "📄 عرض العقد (PDF)", en: "📄 View contract PDF" },
+  cxDownloadPdf: { ar: "⬇ تنزيل العقد (PDF)", en: "⬇ Download contract PDF" },
   cxVerified: { ar: "متحقق منه (إدخال مزدوج مستقل)", en: "Verified (blind double-entry)" },
   cxNoRef: { ar: "بدون مرجع", en: "No ref." },
   cxNoPdf: { ar: "لا يوجد ملف PDF لهذا العقد", en: "No PDF for this contract" },
@@ -2197,10 +2198,14 @@ function dl(url) {
     .then((res) => (res.ok ? res.blob().then((b) => ({ b, res })) : Promise.reject(new Error("HTTP " + res.status))))
     .then(({ b, res }) => {
       const dispo = res.headers.get("Content-Disposition") || "";
-      const m = /filename="?([^"]+)"?/.exec(dispo);
+      // Prefer the RFC 5987 UTF-8 name (filename*), fall back to plain filename.
+      let fname = "";
+      const mStar = /filename\*=UTF-8''([^;]+)/i.exec(dispo);
+      if (mStar) { try { fname = decodeURIComponent(mStar[1]); } catch (e) { fname = mStar[1]; } }
+      if (!fname) { const m = /filename="?([^";]+)"?/.exec(dispo); fname = m ? m[1] : "export"; }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(b);
-      a.download = m ? m[1] : "export";
+      a.download = fname;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -2689,6 +2694,9 @@ async function cxViewPdf(id) {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (e) { toast(e.message || t("cxNoPdf")); }
 }
+// Download the contract PDF with a clean Arabic file name (co-op + type + year),
+// taken from the server's Content-Disposition (filename*).
+function cxDownloadPdf(id) { dl("/contracts/" + id + "/pdf"); }
 function cxEffBadge(c) {
   if (c.status === "closed") return `<span style="color:#888">${t("cxClosed")}</span>`;
   const map = {
@@ -2740,6 +2748,7 @@ function cxRenderList() {
       <td style="white-space:nowrap">
         <button class="btn ghost sm" onclick="cxView(${c.id})">👁</button>
         ${c.hasPdf ? `<button class="btn ghost sm" title="${t("cxViewPdf")}" onclick="cxViewPdf(${c.id})">📄</button>` : ""}
+        ${c.hasPdf ? `<button class="btn ghost sm" title="${t("cxDownloadPdf")}" onclick="cxDownloadPdf(${c.id})">⬇</button>` : ""}
         ${can ? `<button class="btn gold sm" onclick="cxGenDN(${c.id})">🧾</button>` : ""}
         ${can ? `<button class="btn ghost sm" onclick="cxEditContract(${c.id})">✎</button>` : ""}
         ${can && !isAdd ? `<button class="btn ghost sm" onclick="cxEditContract(null,${c.id})">${t("cxAddendum")}</button>` : ""}
@@ -3037,7 +3046,7 @@ function cxView(id) {
     ${c.title ? `<p>${esc(c.title)}</p>` : ""}
     <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=8>—</td></tr>`}</tbody></table>
     <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
-    <div class="actions" style="margin-top:12px;gap:8px">${c.hasPdf ? `<button class="btn gold" onclick="cxViewPdf(${c.id})">${t("cxViewPdf")}</button>` : ""}<button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
+    <div class="actions" style="margin-top:12px;gap:8px">${c.hasPdf ? `<button class="btn gold" onclick="cxViewPdf(${c.id})">${t("cxViewPdf")}</button><button class="btn ghost" onclick="cxDownloadPdf(${c.id})">${t("cxDownloadPdf")}</button>` : ""}<button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
 }
 
 /* ---- generate a rent/support debit note (LYSAL) from a contract ---- */

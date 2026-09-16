@@ -193,7 +193,7 @@ function seedUsers() {
 // Seed real co-op contracts from server/seed_data/contracts.json (once, only if
 // the contracts table is empty). Each entry mirrors the /contracts POST body;
 // the co-op is matched from Arabic to our parent name when possible.
-const CONTRACTS_SEED_V = '9';
+const CONTRACTS_SEED_V = '10';
 function seedContracts() {
   const have = db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n;
   const ver = (db.prepare("SELECT value FROM meta WHERE key='contracts_seed_v'").get() || {}).value;
@@ -244,9 +244,9 @@ function seedContracts() {
   const n = (v, d = 0) => { const x = parseFloat(v); return isNaN(x) ? d : x; };
   const now = nowIso();
   const insH = db.prepare(`INSERT INTO contract_hdr (code,title,subject_year,is_renewal,party_rep,contract_date,
-    level,coop,cust_id,period_from,period_to,renewable,value_mode,value,pct,pay_freq,bonus_terms,value_kind,
+    level,coop,coop_ar,cust_id,period_from,period_to,renewable,value_mode,value,pct,pay_freq,bonus_terms,value_kind,
     grace_days,pay_within,kind,parent_id,pdf,verified,note,status,created_at,updated_at)
-    VALUES (@code,@title,@subject_year,@is_renewal,@party_rep,@contract_date,@level,@coop,@cust_id,@period_from,@period_to,
+    VALUES (@code,@title,@subject_year,@is_renewal,@party_rep,@contract_date,@level,@coop,@coop_ar,@cust_id,@period_from,@period_to,
     @renewable,@value_mode,@value,@pct,@pay_freq,@bonus_terms,@value_kind,@grace_days,@pay_within,@kind,@parent_id,@pdf,@verified,@note,@status,@now,@now)`);
   const insI = db.prepare(`INSERT INTO contract_items (contract_id,scope,cust_id,space_id,space,count,dimensions,category,location,amount,description,note,sort)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
@@ -257,7 +257,7 @@ function seedContracts() {
       const r = insH.run({
         code: e.code || '', title: e.title || '', subject_year: e.subjectYear || '',
         is_renewal: e.isRenewal ? 1 : 0, party_rep: e.partyRep || '', contract_date: e.contractDate || '',
-        level: e.level === 'outlet' ? 'outlet' : 'coop', coop, cust_id: e.custId || '',
+        level: e.level === 'outlet' ? 'outlet' : 'coop', coop, coop_ar: e.coopAr || '', cust_id: e.custId || '',
         period_from: e.periodFrom || '', period_to: e.periodTo || '', renewable: e.renewable === false ? 0 : 1,
         value_mode: e.valueMode === 'pct' ? 'pct' : 'lump', value: n(e.value), pct: n(e.pct),
         pay_freq: e.payFreq || 'once', bonus_terms: e.bonusTerms || '',
