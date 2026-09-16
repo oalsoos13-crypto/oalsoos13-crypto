@@ -325,7 +325,21 @@ const T = {
   cxvk_rent: { ar: "إيجارات", en: "Rent" },
   cxvk_support: { ar: "دعم", en: "Support" },
   cxvk_marketing: { ar: "تسويق", en: "Marketing" },
+  cxvk_cda: { ar: "دعم تجاري CDA", en: "CDA support" },
   cxvk_other: { ar: "أخرى", en: "Other" },
+  cxValueMode: { ar: "طريقة القيمة", en: "Value mode" },
+  cxvm_lump: { ar: "مبلغ مقطوع", en: "Lump sum" },
+  cxvm_pct: { ar: "نسبة من المبيعات %", en: "% of sales" },
+  cxPct: { ar: "النسبة %", en: "Percent %" },
+  cxPayFreq: { ar: "دورية الدفع", en: "Payment freq." },
+  cxpf_once: { ar: "دفعة واحدة", en: "Once" },
+  cxpf_monthly: { ar: "شهري", en: "Monthly" },
+  cxpf_quarterly: { ar: "ربع سنوي", en: "Quarterly" },
+  cxpf_semiannual: { ar: "نصف سنوي", en: "Semiannual" },
+  cxpf_yearly: { ar: "سنوي", en: "Yearly" },
+  cxBonusTerms: { ar: "شروط 1+1 / بونص", en: "1+1 / bonus terms" },
+  cxDescription: { ar: "وصف المساحة", en: "Description" },
+  cxSalesBase: { ar: "صافي المبيعات للفترة (د.ك)", en: "Net sales for period (KD)" },
   cxGrace: { ar: "فترة سماح (يوم)", en: "Grace (days)" },
   cxPayWithin: { ar: "الدفع خلال (يوم)", en: "Pay within (days)" },
   cxStatus: { ar: "الحالة", en: "Status" },
@@ -2729,8 +2743,13 @@ function cxRenderEditor() {
       <div class="field"><label>${t("cxContractDate")}</label><input id="cxCDate" type="date" value="${esc(c.contractDate || "")}"></div>
     </div>
     <div class="grid g3">
-      <div class="field"><label>${t("cxValue")}</label><input id="cxValue" type="number" step="0.001" value="${c.value || 0}"></div>
-      <div class="field"><label>${t("cxValueKind")}</label><select id="cxVKind">${vkOpt("rent")}${vkOpt("support")}${vkOpt("marketing")}${vkOpt("other")}</select></div>
+      <div class="field"><label>${t("cxValueMode")}</label><select id="cxVMode" onchange="cxModeToggle()"><option value="lump" ${c.valueMode !== "pct" ? "selected" : ""}>${t("cxvm_lump")}</option><option value="pct" ${c.valueMode === "pct" ? "selected" : ""}>${t("cxvm_pct")}</option></select></div>
+      <div class="field" id="cxValueW"><label>${t("cxValue")}</label><input id="cxValue" type="number" step="0.001" value="${c.value || 0}"></div>
+      <div class="field" id="cxPctW"><label>${t("cxPct")}</label><input id="cxPct" type="number" step="0.01" value="${c.pct || 0}"></div>
+    </div>
+    <div class="grid g3">
+      <div class="field"><label>${t("cxValueKind")}</label><select id="cxVKind">${vkOpt("rent")}${vkOpt("support")}${vkOpt("cda")}${vkOpt("marketing")}${vkOpt("other")}</select></div>
+      <div class="field"><label>${t("cxPayFreq")}</label><select id="cxPFreq">${["once","monthly","quarterly","semiannual","yearly"].map((k)=>`<option value="${k}" ${c.payFreq===k?"selected":""}>${t("cxpf_"+k)}</option>`).join("")}</select></div>
       <div class="field"><label>${t("cxStatus")}</label><select id="cxStatus"><option value="active" ${c.status !== "closed" ? "selected" : ""}>${t("cxActive")}</option><option value="closed" ${c.status === "closed" ? "selected" : ""}>${t("cxClosed")}</option></select></div>
     </div>
     <div class="grid g3">
@@ -2739,13 +2758,14 @@ function cxRenderEditor() {
       <div class="field"><label>${t("cxPayWithin")}</label><input id="cxPay" type="number" value="${c.payWithin != null ? c.payWithin : 14}"></div>
     </div>
     <div class="grid g3">
+      <div class="field"><label>${t("cxBonusTerms")}</label><input id="cxBonus" value="${esc(c.bonusTerms || "")}" placeholder="1+1 مرة واحدة"></div>
       <label class="chk"><input type="checkbox" id="cxRenewal" ${c.isRenewal ? "checked" : ""}> ${t("cxIsRenewal")}</label>
       <label class="chk"><input type="checkbox" id="cxRenewable" ${c.renewable !== false ? "checked" : ""}> ${t("cxRenewable")}</label>
-      <div class="field"><label>${t("fNote")}</label><input id="cxNote" value="${esc(c.note || "")}"></div>
     </div>
+    <div class="field"><label>${t("fNote")}</label><input id="cxNote" value="${esc(c.note || "")}"></div>
 
     <h4 style="margin:14px 0 6px">${t("cxItems")}</h4>
-    <div class="tbl-wrap"><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th></th></tr></thead><tbody id="cxItemsBody"></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxDescription")}</th><th></th></tr></thead><tbody id="cxItemsBody"></tbody></table></div>
     <div class="actions" style="margin-top:6px"><button class="btn ghost sm" onclick="cxAddItem()">${t("cxAddItem")}</button></div>
 
     <h4 style="margin:14px 0 6px">${t("cxInstallments")}</h4>
@@ -2766,6 +2786,13 @@ function cxLevelToggle() {
   const lv = (document.getElementById("cxLevel") || {}).value;
   const w = document.getElementById("cxOutletW");
   if (w) w.style.display = lv === "outlet" ? "" : "none";
+  cxModeToggle();
+}
+function cxModeToggle() {
+  const m = (document.getElementById("cxVMode") || {}).value;
+  const vw = document.getElementById("cxValueW"), pw = document.getElementById("cxPctW");
+  if (vw) vw.style.display = m === "pct" ? "none" : "";
+  if (pw) pw.style.display = m === "pct" ? "" : "none";
 }
 function cxCoopChanged() {
   cxEdit.coop = document.getElementById("cxCoop").value;
@@ -2786,6 +2813,7 @@ function cxItemRow(it, i) {
     <td><input class="cxItDim" value="${esc(it.dimensions || "")}" placeholder="110×240×65 سم"></td>
     <td><input class="cxItCat" value="${esc(it.category || "")}" placeholder="شيبس / خبز"></td>
     <td><input class="cxItLoc" value="${esc(it.location || "")}" placeholder="من أول الرف لأسفله"></td>
+    <td><input class="cxItDesc" value="${esc(it.description || "")}" style="min-width:220px" placeholder="غرفة للشيبس ..."></td>
     <td><button class="btn danger sm" onclick="cxRemoveItem(${i})">✕</button></td></tr>`;
 }
 function cxRenderItems() {
@@ -2809,10 +2837,11 @@ function cxSyncItems() {
       dimensions: tr.querySelector(".cxItDim").value,
       category: tr.querySelector(".cxItCat").value,
       location: tr.querySelector(".cxItLoc").value,
+      description: tr.querySelector(".cxItDesc").value,
     };
   });
 }
-function cxAddItem() { cxSyncItems(); cxEdit.items.push({ scope: "main", custId: "", spaceId: null, space: "", count: 1, dimensions: "", category: "", location: "" }); cxRenderItems(); }
+function cxAddItem() { cxSyncItems(); cxEdit.items.push({ scope: "main", custId: "", spaceId: null, space: "", count: 1, dimensions: "", category: "", location: "", description: "" }); cxRenderItems(); }
 function cxRemoveItem(i) { cxSyncItems(); cxEdit.items.splice(i, 1); cxRenderItems(); }
 
 function cxInstRow(p, i) {
@@ -2864,7 +2893,9 @@ async function cxSave() {
     partyRep: g("cxRep"), contractDate: g("cxCDate"),
     level, coop: g("cxCoop"), custId: level === "outlet" ? (document.getElementById("cxCust") ? g("cxCust") : "") : "",
     periodFrom: g("cxFrom"), periodTo: g("cxTo"),
-    value: g("cxValue"), valueKind: g("cxVKind"), graceDays: g("cxGrace"), payWithin: g("cxPay"),
+    valueMode: g("cxVMode"), value: g("cxValue"), pct: g("cxPct"),
+    payFreq: g("cxPFreq"), bonusTerms: g("cxBonus"),
+    valueKind: g("cxVKind"), graceDays: g("cxGrace"), payWithin: g("cxPay"),
     status: g("cxStatus"), note: g("cxNote"),
     items: cxEdit.items, installments: cxEdit.installments,
   };
@@ -2881,14 +2912,16 @@ function cxView(id) {
   cxEdit = c; // so cxOutletName scope resolves
   const who = c.level === "coop" ? (c.coopAr || c.coop) : (cxOutletName(c.coop, c.custId) + " — " + (c.coopAr || c.coop));
   const scopeLbl = (it) => it.scope === "outlet" ? cxOutletName(c.coop, it.custId) : t("cxsc_" + (it.scope || "main"));
-  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(it.space || "")}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td></tr>`).join("");
+  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(it.space || "")}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td><td>${esc(it.description || "")}</td></tr>`).join("");
   const inst = c.installments.map((p) => `<tr><td>${p.seq}</td><td class="mono-sm">${esc(p.dueDate || "")}</td><td class="mono">${KD(p.amount)}</td><td>${p.status === "paid" ? t("cxPaid") : t("cxPending")}</td></tr>`).join("");
-  modal(`<div style="max-width:780px;padding:16px 20px">
+  const valLine = c.valueMode === "pct" ? `${c.pct}% ${t("cxvm_pct")}` : `${KD(c.value)} د.ك`;
+  modal(`<div style="max-width:820px;padding:16px 20px">
     <h3>${esc(c.code || "#" + c.id)}${c.kind === "addendum" ? " · " + t("cxIsAddendum") : (c.isRenewal ? " · " + t("cxIsRenewal") : "")}</h3>
     <p>${esc(who)} · ${esc((c.period.from || "") + (c.period.to ? " → " + c.period.to : ""))}</p>
-    <p><b>${t("cxTotal")}:</b> ${KD(c.value)} د.ك · ${t("cxvk_" + (c.valueKind || "rent"))}${c.partyRep ? " · " + esc(c.partyRep) : ""}</p>
+    <p><b>${t("cxTotal")}:</b> ${valLine} · ${t("cxvk_" + (c.valueKind || "rent"))} · ${t("cxpf_" + (c.payFreq || "once"))}${c.partyRep ? " · " + esc(c.partyRep) : ""}</p>
+    ${c.bonusTerms ? `<p><b>${t("cxBonusTerms")}:</b> ${esc(c.bonusTerms)}</p>` : ""}
     ${c.title ? `<p>${esc(c.title)}</p>` : ""}
-    <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th></tr></thead><tbody>${items || `<tr><td colspan=6>—</td></tr>`}</tbody></table>
+    <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=7>—</td></tr>`}</tbody></table>
     <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
     <div class="actions" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
 }
@@ -2896,24 +2929,29 @@ function cxView(id) {
 /* ---- generate a rent/support debit note (LYSAL) from a contract ---- */
 async function cxGenDN(id) {
   const c = cxData.contracts.find((x) => x.id === id); if (!c) return;
+  const pct = c.valueMode === "pct";
   const pre = await api("/contracts/" + id + "/debit-note?from=" + encodeURIComponent(c.period.from || "") + "&to=" + encodeURIComponent(c.period.to || ""));
   modal(`<div style="max-width:520px;padding:16px 20px">
     <h3>${t("cxGenDNTitle")}</h3>
-    <p>${esc(c.code || "#" + c.id)} · ${esc(c.coopAr || c.coop)}</p>
+    <p>${esc(c.code || "#" + c.id)} · ${esc(c.coopAr || c.coop)}${pct ? " · " + c.pct + "% " + t("cxvm_pct") : ""}</p>
     <div class="grid g2">
       <div class="field"><label>${t("cxPeriodFrom")}</label><input id="dnFrom" type="date" value="${esc(pre.from || "")}" onchange="cxDNRecalc(${id})"></div>
       <div class="field"><label>${t("cxPeriodTo")}</label><input id="dnTo" type="date" value="${esc(pre.to || "")}" onchange="cxDNRecalc(${id})"></div>
     </div>
+    ${pct ? `<div class="field"><label>${t("cxSalesBase")}</label><input id="dnBase" type="number" step="0.001" value="0" oninput="cxDNRecalc(${id})"></div>` : ""}
     <div class="field"><label>${t("cxBilledFor")} (د.ك)</label><input id="dnAmt" type="number" step="0.001" value="${pre.amount}"></div>
-    <div class="hint" id="dnHint">${t("cxTotal")}: ${KD(pre.contractValue)} · ${pre.billedMonths}/${pre.contractMonths} ${t("months") || "شهر"}</div>
+    <div class="hint" id="dnHint">${pct ? c.pct + "% × " + t("cxSalesBase") : t("cxTotal") + ": " + KD(pre.contractValue) + " · " + pre.billedMonths + "/" + pre.contractMonths + " " + t("months")}</div>
     <div class="actions" style="margin-top:12px;gap:8px"><button class="btn primary" onclick="cxDoGenDN(${id})">${t("cxGenerate")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
 }
 async function cxDNRecalc(id) {
   const from = document.getElementById("dnFrom").value, to = document.getElementById("dnTo").value;
+  const baseEl = document.getElementById("dnBase");
+  const base = baseEl ? (parseFloat(baseEl.value) || 0) : 0;
   try {
-    const pre = await api("/contracts/" + id + "/debit-note?from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to));
+    const pre = await api("/contracts/" + id + "/debit-note?from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to) + "&base=" + base);
     document.getElementById("dnAmt").value = pre.amount;
-    document.getElementById("dnHint").textContent = `${t("cxTotal")}: ${KD(pre.contractValue)} · ${pre.billedMonths}/${pre.contractMonths}`;
+    const h = document.getElementById("dnHint");
+    if (h) h.textContent = pre.valueMode === "pct" ? `${pre.pct}% × ${KD(base)} = ${KD(pre.amount)}` : `${t("cxTotal")}: ${KD(pre.contractValue)} · ${pre.billedMonths}/${pre.contractMonths}`;
   } catch (e) { toast(e.message); }
 }
 async function cxDoGenDN(id) {

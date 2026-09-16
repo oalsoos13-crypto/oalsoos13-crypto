@@ -307,8 +307,12 @@ function migrate() {
       period_from   TEXT,
       period_to     TEXT,
       renewable     INTEGER NOT NULL DEFAULT 1,    -- قابل للتجديد
-      value         REAL NOT NULL DEFAULT 0,       -- قيمة العقد (lump)
-      value_kind    TEXT NOT NULL DEFAULT 'rent',  -- 'rent'|'support'|'marketing'|'other'
+      value_mode    TEXT NOT NULL DEFAULT 'lump',  -- 'lump' | 'pct' (نسبة من المبيعات)
+      value         REAL NOT NULL DEFAULT 0,       -- قيمة العقد (when lump)
+      pct           REAL NOT NULL DEFAULT 0,       -- نسبة الخصم % (when pct)
+      pay_freq      TEXT NOT NULL DEFAULT 'once',  -- 'once'|'monthly'|'quarterly'|'semiannual'|'yearly'
+      bonus_terms   TEXT,                          -- شروط 1+1 وخلافه
+      value_kind    TEXT NOT NULL DEFAULT 'rent',  -- 'rent'|'support'|'cda'|'marketing'|'other'
       grace_days    INTEGER NOT NULL DEFAULT 45,   -- فترة سماح السداد
       pay_within    INTEGER NOT NULL DEFAULT 14,   -- الدفع خلال (يوم)
       kind          TEXT NOT NULL DEFAULT 'base',  -- 'base' | 'addendum'
@@ -336,6 +340,7 @@ function migrate() {
       dimensions  TEXT,              -- الأبعاد (free text)
       category    TEXT,              -- الصنف / العلامة
       location    TEXT,              -- الموقع على الرف
+      description TEXT,              -- الوصف الكامل للمساحة (نص العقد)
       note        TEXT,
       sort        INTEGER NOT NULL DEFAULT 0
     );
@@ -450,6 +455,12 @@ function migrate() {
   addHdr('value_kind', "TEXT NOT NULL DEFAULT 'rent'");
   addHdr('grace_days', 'INTEGER NOT NULL DEFAULT 45');
   addHdr('pay_within', 'INTEGER NOT NULL DEFAULT 14');
+  addHdr('value_mode', "TEXT NOT NULL DEFAULT 'lump'");
+  addHdr('pct', 'REAL NOT NULL DEFAULT 0');
+  addHdr('pay_freq', "TEXT NOT NULL DEFAULT 'once'");
+  addHdr('bonus_terms', 'TEXT');
+  const ciCols = db.prepare("PRAGMA table_info(contract_items)").all().map((c) => c.name);
+  if (!ciCols.includes('description')) db.exec('ALTER TABLE contract_items ADD COLUMN description TEXT');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {
