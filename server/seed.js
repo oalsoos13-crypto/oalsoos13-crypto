@@ -193,7 +193,7 @@ function seedUsers() {
 // Seed real co-op contracts from server/seed_data/contracts.json (once, only if
 // the contracts table is empty). Each entry mirrors the /contracts POST body;
 // the co-op is matched from Arabic to our parent name when possible.
-const CONTRACTS_SEED_V = '7';
+const CONTRACTS_SEED_V = '8';
 function seedContracts() {
   const have = db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n;
   const ver = (db.prepare("SELECT value FROM meta WHERE key='contracts_seed_v'").get() || {}).value;
@@ -304,6 +304,7 @@ function seedExtraCoops() {
     'جمعية شمال غرب الصليبيخات',
     'جمعية ضاحية عبد الله السالم والمنصورية التعاونية',
     'السوق المركزي للعاملين بوزارة الداخلية',
+    'جمعية السوق المركزي للعاملين بوزارة الدفاع',
   ];
   const ins = db.prepare('INSERT OR IGNORE INTO coops (name, name_ar, code, mains, branches) VALUES (?,?,?,0,0)');
   const tx = db.transaction(() => { for (const n of extra) ins.run(n, n, ''); });
