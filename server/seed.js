@@ -279,6 +279,27 @@ function seedContracts() {
   return cnt;
 }
 
+// Co-ops/entities that appear in the contracts but were not in the original
+// master list. Registered here so contracts link to a real co-op record and
+// show up in the co-op reference. Idempotent (INSERT OR IGNORE by name).
+function seedExtraCoops() {
+  const extra = [
+    'جمعية العبدلي التعاونية',
+    'جمعية الشرق التعاونية',
+    'جمعية الصليبية التعاونية',
+    'جمعية النزهة التعاونية',
+    'جمعية غرناطة التعاونية',
+    'جمعية جليب الشيوخ التعاونية',
+    'جمعية الثروة الحيوانية التعاونية',
+    'جمعية شمال غرب الصليبيخات',
+    'جمعية ضاحية عبد الله السالم والمنصورية التعاونية',
+    'السوق المركزي للعاملين بوزارة الداخلية',
+  ];
+  const ins = db.prepare('INSERT OR IGNORE INTO coops (name, name_ar, code, mains, branches) VALUES (?,?,?,0,0)');
+  const tx = db.transaction(() => { for (const n of extra) ins.run(n, n, ''); });
+  tx();
+}
+
 // Seed the default contract fixture/space types (أدوات العقد) once.
 function seedContractSpaces() {
   const have = db.prepare('SELECT COUNT(*) n FROM contract_spaces').get().n;
@@ -304,6 +325,7 @@ function run() {
   seedProducts();
   seedPriceProducts();
   seedSalesMonthly();
+  seedExtraCoops();
   seedContractSpaces();
   seedContracts();
   seedCounter();

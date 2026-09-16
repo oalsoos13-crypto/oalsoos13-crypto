@@ -316,6 +316,53 @@ router.post('/contracts', requireRole(...MGMT), asyncH((req, res) => {
   res.json({ ok: true, id, contract: hydrate(db.prepare('SELECT * FROM contract_hdr WHERE id=?').get(id)) });
 }));
 
+// Aggregate analytics for the contracts dashboard (scoped per user).
+router.get('/contracts/stats', asyncH((req, res) => {
+  const rows = scopedContracts(req.user);
+  const today = new Date().toISOString().slice(0, 10);
+  const plus = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); }; // eslint-disable-line
+  const in90 = plus(90);
+  const yr = (c) => (c.subject_year || String(c.period_from || '').slice(0, 4) || '—');
+  const money = (c) => (c.value_mode === 'pct' ? 0 : (c.value || 0));
+  const s = {
+    total: rows.length,
+    base: rows.filter((c) => c.kind !== 'addendum').length,
+    addendum: rows.filter((c) => c.kind === 'addendum').length,
+    renewable: rows.filter((c) => c.renewable).length,
+    active: rows.filter((c) => c.status !== 'closed').length,
+    lumpCount: rows.filter((c) => c.value_mode !== 'pct').length,
+    lumpSum: Math.round(rows.reduce((a, c) => a + money(c), 0) * 1000) / 1000,
+    pctCount: rows.filter((c) => c.value_mode === 'pct').length,
+    spaces: 0,
+  };
+  const pcts = rows.filter((c) => c.value_mode === 'pct').map((c) => c.pct).filter((x) => x > 0);
+  s.pctAvg = pcts.length ? Math.round((pcts.reduce((a, b) => a + b, 0) / pcts.length) * 100) / 100 : 0;
+  s.pctMin = pcts.length ? Math.min(...pcts) : 0;
+  s.pctMax = pcts.length ? Math.max(...pcts) : 0;
+  if (rows.length) s.spaces = db.prepare(`SELECT COUNT(*) n FROM contract_items WHERE contract_id IN (${rows.map(() => '?').join(',')})`).get(...rows.map((c) => c.id)).n;
+
+  const group = (keyFn, labelFn) => {
+    const m = new Map();
+    for (const c of rows) {
+      const k = keyFn(c); if (k == null || k === '') continue;
+      if (!m.has(k)) m.set(k, { key: k, label: labelFn ? labelFn(c, k) : k, count: 0, sum: 0, pctSum: 0, pctN: 0 });
+      const g = m.get(k); g.count++; g.sum += money(c);
+      if (c.value_mode === 'pct' && c.pct > 0) { g.pctSum += c.pct; g.pctN++; }
+    }
+    return [...m.values()].map((g) => ({ key: g.key, label: g.label, count: g.count, sum: Math.round(g.sum * 1000) / 1000, pctAvg: g.pctN ? Math.round((g.pctSum / g.pctN) * 100) / 100 : 0 }));
+  };
+  const KIND = { rent: 'إيجارات', support: 'دعم', cda: 'دعم تجاري CDA', marketing: 'تسويق', other: 'أخرى' };
+  s.byKind = group((c) => c.value_kind || 'other', (c, k) => KIND[k] || k).sort((a, b) => b.count - a.count);
+  s.byYear = group(yr).sort((a, b) => String(b.key).localeCompare(String(a.key)));
+  s.byCoop = group((c) => c.coop, (c) => AR.coops[c.coop] || c.coop).sort((a, b) => b.sum - a.sum || b.count - a.count);
+
+  s.expiring = rows.filter((c) => c.status !== 'closed' && c.period_to && c.period_to >= today && c.period_to <= in90)
+    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: c.period_to }))
+    .sort((a, b) => a.to.localeCompare(b.to));
+  s.expired = rows.filter((c) => c.status !== 'closed' && c.period_to && c.period_to < today).length;
+  res.json(s);
+}));
+
 // Prorate a contract's value for a billing sub-period → suggested debit-note.
 // amount = value × (billed months / contract months). Used to pre-fill the
 // rent debit note (LYSAL) generated from the contract, as in the samples.

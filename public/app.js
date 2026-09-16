@@ -382,6 +382,25 @@ const T = {
   months: { ar: "شهر", en: "months" },
   cxExport: { ar: "تصدير العقود (Excel)", en: "Export contracts" },
   cxExportItems: { ar: "تصدير المساحات (Excel)", en: "Export spaces" },
+  cxDash: { ar: "لوحة تحليلية", en: "Dashboard" },
+  cxDashTitle: { ar: "لوحة تحليل العقود", en: "Contracts analytics" },
+  cxKpiTotal: { ar: "إجمالي العقود", en: "Total contracts" },
+  cxKpiActive: { ar: "عقود سارية", en: "Active" },
+  cxKpiLumpSum: { ar: "مجموع قيمة العقود (مبلغ)", en: "Total lump value" },
+  cxKpiPctAvg: { ar: "متوسط النسبة (CDA)", en: "Avg CDA %" },
+  cxKpiSpaces: { ar: "إجمالي المساحات", en: "Total spaces" },
+  cxKpiExpiring: { ar: "تنتهي خلال ٩٠ يوم", en: "Expiring ≤90d" },
+  cxKpiExpired: { ar: "منتهية", en: "Expired" },
+  cxKpiAddendum: { ar: "ملاحق", en: "Addenda" },
+  cxByYear: { ar: "حسب السنة", en: "By year" },
+  cxByKind: { ar: "حسب النوع", en: "By type" },
+  cxByCoop: { ar: "حسب الجمعية (الأعلى قيمة)", en: "By co-op (top value)" },
+  cxExpiringList: { ar: "عقود تنتهي قريباً", en: "Expiring soon" },
+  cxColCount: { ar: "عدد", en: "Count" },
+  cxColSum: { ar: "القيمة (د.ك)", en: "Value (KD)" },
+  cxColAvgPct: { ar: "متوسط %", en: "Avg %" },
+  cxDaysLeft: { ar: "باقي (يوم)", en: "Days left" },
+  cxNoExpiring: { ar: "لا يوجد عقود تنتهي خلال ٩٠ يوم.", en: "None expiring in 90 days." },
   gross: { ar: "الكمية", en: "Gross weight" },
   invValue: { ar: "القيمة", en: "Invoice value" },
   prev: { ar: "السابق", en: "Prev" },
@@ -2665,6 +2684,7 @@ function cxRenderList() {
   const head = document.querySelector("#rv .panel header");
   if (head) head.innerHTML = `<h3>${t("r_contracts")} <span class="pill-info">${cxData.contracts.length}</span></h3>`
     + `<div style="display:flex;gap:8px;flex-wrap:wrap">`
+    + `<button class="btn ghost sm" onclick="vContractsDash()">📊 ${t("cxDash")}</button>`
     + (can ? `<button class="btn primary sm" onclick="cxEditContract(null)">${t("cxNew")}</button><button class="btn ghost sm" onclick="cxSpaces()">⬛ ${t("cxManageSpaces")}</button>` : "")
     + `<button class="btn gold sm" onclick="dl('/export/contracts.csv')">⬇ ${t("cxExport")}</button>`
     + `<button class="btn gold sm" onclick="dl('/export/contract-items.csv')">⬇ ${t("cxExportItems")}</button>`
@@ -2703,6 +2723,36 @@ function cxRenderList() {
     : `<div class="empty">${t("cxNoContracts")}</div>`;
 }
 
+/* ---- contracts analytics dashboard ---- */
+async function vContractsDash() {
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("cxDashTitle")}</h3><button class="back" onclick="vContracts()">← ${t("back")}</button></header><div id="cxDashBox" style="padding:14px 16px"><div class="empty">${t("loading")}</div></div></div>`;
+  let s;
+  try { s = await api("/contracts/stats"); } catch (e) { document.getElementById("cxDashBox").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  const kpi = (label, val, tone) => `<div class="kpi" style="flex:1;min-width:150px;background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:12px 14px"><div style="font-size:12px;color:#6b7a90">${label}</div><div style="font-size:22px;font-weight:800;color:${tone||"#123f70"}">${val}</div></div>`;
+  const maxSum = Math.max(1, ...s.byYear.map((r) => r.sum), ...s.byKind.map((r) => r.sum), ...s.byCoop.map((r) => r.sum));
+  const bar = (v, max, color) => `<div style="background:#eef2f7;border-radius:6px;height:14px;min-width:60px;position:relative"><div style="width:${Math.round((v / max) * 100)}%;background:${color||"#2f6fb0"};height:100%;border-radius:6px"></div></div>`;
+  const tbl = (title, rows, color) => `<div class="panel" style="margin:0"><header><h3>${title}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${title.split(" ")[1]||""}</th><th>${t("cxColCount")}</th><th>${t("cxColSum")}</th><th>${t("cxColAvgPct")}</th><th></th></tr></thead><tbody>${rows.map((r)=>`<tr><td>${esc(r.label)}</td><td class="mono">${r.count}</td><td class="mono">${r.sum?KD(r.sum):"—"}</td><td class="mono">${r.pctAvg?r.pctAvg+"%":"—"}</td><td style="width:180px">${bar(r.sum,maxSum,color)}</td></tr>`).join("")}</tbody></table></div></div>`;
+  const exp = s.expiring.length
+    ? `<div class="tbl-wrap"><table><thead><tr><th>${t("cxCode")}</th><th>${t("coop")}</th><th>${t("cxPeriodTo")}</th><th>${t("cxDaysLeft")}</th></tr></thead><tbody>${s.expiring.map((e)=>{const dl=Math.round((new Date(e.to)-new Date())/86400000);return `<tr><td>${esc(e.code||"#"+e.id)}</td><td>${esc(e.coopAr)}</td><td class="mono-sm">${esc(e.to)}</td><td class="mono" style="color:${dl<30?"#c0392b":"#123f70"}">${dl}</td></tr>`;}).join("")}</tbody></table></div>`
+    : `<div class="empty">${t("cxNoExpiring")}</div>`;
+  document.getElementById("cxDashBox").innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      ${kpi(t("cxKpiTotal"), s.total)}
+      ${kpi(t("cxKpiActive"), s.active, "#1e874b")}
+      ${kpi(t("cxKpiLumpSum"), KD(s.lumpSum)+" د.ك", "#123f70")}
+      ${kpi(t("cxKpiPctAvg"), (s.pctAvg||0)+"%"+(s.pctCount?` (${s.pctMin}–${s.pctMax})`:""), "#8a5a00")}
+      ${kpi(t("cxKpiSpaces"), s.spaces)}
+      ${kpi(t("cxKpiAddendum"), s.addendum)}
+      ${kpi(t("cxKpiExpiring"), s.expiring.length, s.expiring.length?"#c0392b":"#123f70")}
+      ${kpi(t("cxKpiExpired"), s.expired, s.expired?"#c0392b":"#123f70")}
+    </div>
+    <h3 style="margin:6px 0 8px;color:#123f70">⏳ ${t("cxExpiringList")}</h3>${exp}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px" class="cxDashGrid">
+      <div>${tbl(t("cxByYear"), s.byYear, "#2f6fb0")}</div>
+      <div>${tbl(t("cxByKind"), s.byKind, "#7a4fb0")}</div>
+    </div>
+    <div style="margin-top:16px">${tbl(t("cxByCoop"), s.byCoop, "#1e874b")}</div>`;
+}
 function cxCoopOptions(sel) {
   return `<option value="">${t("choose")}</option>` + cxData.coops.map((c) => `<option value="${esc(c.coop)}" ${sel === c.coop ? "selected" : ""}>${esc(cxCoopLabel(c))}</option>`).join("");
 }
