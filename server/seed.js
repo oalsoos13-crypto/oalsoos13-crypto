@@ -193,7 +193,7 @@ function seedUsers() {
 // Seed real co-op contracts from server/seed_data/contracts.json (once, only if
 // the contracts table is empty). Each entry mirrors the /contracts POST body;
 // the co-op is matched from Arabic to our parent name when possible.
-const CONTRACTS_SEED_V = '2';
+const CONTRACTS_SEED_V = '3';
 function seedContracts() {
   const have = db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n;
   const ver = (db.prepare("SELECT value FROM meta WHERE key='contracts_seed_v'").get() || {}).value;
@@ -275,6 +275,15 @@ function seedContracts() {
     }
   });
   tx(list);
+  // Link each addendum (ملحق) to a base contract of the same co-op — preferring
+  // one with the same reference code — so it groups under its base.
+  const adds = db.prepare("SELECT id, coop, code FROM contract_hdr WHERE kind='addendum' AND parent_id IS NULL").all();
+  const link = db.prepare('UPDATE contract_hdr SET parent_id=? WHERE id=?');
+  const findBase = db.prepare("SELECT id FROM contract_hdr WHERE kind='base' AND coop=? AND id<>? ORDER BY (code=?) DESC, id");
+  const tx2 = db.transaction(() => {
+    for (const a of adds) { const b = findBase.get(a.coop, a.id, a.code || ''); if (b) link.run(b.id, a.id); }
+  });
+  tx2();
   db.prepare("INSERT INTO meta(key,value) VALUES('contracts_seed_v',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(CONTRACTS_SEED_V);
   return cnt;
 }

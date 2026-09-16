@@ -2712,12 +2712,24 @@ function cxRenderList() {
         ${can ? `<button class="btn danger sm" onclick="cxDelete(${c.id})">${t("del")}</button>` : ""}
       </td></tr>`;
   };
-  let body = "";
+  // Group by co-op (each co-op's contracts together), sorted by co-op then year;
+  // addenda render indented under their base.
+  const dispCoop = (c) => c.coopAr || (cxData.coops.find((x) => x.coop === c.coop) || {}).coopAr || c.coop || "—";
+  const cyr = (c) => c.subjectYear || String((c.period && c.period.from) || "").slice(0, 4) || "";
+  const coopCount = {};
+  cxData.contracts.forEach((c) => { const k = dispCoop(c); coopCount[k] = (coopCount[k] || 0) + 1; });
+  bases.sort((a, b) => dispCoop(a).localeCompare(dispCoop(b), "ar") || String(cyr(a)).localeCompare(String(cyr(b))));
+  let body = "", curCoop = null;
+  const header = (name) => `<tr style="background:#eef3f9"><td colspan="7" style="font-weight:800;color:#123f70">🏢 ${esc(name)} <span class="pill-info">${coopCount[name] || 0}</span></td></tr>`;
   for (const b of bases) {
+    const dc = dispCoop(b);
+    if (dc !== curCoop) { body += header(dc); curCoop = dc; }
     body += rowHtml(b, false);
     adds.filter((a) => a.parentId === b.id).forEach((a) => { body += rowHtml(a, true); });
   }
-  adds.filter((a) => !bases.some((b) => b.id === a.parentId)).forEach((a) => { body += rowHtml(a, true); });
+  const orphans = adds.filter((a) => !bases.some((b) => b.id === a.parentId));
+  orphans.sort((a, b) => dispCoop(a).localeCompare(dispCoop(b), "ar"));
+  for (const a of orphans) { const dc = dispCoop(a); if (dc !== curCoop) { body += header(dc); curCoop = dc; } body += rowHtml(a, true); }
   box.innerHTML = cxData.contracts.length
     ? `<table><thead><tr><th>${t("cxCode")}</th><th>${t("coop")}/${t("cxOutletOpt")}</th><th>${t("cxPeriodFrom")}→${t("cxPeriodTo")}</th><th>${t("cxItems")}</th><th>${t("cxTotal")}</th><th>${t("cxStatus")}</th><th></th></tr></thead><tbody>${body}</tbody></table>`
     : `<div class="empty">${t("cxNoContracts")}</div>`;
