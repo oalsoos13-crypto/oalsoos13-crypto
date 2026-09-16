@@ -391,6 +391,16 @@ const T = {
   cxKpiSpaces: { ar: "إجمالي المساحات", en: "Total spaces" },
   cxKpiExpiring: { ar: "تنتهي خلال ٩٠ يوم", en: "Expiring ≤90d" },
   cxKpiExpired: { ar: "منتهية", en: "Expired" },
+  cxEffActive: { ar: "سارية (ضمن الفترة)", en: "Active (in term)" },
+  cxEffAuto: { ar: "متجددة تلقائياً", en: "Auto-renewing" },
+  cxEffExpired: { ar: "منتهية فعلاً (تحتاج تجديد)", en: "Truly expired" },
+  cxExpiredTitle: { ar: "منتهية فعلاً — غير قابلة للتجديد", en: "Truly expired (not renewable)" },
+  cxRenewalDue: { ar: "دورة التجديد تنتهي خلال ٩٠ يوم", en: "Renewal cycle ends ≤90d" },
+  cxCycles: { ar: "مرات التجديد", en: "Renewals" },
+  cxEffTo: { ar: "سارية حتى (تقديري)", en: "Effective until (est.)" },
+  cxNoExpired: { ar: "لا يوجد عقود منتهية فعلاً 👍", en: "No truly-expired contracts 👍" },
+  cxViewPdf: { ar: "📄 عرض العقد (PDF)", en: "📄 View contract PDF" },
+  cxNoPdf: { ar: "لا يوجد ملف PDF لهذا العقد", en: "No PDF for this contract" },
   cxKpiAddendum: { ar: "ملاحق", en: "Addenda" },
   cxByYear: { ar: "حسب السنة", en: "By year" },
   cxByKind: { ar: "حسب النوع", en: "By type" },
@@ -2668,6 +2678,27 @@ async function vContracts() {
   cxRenderList();
 }
 function cxCoopLabel(c) { return c.coopAr || c.coop; }
+async function cxViewPdf(id) {
+  try {
+    const res = await api("/contracts/" + id + "/pdf", { raw: true });
+    if (!res.ok) throw new Error(t("cxNoPdf"));
+    const url = URL.createObjectURL(await res.blob());
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast(e.message || t("cxNoPdf")); }
+}
+function cxEffBadge(c) {
+  if (c.status === "closed") return `<span style="color:#888">${t("cxClosed")}</span>`;
+  const map = {
+    active: ["#1e874b", t("cxEffActive")],
+    autorenew: ["#2f6fb0", t("cxEffAuto") + (c.renewedCycles ? " ×" + c.renewedCycles : "")],
+    expired: ["#c0392b", t("cxEffExpired")],
+    future: ["#8a5a00", "لم يبدأ"],
+    unknown: ["#888", "—"],
+  };
+  const m = map[c.effStatus] || map.unknown;
+  return `<span style="color:${m[0]};font-weight:700">${m[1]}</span>`;
+}
 function cxOutletName(coop, custId) {
   const e = cxData.coops.find((x) => x.coop === coop);
   const o = e && e.outlets.find((y) => String(y.custId) === String(custId));
@@ -2703,9 +2734,10 @@ function cxRenderList() {
       <td class="mono-sm">${esc(per)}</td>
       <td class="mono">${c.items.length}</td>
       <td class="mono">${KD(c.value)}<div class="mono-sm" style="color:#888">${t("cxvk_" + (c.valueKind || "rent"))}</div></td>
-      <td>${c.status === "closed" ? t("cxClosed") : t("cxActive")}</td>
+      <td>${cxEffBadge(c)}</td>
       <td style="white-space:nowrap">
         <button class="btn ghost sm" onclick="cxView(${c.id})">👁</button>
+        ${c.hasPdf ? `<button class="btn ghost sm" title="${t("cxViewPdf")}" onclick="cxViewPdf(${c.id})">📄</button>` : ""}
         ${can ? `<button class="btn gold sm" onclick="cxGenDN(${c.id})">🧾</button>` : ""}
         ${can ? `<button class="btn ghost sm" onclick="cxEditContract(${c.id})">✎</button>` : ""}
         ${can && !isAdd ? `<button class="btn ghost sm" onclick="cxEditContract(null,${c.id})">${t("cxAddendum")}</button>` : ""}
@@ -2750,15 +2782,25 @@ async function vContractsDash() {
   document.getElementById("cxDashBox").innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
       ${kpi(t("cxKpiTotal"), s.total)}
-      ${kpi(t("cxKpiActive"), s.active, "#1e874b")}
+      ${kpi(t("cxEffActive"), s.effActive||0, "#1e874b")}
+      ${kpi(t("cxEffAuto"), s.effAutoRenew||0, "#2f6fb0")}
+      ${kpi(t("cxEffExpired"), s.effExpired||0, (s.effExpired?"#c0392b":"#123f70"))}
       ${kpi(t("cxKpiLumpSum"), KD(s.lumpSum)+" د.ك", "#123f70")}
       ${kpi(t("cxKpiPctAvg"), (s.pctAvg||0)+"%"+(s.pctCount?` (${s.pctMin}–${s.pctMax})`:""), "#8a5a00")}
       ${kpi(t("cxKpiSpaces"), s.spaces)}
       ${kpi(t("cxKpiAddendum"), s.addendum)}
-      ${kpi(t("cxKpiExpiring"), s.expiring.length, s.expiring.length?"#c0392b":"#123f70")}
-      ${kpi(t("cxKpiExpired"), s.expired, s.expired?"#c0392b":"#123f70")}
     </div>
-    <h3 style="margin:6px 0 8px;color:#123f70">⏳ ${t("cxExpiringList")}</h3>${exp}
+    <h3 style="margin:6px 0 8px;color:#c0392b">🚫 ${t("cxExpiredTitle")} <span class="pill-info">${(s.expiredList||[]).length}</span></h3>${
+      (s.expiredList&&s.expiredList.length)
+        ? `<div class="tbl-wrap"><table><thead><tr><th>${t("cxCode")}</th><th>${t("coop")}</th><th>${t("cxPeriodTo")}</th><th>${t("cxColSum")}/%</th></tr></thead><tbody>${s.expiredList.map((e)=>`<tr><td>${esc(e.code||"#"+e.id)}</td><td>${esc(e.coopAr)}</td><td class="mono-sm">${esc(e.to||"")}</td><td class="mono">${esc(String(e.value))}</td></tr>`).join("")}</tbody></table></div>`
+        : `<div class="empty">${t("cxNoExpired")}</div>`
+    }
+    <h3 style="margin:16px 0 8px;color:#123f70">🔁 ${t("cxRenewalDue")} <span class="pill-info">${(s.renewalDue||[]).length}</span></h3>${
+      (s.renewalDue&&s.renewalDue.length)
+        ? `<div class="tbl-wrap"><table><thead><tr><th>${t("cxCode")}</th><th>${t("coop")}</th><th>${t("cxEffTo")}</th><th>${t("cxCycles")}</th></tr></thead><tbody>${s.renewalDue.map((e)=>`<tr><td>${esc(e.code||"#"+e.id)}</td><td>${esc(e.coopAr)}</td><td class="mono-sm">${esc(e.to)}</td><td class="mono">${e.cycles}</td></tr>`).join("")}</tbody></table></div>`
+        : `<div class="empty">—</div>`
+    }
+    <h3 style="margin:16px 0 8px;color:#123f70">⏳ ${t("cxExpiringList")}</h3>${exp}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px" class="cxDashGrid">
       <div>${tbl(t("cxByYear"), s.byYear, "#2f6fb0")}</div>
       <div>${tbl(t("cxByKind"), s.byKind, "#7a4fb0")}</div>
@@ -2993,7 +3035,7 @@ function cxView(id) {
     ${c.title ? `<p>${esc(c.title)}</p>` : ""}
     <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=8>—</td></tr>`}</tbody></table>
     <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
-    <div class="actions" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
+    <div class="actions" style="margin-top:12px;gap:8px">${c.hasPdf ? `<button class="btn gold" onclick="cxViewPdf(${c.id})">${t("cxViewPdf")}</button>` : ""}<button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
 }
 
 /* ---- generate a rent/support debit note (LYSAL) from a contract ---- */

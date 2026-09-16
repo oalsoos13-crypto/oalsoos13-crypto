@@ -317,6 +317,7 @@ function migrate() {
       pay_within    INTEGER NOT NULL DEFAULT 14,   -- الدفع خلال (يوم)
       kind          TEXT NOT NULL DEFAULT 'base',  -- 'base' | 'addendum'
       parent_id     INTEGER,          -- base contract id, when kind='addendum'
+      pdf           TEXT,             -- original contract PDF (served via auth route)
       note          TEXT,
       status        TEXT NOT NULL DEFAULT 'active',-- 'active' | 'closed'
       created_by    INTEGER,
@@ -460,6 +461,7 @@ function migrate() {
   addHdr('pct', 'REAL NOT NULL DEFAULT 0');
   addHdr('pay_freq', "TEXT NOT NULL DEFAULT 'once'");
   addHdr('bonus_terms', 'TEXT');
+  addHdr('pdf', 'TEXT');
   const ciCols = db.prepare("PRAGMA table_info(contract_items)").all().map((c) => c.name);
   if (!ciCols.includes('description')) db.exec('ALTER TABLE contract_items ADD COLUMN description TEXT');
   if (!ciCols.includes('amount')) db.exec('ALTER TABLE contract_items ADD COLUMN amount REAL NOT NULL DEFAULT 0');

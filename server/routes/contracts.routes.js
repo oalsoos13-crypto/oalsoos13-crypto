@@ -5,6 +5,8 @@
 // manually or auto-split over the period, and addenda (ملاحق) linked to a base
 // contract. Space types are a data-driven lookup (in-system or Excel import).
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const XLSX = require('xlsx');
 const db = require('../db');
 const audit = require('../audit');
@@ -49,6 +51,7 @@ function hydrate(c) {
     }));
   const installments = db.prepare('SELECT * FROM contract_installments WHERE contract_id=? ORDER BY seq,id').all(c.id)
     .map((p) => ({ id: p.id, seq: p.seq, dueDate: p.due_date, amount: p.amount, status: p.status, paidDate: p.paid_date, note: p.note }));
+  const eff = effStatus(c);
   return {
     id: c.id, code: c.code, title: c.title, subjectYear: c.subject_year,
     isRenewal: !!c.is_renewal, partyRep: c.party_rep, contractDate: c.contract_date,
@@ -57,10 +60,30 @@ function hydrate(c) {
     valueMode: c.value_mode || 'lump', value: c.value, pct: c.pct,
     payFreq: c.pay_freq || 'once', bonusTerms: c.bonus_terms,
     valueKind: c.value_kind, graceDays: c.grace_days, payWithin: c.pay_within,
-    kind: c.kind, parentId: c.parent_id, note: c.note, status: c.status,
+    kind: c.kind, parentId: c.parent_id, pdf: c.pdf || '', hasPdf: !!c.pdf, note: c.note, status: c.status,
+    effStatus: eff.s, renewedCycles: eff.cycles, effectiveTo: eff.to,
     createdAt: c.created_at, updatedAt: c.updated_at,
     items, installments, total: c.value,
   };
+}
+// Effective status from the period + renewable clause (البند الثاني):
+//  active    — today within the term
+//  autorenew — renewable and the term ended (still in force; carries cycles + implied current end)
+//  expired   — NOT renewable and the term ended (needs a new/renewed contract)
+//  future    — term has not started;  unknown — no end date
+function effStatus(c) {
+  const to = c.period_to ? new Date(c.period_to) : null;
+  const from = c.period_from ? new Date(c.period_from) : null;
+  const today = new Date();
+  if (!to || isNaN(to)) return { s: 'unknown', cycles: 0, to: c.period_to || '' };
+  if (from && !isNaN(from) && from > today) return { s: 'future', cycles: 0, to: c.period_to };
+  if (to >= today) return { s: 'active', cycles: 0, to: c.period_to };
+  if (c.renewable) {
+    const cycles = Math.max(1, Math.ceil((today - to) / (365.25 * 86400000)));
+    const e = new Date(to); e.setFullYear(e.getFullYear() + cycles);
+    return { s: 'autorenew', cycles, to: e.toISOString().slice(0, 10) };
+  }
+  return { s: 'expired', cycles: 0, to: c.period_to };
 }
 const SCOPES = ['main', 'branches', 'outlet', 'all'];
 const VALUE_KINDS = ['rent', 'support', 'cda', 'marketing', 'other'];
@@ -324,12 +347,17 @@ router.get('/contracts/stats', asyncH((req, res) => {
   const in90 = plus(90);
   const yr = (c) => (c.subject_year || String(c.period_from || '').slice(0, 4) || '—');
   const money = (c) => (c.value_mode === 'pct' ? 0 : (c.value || 0));
+  const eff = new Map(rows.map((c) => [c.id, effStatus(c)]));
   const s = {
     total: rows.length,
     base: rows.filter((c) => c.kind !== 'addendum').length,
     addendum: rows.filter((c) => c.kind === 'addendum').length,
     renewable: rows.filter((c) => c.renewable).length,
     active: rows.filter((c) => c.status !== 'closed').length,
+    effActive: rows.filter((c) => eff.get(c.id).s === 'active').length,
+    effAutoRenew: rows.filter((c) => eff.get(c.id).s === 'autorenew').length,
+    effExpired: rows.filter((c) => eff.get(c.id).s === 'expired').length,
+    effUnknown: rows.filter((c) => eff.get(c.id).s === 'unknown').length,
     lumpCount: rows.filter((c) => c.value_mode !== 'pct').length,
     lumpSum: Math.round(rows.reduce((a, c) => a + money(c), 0) * 1000) / 1000,
     pctCount: rows.filter((c) => c.value_mode === 'pct').length,
@@ -360,6 +388,14 @@ router.get('/contracts/stats', asyncH((req, res) => {
     .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: c.period_to }))
     .sort((a, b) => a.to.localeCompare(b.to));
   s.expired = rows.filter((c) => c.status !== 'closed' && c.period_to && c.period_to < today).length;
+  // Truly expired (not renewable, ended) — need a renewed/new contract.
+  s.expiredList = rows.filter((c) => eff.get(c.id).s === 'expired')
+    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: c.period_to, value: c.value_mode === 'pct' ? c.pct + '%' : c.value }))
+    .sort((a, b) => String(a.to).localeCompare(String(b.to)));
+  // Auto-renew contracts whose current implied cycle ends within 90 days (decision window).
+  s.renewalDue = rows.filter((c) => { const e = eff.get(c.id); return e.s === 'autorenew' && e.to >= today && e.to <= in90; })
+    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: eff.get(c.id).to, cycles: eff.get(c.id).cycles }))
+    .sort((a, b) => a.to.localeCompare(b.to));
   res.json(s);
 }));
 
@@ -387,6 +423,25 @@ router.get('/contracts/:id/debit-note', asyncH((req, res) => {
     valueMode: c.value_mode || 'lump', pct: c.pct, base,
     from, to, contractMonths, billedMonths, contractValue: c.value, amount,
   });
+}));
+
+// Stream the original contract PDF — authenticated and scope-checked, so only
+// users who can see the contract can open its PDF (files live outside /public).
+const PDF_DIR = path.join(__dirname, '..', 'contract_pdfs');
+router.get('/contracts/:id/pdf', asyncH((req, res) => {
+  const c = db.prepare('SELECT * FROM contract_hdr WHERE id=?').get(num(req.params.id, 0));
+  if (!c || !c.pdf) throw badRequest('لا يوجد ملف', 'NO_PDF');
+  const allowCoops = scopeCoops(req.user), allowCust = scopeCustIds(req.user);
+  if (allowCoops) {
+    const ok = c.level === 'outlet' ? (allowCust && allowCust.has(c.cust_id)) : allowCoops.has(cleanCoop(c.coop));
+    if (!ok) throw badRequest('غير مصرّح', 'FORBIDDEN');
+  }
+  const safe = path.basename(String(c.pdf)); // prevent traversal
+  const fp = path.join(PDF_DIR, safe);
+  if (!fp.startsWith(PDF_DIR) || !fs.existsSync(fp)) throw badRequest('الملف غير موجود', 'NOT_FOUND');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${safe}"`);
+  fs.createReadStream(fp).pipe(res);
 }));
 
 router.post('/contracts/:id/delete', requireRole(...MGMT), asyncH((req, res) => {

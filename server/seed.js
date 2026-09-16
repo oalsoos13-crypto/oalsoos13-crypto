@@ -193,7 +193,7 @@ function seedUsers() {
 // Seed real co-op contracts from server/seed_data/contracts.json (once, only if
 // the contracts table is empty). Each entry mirrors the /contracts POST body;
 // the co-op is matched from Arabic to our parent name when possible.
-const CONTRACTS_SEED_V = '3';
+const CONTRACTS_SEED_V = '4';
 function seedContracts() {
   const have = db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n;
   const ver = (db.prepare("SELECT value FROM meta WHERE key='contracts_seed_v'").get() || {}).value;
@@ -245,9 +245,9 @@ function seedContracts() {
   const now = nowIso();
   const insH = db.prepare(`INSERT INTO contract_hdr (code,title,subject_year,is_renewal,party_rep,contract_date,
     level,coop,cust_id,period_from,period_to,renewable,value_mode,value,pct,pay_freq,bonus_terms,value_kind,
-    grace_days,pay_within,kind,parent_id,note,status,created_at,updated_at)
+    grace_days,pay_within,kind,parent_id,pdf,note,status,created_at,updated_at)
     VALUES (@code,@title,@subject_year,@is_renewal,@party_rep,@contract_date,@level,@coop,@cust_id,@period_from,@period_to,
-    @renewable,@value_mode,@value,@pct,@pay_freq,@bonus_terms,@value_kind,@grace_days,@pay_within,@kind,@parent_id,@note,@status,@now,@now)`);
+    @renewable,@value_mode,@value,@pct,@pay_freq,@bonus_terms,@value_kind,@grace_days,@pay_within,@kind,@parent_id,@pdf,@note,@status,@now,@now)`);
   const insI = db.prepare(`INSERT INTO contract_items (contract_id,scope,cust_id,space_id,space,count,dimensions,category,location,amount,description,note,sort)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   let cnt = 0;
@@ -263,6 +263,7 @@ function seedContracts() {
         pay_freq: e.payFreq || 'once', bonus_terms: e.bonusTerms || '',
         value_kind: e.valueKind || 'rent', grace_days: n(e.graceDays, 45), pay_within: n(e.payWithin, 14),
         kind: e.kind === 'addendum' ? 'addendum' : 'base', parent_id: e.parentId || null,
+        pdf: e.pdf || null,
         note: e.note || '', status: e.status === 'closed' ? 'closed' : 'active', now,
       });
       const id = r.lastInsertRowid;

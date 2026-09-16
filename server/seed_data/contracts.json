@@ -74,7 +74,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "الطرف الثاني السوق المركزي للعاملين بوزارة الداخلية (ليست جمعية تعاونية)؛ ملخص CDA يشير إلى تجديد"
+  "flags": "الطرف الثاني السوق المركزي للعاملين بوزارة الداخلية (ليست جمعية تعاونية)؛ ملخص CDA يشير إلى تجديد",
+  "pdf": "37_-_2024_MOI_CDA.pdf"
  },
  {
   "id": "3_-_2018_ABOU_HALEIFA_CDA_DISTINCTIVE",
@@ -161,7 +162,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "3_-_2018_ABOU_HALEIFA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2018-_Abuhalifa",
@@ -198,7 +200,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2018-_Abuhalifa.pdf"
  },
  {
   "id": "2023-_ABUFATIRA_CDA",
@@ -285,7 +288,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Page 3 is a separate support letter (LYSAL/4179/2022, 3,500 KD one-time) bundled in same file"
+  "flags": "Page 3 is a separate support letter (LYSAL/4179/2022, 3,500 KD one-time) bundled in same file",
+  "pdf": "2023-_ABUFATIRA_CDA.pdf"
  },
  {
   "id": "2022_ESHBELIA_CDA_DISTINCTIVE_Lays__F_Lay",
@@ -332,7 +336,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Lays/F.Lay; 15% CDA discount plus annual sales-target rebate tiers (2000/2500/3000 KD)"
+  "flags": "Lays/F.Lay; 15% CDA discount plus annual sales-target rebate tiers (2000/2500/3000 KD)",
+  "pdf": "2022_ESHBELIA_CDA_DISTINCTIVE_Lays__F_Lay.pdf"
  },
  {
   "id": "6_-_2024_AHMADI_CDA_DISTINCTIVE",
@@ -419,7 +424,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Pepsi/UBC (United Distinctive) letterhead; document dated 2023-11-16 for the 2024 marketing year"
+  "flags": "Pepsi/UBC (United Distinctive) letterhead; document dated 2023-11-16 for the 2024 marketing year",
+  "pdf": "6_-_2024_AHMADI_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "8_-_2024_ANDALUS_CDA_DISTINCTIVE",
@@ -486,7 +492,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "تغيير نسب الخصم يتطلب موافقة اتحاد الجمعيات"
+  "flags": "تغيير نسب الخصم يتطلب موافقة اتحاد الجمعيات",
+  "pdf": "8_-_2024_ANDALUS_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "8_-_2026_ANDALUS_CDA_DISTINCTIVE",
@@ -523,7 +530,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "8_-_2026_ANDALUS_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "60_-_2016_LIVE_STOCK_CDA_DISTINCTIVE",
@@ -570,7 +578,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "الطرف الأول ممثله فيصل العيدان (المدير العام)؛ رقم عقد مكتوب بخط اليد بجانب الرقم المطبوع"
+  "flags": "الطرف الأول ممثله فيصل العيدان (المدير العام)؛ رقم عقد مكتوب بخط اليد بجانب الرقم المطبوع",
+  "pdf": "60_-_2016_LIVE_STOCK_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "24_-_2015_JABRIYA_CDA_DISTINCTIVE",
@@ -637,7 +646,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "periodTo written as 2015/06/31 (invalid date, corrected to 06/30 per البند الحادي عشر); البند الحادي عشر states 1,325 KD for Jan-Jun 2015"
+  "flags": "periodTo written as 2015/06/31 (invalid date, corrected to 06/30 per البند الحادي عشر); البند الحادي عشر states 1,325 KD for Jan-Jun 2015",
+  "pdf": "24_-_2015_JABRIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2022_-JAHRA",
@@ -674,7 +684,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "partyRep signed as نائب المدير العام"
+  "flags": "partyRep signed as نائب المدير العام",
+  "pdf": "2022_-JAHRA.pdf"
  },
  {
   "id": "25_-_2024_JAHRA_CDA_DISTINCTIVE",
@@ -791,7 +802,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Pepsi/UBC (United Distinctive) letterhead"
+  "flags": "Pepsi/UBC (United Distinctive) letterhead",
+  "pdf": "25_-_2024_JAHRA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "34_-_2025_NATIONAL_GUARD_CDA_DISTINCTIVE",
@@ -858,7 +870,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "ورقة رسمية للحرس الوطني الكويتي؛ الأدوار معكوسة (الجمعية هي الطرف الأول والشركة المتحدة هي الطرف الثاني)؛ عقد إيجار مساحات؛ القطاع غذائي/استهلاكي/ثلاجات؛ رقم المورد 0678"
+  "flags": "ورقة رسمية للحرس الوطني الكويتي؛ الأدوار معكوسة (الجمعية هي الطرف الأول والشركة المتحدة هي الطرف الثاني)؛ عقد إيجار مساحات؛ القطاع غذائي/استهلاكي/ثلاجات؛ رقم المورد 0678",
+  "pdf": "34_-_2025_NATIONAL_GUARD_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2020-DAIYA",
@@ -895,7 +908,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Daiya Co-op letterhead (not UBC/United); parties reversed - co-op is الطرف الأول, United Distinctive is الطرف الثاني; rent contract; document date 2019/07/09 despite id 2020"
+  "flags": "Daiya Co-op letterhead (not UBC/United); parties reversed - co-op is الطرف الأول, United Distinctive is الطرف الثاني; rent contract; document date 2019/07/09 despite id 2020",
+  "pdf": "2020-DAIYA.pdf"
  },
  {
   "id": "2019-2020_DAIYA_CDA",
@@ -952,7 +966,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2019-2020_DAIYA_CDA.pdf"
  },
  {
   "id": "41_-_2017_RABYA_-2017_CDA",
@@ -1029,7 +1044,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "41_-_2017_RABYA_-2017_CDA.pdf"
  },
  {
   "id": "43_-_2016_REHAB_CDA_DISTINCTIVE",
@@ -1106,7 +1122,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Two documents in file: Al-Rehab own promo agreement (dated 2015/01/25, ref N/2680) + United Distinctive marketing contract 287/2016; id says CDA but value is lump 6000 KD marketing"
+  "flags": "Two documents in file: Al-Rehab own promo agreement (dated 2015/01/25, ref N/2680) + United Distinctive marketing contract 287/2016; id says CDA but value is lump 6000 KD marketing",
+  "pdf": "43_-_2016_REHAB_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2021_-_Rumaithiya_Coop_CDA_-_FritoLay",
@@ -1153,7 +1170,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2021_-_Rumaithiya_Coop_CDA_-_FritoLay.pdf"
  },
  {
   "id": "71_-_2021_RAWDA_HAWALLI_CDA",
@@ -1270,7 +1288,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "United Distinctive letterhead; sum of item amounts (16,550) matches contract value"
+  "flags": "United Distinctive letterhead; sum of item amounts (16,550) matches contract value",
+  "pdf": "71_-_2021_RAWDA_HAWALLI_CDA.pdf"
  },
  {
   "id": "2024-_ZAHRA_FritoLay",
@@ -1307,7 +1326,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "ZAHRA co-op letterhead (contract drafted by the co-op; جمعية الزهراء = الطرف الأول, United Distinctive = الطرف الثاني); no explicit document date on page"
+  "flags": "ZAHRA co-op letterhead (contract drafted by the co-op; جمعية الزهراء = الطرف الأول, United Distinctive = الطرف الثاني); no explicit document date on page",
+  "pdf": "2024-_ZAHRA_FritoLay.pdf"
  },
  {
   "id": "63_-_2024_ZAHRA_MAIN__BRANCHES",
@@ -1354,7 +1374,8 @@
    }
   ],
   "confidence": "low",
-  "flags": "File contains two separate agreements (same co-op, both ref 1212): main market lump 11000 KD and branches 10% CDA - combined into one record; no document date; no named party rep"
+  "flags": "File contains two separate agreements (same co-op, both ref 1212): main market lump 11000 KD and branches 10% CDA - combined into one record; no document date; no named party rep",
+  "pdf": "63_-_2024_ZAHRA_MAIN__BRANCHES.pdf"
  },
  {
   "id": "2023-_SALMIYA_-FRITOLAY_CDA",
@@ -1391,7 +1412,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "United Distinctive letterhead"
+  "flags": "United Distinctive letterhead",
+  "pdf": "2023-_SALMIYA_-FRITOLAY_CDA.pdf"
  },
  {
   "id": "51_-_2026-2027_SALMIYA_CDA_DISTINCTIVE",
@@ -1488,7 +1510,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "17-page file: pages 5-17 are supporting CDA summary, P&L and stand mockups, no second contract"
+  "flags": "17-page file: pages 5-17 are supporting CDA summary, P&L and stand mockups, no second contract",
+  "pdf": "51_-_2026-2027_SALMIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "59_-_2021-_SURRA_CDA",
@@ -1555,7 +1578,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "ورقة رسمية لجمعية السرة التعاونية؛ الأدوار معكوسة (الجمعية هي الطرف الأول والشركة المتحدة هي الطرف الثاني)؛ السداد على ثلاث دفعات مقدماً (لا يطابق قيم payFreq)"
+  "flags": "ورقة رسمية لجمعية السرة التعاونية؛ الأدوار معكوسة (الجمعية هي الطرف الأول والشركة المتحدة هي الطرف الثاني)؛ السداد على ثلاث دفعات مقدماً (لا يطابق قيم payFreq)",
+  "pdf": "59_-_2021-_SURRA_CDA.pdf"
  },
  {
   "id": "2020-_Salam",
@@ -1592,7 +1616,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Al-Salam Co-op letterhead (not UBC/United); 'موافقة على عرض خاص' rent approval; co-op rep signatory فيصل حسين الكندري; single page"
+  "flags": "Al-Salam Co-op letterhead (not UBC/United); 'موافقة على عرض خاص' rent approval; co-op rep signatory فيصل حسين الكندري; single page",
+  "pdf": "2020-_Salam.pdf"
  },
  {
   "id": "50_-_2020-SALAM_CDA",
@@ -1659,7 +1684,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "نموذج مختلف على ترويسة جمعية السلام (موافقة على عرض خاص)؛ رقم الملف 64؛ وقّع عن الجمعية فيصل حسين الكندري رئيس مجلس الإدارة؛ لا يوجد كود LYSAL"
+  "flags": "نموذج مختلف على ترويسة جمعية السلام (موافقة على عرض خاص)؛ رقم الملف 64؛ وقّع عن الجمعية فيصل حسين الكندري رئيس مجلس الإدارة؛ لا يوجد كود LYSAL",
+  "pdf": "50_-_2020-SALAM_CDA.pdf"
  },
  {
   "id": "2020_SHAMIYA_CDA_DISTINCTIVE",
@@ -1716,7 +1742,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2020_SHAMIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2020-Shamiya",
@@ -1753,7 +1780,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Same co-op as 2020_SHAMIYA (LYSAL/2112/2020); separate space-utilization contract for فريتولي"
+  "flags": "Same co-op as 2020_SHAMIYA (LYSAL/2112/2020); separate space-utilization contract for فريتولي",
+  "pdf": "2020-Shamiya.pdf"
  },
  {
   "id": "55_-_2016_SHARQ_CDA_DISTINCTIVE",
@@ -1790,7 +1818,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "preamble says لعام 2015 while subject/period are 2016; handwritten note labels the 600 د.ك as إيجار/تجديد"
+  "flags": "preamble says لعام 2015 while subject/period are 2016; handwritten note labels the 600 د.ك as إيجار/تجديد",
+  "pdf": "55_-_2016_SHARQ_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "69-_2018_Shaab_CDA",
@@ -1877,7 +1906,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "handwritten amendment to renewal clause (البند الثاني): contract not auto-renewable without new written agreement"
+  "flags": "handwritten amendment to renewal clause (البند الثاني): contract not auto-renewable without new written agreement",
+  "pdf": "69-_2018_Shaab_CDA.pdf"
  },
  {
   "id": "56-_2023_SHOHADA_CDA",
@@ -1924,7 +1954,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "56-_2023_SHOHADA_CDA.pdf"
  },
  {
   "id": "2023-__Subhahiya_CDA_Completion_support",
@@ -1981,7 +2012,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "United Distinctive letterhead; single-page support side-letter (خطاب دعم) accompanying renewal of the 2023 contract, not a full base contract; also cites ongoing 10% CDA on sales; no explicit period dates; market/scope for items not specified"
+  "flags": "United Distinctive letterhead; single-page support side-letter (خطاب دعم) accompanying renewal of the 2023 contract, not a full base contract; also cites ongoing 10% CDA on sales; no explicit period dates; market/scope for items not specified",
+  "pdf": "2023-__Subhahiya_CDA_Completion_support.pdf"
  },
  {
   "id": "2021_-_SIDDIQUE_COOP_Fritoaly_CDA",
@@ -2018,7 +2050,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "partyRep signed as نائب المدير العام"
+  "flags": "partyRep signed as نائب المدير العام",
+  "pdf": "2021_-_SIDDIQUE_COOP_Fritoaly_CDA.pdf"
  },
  {
   "id": "57_-_2025-2026__SULAIBIKATH_CDA",
@@ -2085,7 +2118,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "ختم الجمعية: جمعية الصليبخات والدوحة التعاونية؛ مدة العقد سنتان قابلة للتجديد"
+  "flags": "ختم الجمعية: جمعية الصليبخات والدوحة التعاونية؛ مدة العقد سنتان قابلة للتجديد",
+  "pdf": "57_-_2025-2026__SULAIBIKATH_CDA.pdf"
  },
  {
   "id": "58_-_2020_SULIBIYA_CDA_DISTINCTIVE",
@@ -2132,7 +2166,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "Al-Sulaibiya coop own investment form (نموذج استثمار); parties swapped - coop is الطرف الأول, United Distinctive is الطرف الثاني (rep راشد المنيع); no reference/code; '10% مجاني' at سوق الصناعية"
+  "flags": "Al-Sulaibiya coop own investment form (نموذج استثمار); parties swapped - coop is الطرف الأول, United Distinctive is الطرف الثاني (rep راشد المنيع); no reference/code; '10% مجاني' at سوق الصناعية",
+  "pdf": "58_-_2020_SULIBIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "70-_2018_DAHER__CDA",
@@ -2209,7 +2244,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "الطرف الأول ممثله فيصل العيدان (المدير العام)؛ رقم عقد مكتوب بخط اليد بجانب الرقم المطبوع"
+  "flags": "الطرف الأول ممثله فيصل العيدان (المدير العام)؛ رقم عقد مكتوب بخط اليد بجانب الرقم المطبوع",
+  "pdf": "70-_2018_DAHER__CDA.pdf"
  },
  {
   "id": "2_-_2023_ABDALY_CDA",
@@ -2286,7 +2322,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2_-_2023_ABDALY_CDA.pdf"
  },
  {
   "id": "4_-_2026_ADDAN__QOSUR_CDA",
@@ -2443,7 +2480,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "4_-_2026_ADDAN__QOSUR_CDA.pdf"
  },
  {
   "id": "5_-_2015_ADELIYA_CDA_DISTINCTIVE",
@@ -2500,7 +2538,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "عقد لمنتجات ليز فقط؛ ممثل الطرف الأول فيصل العيدان (المدير العام)؛ ترويسة United Distinctive"
+  "flags": "عقد لمنتجات ليز فقط؛ ممثل الطرف الأول فيصل العيدان (المدير العام)؛ ترويسة United Distinctive",
+  "pdf": "5_-_2015_ADELIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2020-_Equaila",
@@ -2537,7 +2576,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2020-_Equaila.pdf"
  },
  {
   "id": "36_-_2015_OMARIYA_CDA_DISTINCTIVE",
@@ -2584,7 +2624,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "36_-_2015_OMARIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2024-FAHAHEEL_CDA_Frito-Lay",
@@ -2621,7 +2662,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Body text dated 2023/03/06 but header التاريخ is 2024/03/06 (period is 2024); treated 2024-03-06 as contract date"
+  "flags": "Body text dated 2023/03/06 but header التاريخ is 2024/03/06 (period is 2024); treated 2024-03-06 as contract date",
+  "pdf": "2024-FAHAHEEL_CDA_Frito-Lay.pdf"
  },
  {
   "id": "16_-_2024_FAHAHEEL_CDA",
@@ -2708,7 +2750,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "id labels CDA but value is a fixed lump (8,000 KD), not a %"
+  "flags": "id labels CDA but value is a fixed lump (8,000 KD), not a %",
+  "pdf": "16_-_2024_FAHAHEEL_CDA.pdf"
  },
  {
   "id": "20_-_2023_FERDOUS_CDA_DISTINCTIVE",
@@ -2805,7 +2848,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "handwritten notes across top of page 1"
+  "flags": "handwritten notes across top of page 1",
+  "pdf": "20_-_2023_FERDOUS_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "17_-_2024_FARWANIYA_CDA",
@@ -2912,7 +2956,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "ختم استلام جمعية الفروانية 21 FEB 2024"
+  "flags": "ختم استلام جمعية الفروانية 21 FEB 2024",
+  "pdf": "17_-_2024_FARWANIYA_CDA.pdf"
  },
  {
   "id": "19_-_2020_FINTAS_CDA_DISTINCTIVE",
@@ -2949,7 +2994,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "United Distinctive letterhead; subject year 2021 though signed 2020-11-09; coop side signed by مبارك العازمي"
+  "flags": "United Distinctive letterhead; subject year 2021 though signed 2020-11-09; coop side signed by مبارك العازمي",
+  "pdf": "19_-_2020_FINTAS_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2019-_FAIHA",
@@ -3006,7 +3052,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Al-Faiha coop-issued نموذج عرض (party 1 is the coop, party 2/supplier is United Distinctive); explicitly not a lease contract"
+  "flags": "Al-Faiha coop-issued نموذج عرض (party 1 is the coop, party 2/supplier is United Distinctive); explicitly not a lease contract",
+  "pdf": "2019-_FAIHA.pdf"
  },
  {
   "id": "38_-_2018_QADSIYA_CDA_DISTINCTIVE",
@@ -3063,7 +3110,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "38_-_2018_QADSIYA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "39-_2023-2024_QAIRAWAN",
@@ -3130,7 +3178,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "قيمة ثابتة 7,000 د.ك بالإضافة إلى 15% خصم للفروع على المبيعات الشهرية"
+  "flags": "قيمة ثابتة 7,000 د.ك بالإضافة إلى 15% خصم للفروع على المبيعات الشهرية",
+  "pdf": "39-_2023-2024_QAIRAWAN.pdf"
  },
  {
   "id": "2023-AL_MASEAL_CDA",
@@ -3217,7 +3266,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "United Distinctive letterhead; co-op is جمعية المسايل التعاونية (id transliterated as AL_MASEAL); signed by أحمد عباس الخضاري (rep of party-2 co-op)"
+  "flags": "United Distinctive letterhead; co-op is جمعية المسايل التعاونية (id transliterated as AL_MASEAL); signed by أحمد عباس الخضاري (rep of party-2 co-op)",
+  "pdf": "2023-AL_MASEAL_CDA.pdf"
  },
  {
   "id": "65_-_2022_MANGAF_CDA",
@@ -3324,7 +3374,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Pepsi/UBC (United Distinctive) letterhead; subject states تجديد (renewal)"
+  "flags": "Pepsi/UBC (United Distinctive) letterhead; subject states تجديد (renewal)",
+  "pdf": "65_-_2022_MANGAF_CDA.pdf"
  },
  {
   "id": "2022-_Mangaf",
@@ -3361,7 +3412,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2022-_Mangaf.pdf"
  },
  {
   "id": "35_-_2015_NUZHA_CDA_DISTINCTIVE",
@@ -3408,7 +3460,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "35_-_2015_NUZHA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "33_-_2025_NASEEM_CDA_DISTINCTIVE",
@@ -3434,7 +3487,8 @@
   "note": "خطاب طلب الموافقة على تجديد العقد للعام 2025 بالأسواق المركزية والأفرع؛ موقّع من مدير المبيعات أحمد محمود",
   "items": [],
   "confidence": "low",
-  "flags": "Renewal request cover letter only — no contract value, financial terms, or spaces table (contract body not included)"
+  "flags": "Renewal request cover letter only — no contract value, financial terms, or spaces table (contract body not included)",
+  "pdf": "33_-_2025_NASEEM_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "68-2024_Al_Naeem_CDA",
@@ -3501,7 +3555,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "68-2024_Al_Naeem_CDA.pdf"
  },
  {
   "id": "2021-WAFRA_CDA__Fritolay_-_From_Coop",
@@ -3538,7 +3593,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "ALWAFRA coop letterhead (coop is party-1); body states it is an امتداد (extension) of prior contract dated 2020/1/27"
+  "flags": "ALWAFRA coop letterhead (coop is party-1); body states it is an امتداد (extension) of prior contract dated 2020/1/27",
+  "pdf": "2021-WAFRA_CDA__Fritolay_-_From_Coop.pdf"
  },
  {
   "id": "61_-_2022_WAFRA_CDA_DISTINCTIVE",
@@ -3645,7 +3701,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Pepsi/UBC (United Distinctive) letterhead; Saudi-product marketing contract"
+  "flags": "Pepsi/UBC (United Distinctive) letterhead; Saudi-product marketing contract",
+  "pdf": "61_-_2022_WAFRA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2020_YARMOUK",
@@ -3682,7 +3739,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "AlYarmouk coop letterhead (not UBC); fixture checklist checkboxes on page 2 mostly blank/illegible so item counts uncertain"
+  "flags": "AlYarmouk coop letterhead (not UBC); fixture checklist checkboxes on page 2 mostly blank/illegible so item counts uncertain",
+  "pdf": "2020_YARMOUK.pdf"
  },
  {
   "id": "2022_YARMOUK_CDA_DISTINCTIVE",
@@ -3729,7 +3787,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2022_YARMOUK_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "11_-_2017_BAYAN_CDA",
@@ -3796,7 +3855,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Bayan Co-op letterhead (coop is party-1); party-2 rep عماد الرفاعي"
+  "flags": "Bayan Co-op letterhead (coop is party-1); party-2 rep عماد الرفاعي",
+  "pdf": "11_-_2017_BAYAN_CDA.pdf"
  },
  {
   "id": "2024_Jaber_al_ahmed",
@@ -3953,7 +4013,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Annual target rebate table included"
+  "flags": "Annual target rebate table included",
+  "pdf": "2024_Jaber_al_ahmed.pdf"
  },
  {
   "id": "23_-_2018_JABER_EL_ALI_CDA_DISTINCTIVE",
@@ -4000,7 +4061,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "subject header says لعام 2017 but body/preamble and period are 2018"
+  "flags": "subject header says لعام 2017 but body/preamble and period are 2018",
+  "pdf": "23_-_2018_JABER_EL_ALI_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "26_-2025__JLEEB_CDA_DISTINCTIVE",
@@ -4077,7 +4139,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "26_-2025__JLEEB_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "2021-_Hateen_Fritoley_CDA",
@@ -4114,7 +4177,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2021-_Hateen_Fritoley_CDA.pdf"
  },
  {
   "id": "Hateen_Lays_CDA_2021",
@@ -4191,7 +4255,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "وقّع عن الطرف الثاني أحمد خالد الإبراهيم (المدير العام بالتكليف)"
+  "flags": "وقّع عن الطرف الثاني أحمد خالد الإبراهيم (المدير العام بالتكليف)",
+  "pdf": "Hateen_Lays_CDA_2021.pdf"
  },
  {
   "id": "28_-_2016_KHAITHAN_CDA_DISTINCTIVE",
@@ -4288,7 +4353,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Handwritten contract no. 2360 alongside printed 542/2016"
+  "flags": "Handwritten contract no. 2360 alongside printed 542/2016",
+  "pdf": "28_-_2016_KHAITHAN_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "46_-_2024_SAAD_ABDALLAH_CDA_DISTINCTIVE",
@@ -4455,7 +4521,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "46_-_2024_SAAD_ABDALLAH_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "52_-_2023_SALWA_CDA_DISTINCTIVE",
@@ -4552,7 +4619,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "handwritten red annotations with value breakdown (approx 8000 + 4000 = 13000 KD)"
+  "flags": "handwritten red annotations with value breakdown (approx 8000 + 4000 = 13000 KD)",
+  "pdf": "52_-_2023_SALWA_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "52_-_2023_SALWA_CDA_DISTINCTIVE__",
@@ -4609,7 +4677,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "52_-_2023_SALWA_CDA_DISTINCTIVE__.pdf"
  },
  {
   "id": "2022-_NORTH_WEST_-SULAIABIKATH_CDA",
@@ -4676,7 +4745,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2022-_NORTH_WEST_-SULAIABIKATH_CDA.pdf"
  },
  {
   "id": "48_-_2025_SABAH_AL_SALEM_CDA",
@@ -4753,7 +4823,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Sabah Al-Salem coop letterhead (coop is party-1); titled عقد إيجار but priced as نسبة خصم 10%; party-1 (coop) representative not named"
+  "flags": "Sabah Al-Salem coop letterhead (coop is party-1); titled عقد إيجار but priced as نسبة خصم 10%; party-1 (coop) representative not named",
+  "pdf": "48_-_2025_SABAH_AL_SALEM_CDA.pdf"
  },
  {
   "id": "47_-_2024_SABAH_AL_NASER_CDA_DISTINCTIVE",
@@ -4800,7 +4871,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Both a 12% CDA discount and a 1500 KD support (دعم) are present; value field holds the lump support amount"
+  "flags": "Both a 12% CDA discount and a 1500 KD support (دعم) are present; value field holds the lump support amount",
+  "pdf": "47_-_2024_SABAH_AL_NASER_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "13_-_2016__2017_ABDULLA_SALEM__Dahiya",
@@ -4877,7 +4949,8 @@
    }
   ],
   "confidence": "low",
-  "flags": "Very poor scan with overlapping 'استيفاء بدل عرض' renewal receipts for 2016 & 2017 obscuring text; base contract is 2015 (ref 292/2015); items, value and grace terms partially obscured"
+  "flags": "Very poor scan with overlapping 'استيفاء بدل عرض' renewal receipts for 2016 & 2017 obscuring text; base contract is 2015 (ref 292/2015); items, value and grace terms partially obscured",
+  "pdf": "13_-_2016__2017_ABDULLA_SALEM__Dahiya.pdf"
  },
  {
   "id": "2022-_ALI_SABAH_AL_SALEM",
@@ -4924,7 +4997,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Pepsi/UBC (United Distinctive) letterhead"
+  "flags": "Pepsi/UBC (United Distinctive) letterhead",
+  "pdf": "2022-_ALI_SABAH_AL_SALEM.pdf"
  },
  {
   "id": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE",
@@ -5011,7 +5085,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Includes annual sales-target bonus table in addition to the 10% CDA"
+  "flags": "Includes annual sales-target bonus table in addition to the 10% CDA",
+  "pdf": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE.pdf"
  },
  {
   "id": "P723-_West_Abdulla_al_Mubarak",
@@ -5188,7 +5263,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "P723-_West_Abdulla_al_Mubarak.pdf"
  },
  {
   "id": "2019_GARNATA_CDA",
@@ -5235,7 +5311,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "2019_GARNATA_CDA.pdf"
  },
  {
   "id": "67-_2023_Fahad_al_Ahmed_CDA",
@@ -5302,7 +5379,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "67-_2023_Fahad_al_Ahmed_CDA.pdf"
  },
  {
   "id": "40_-_2015_QOURTOUBA_CDA",
@@ -5349,7 +5427,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Pepsi/UBC letterhead"
+  "flags": "Pepsi/UBC letterhead",
+  "pdf": "40_-_2015_QOURTOUBA_CDA.pdf"
  },
  {
   "id": "29-_2021_KIFAN_CDA",
@@ -5386,7 +5465,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "29-_2021_KIFAN_CDA.pdf"
  },
  {
   "id": "P247-_Mubarak_Al_Kabeer_1",
@@ -5463,7 +5543,8 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "P247-_Mubarak_Al_Kabeer_1.pdf"
  },
  {
   "id": "2021_MISHREF_CDA",
@@ -5500,7 +5581,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA- with different value"
+  "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA- with different value",
+  "pdf": "2021_MISHREF_CDA.pdf"
  },
  {
   "id": "2021_MISHREF_CDA-",
@@ -5547,7 +5629,8 @@
    }
   ],
   "confidence": "medium",
-  "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA with different value (8250 vs 1500)"
+  "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA with different value (8250 vs 1500)",
+  "pdf": "2021_MISHREF_CDA-.pdf"
  },
  {
   "id": "2021_MISHREF_CDA_1",
@@ -5774,7 +5857,8 @@
    }
   ],
   "confidence": "high",
-  "flags": "Header code MOTHIDA MOTAMYEZA (LAYS) 37-4576; no explicit document date, only period start"
+  "flags": "Header code MOTHIDA MOTAMYEZA (LAYS) 37-4576; no explicit document date, only period start",
+  "pdf": "2021_MISHREF_CDA_1.pdf"
  },
  {
   "id": "21_-_2020_HADIYA_CDA_DISTINCTIVE",
@@ -5861,6 +5945,7 @@
    }
   ],
   "confidence": "high",
-  "flags": ""
+  "flags": "",
+  "pdf": "21_-_2020_HADIYA_CDA_DISTINCTIVE.pdf"
  }
 ]
