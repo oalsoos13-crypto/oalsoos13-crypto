@@ -2765,7 +2765,7 @@ function cxRenderEditor() {
     <div class="field"><label>${t("fNote")}</label><input id="cxNote" value="${esc(c.note || "")}"></div>
 
     <h4 style="margin:14px 0 6px">${t("cxItems")}</h4>
-    <div class="tbl-wrap"><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxDescription")}</th><th></th></tr></thead><tbody id="cxItemsBody"></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th><th></th></tr></thead><tbody id="cxItemsBody"></tbody></table></div>
     <div class="actions" style="margin-top:6px"><button class="btn ghost sm" onclick="cxAddItem()">${t("cxAddItem")}</button></div>
 
     <h4 style="margin:14px 0 6px">${t("cxInstallments")}</h4>
@@ -2813,7 +2813,8 @@ function cxItemRow(it, i) {
     <td><input class="cxItDim" value="${esc(it.dimensions || "")}" placeholder="110×240×65 سم"></td>
     <td><input class="cxItCat" value="${esc(it.category || "")}" placeholder="شيبس / خبز"></td>
     <td><input class="cxItLoc" value="${esc(it.location || "")}" placeholder="من أول الرف لأسفله"></td>
-    <td><input class="cxItDesc" value="${esc(it.description || "")}" style="min-width:220px" placeholder="غرفة للشيبس ..."></td>
+    <td><input class="cxItAmt" type="number" step="0.001" value="${it.amount || 0}" style="width:80px"></td>
+    <td><input class="cxItDesc" value="${esc(it.description || "")}" style="min-width:200px" placeholder="غرفة للشيبس ..."></td>
     <td><button class="btn danger sm" onclick="cxRemoveItem(${i})">✕</button></td></tr>`;
 }
 function cxRenderItems() {
@@ -2837,11 +2838,12 @@ function cxSyncItems() {
       dimensions: tr.querySelector(".cxItDim").value,
       category: tr.querySelector(".cxItCat").value,
       location: tr.querySelector(".cxItLoc").value,
+      amount: parseFloat(tr.querySelector(".cxItAmt").value) || 0,
       description: tr.querySelector(".cxItDesc").value,
     };
   });
 }
-function cxAddItem() { cxSyncItems(); cxEdit.items.push({ scope: "main", custId: "", spaceId: null, space: "", count: 1, dimensions: "", category: "", location: "", description: "" }); cxRenderItems(); }
+function cxAddItem() { cxSyncItems(); cxEdit.items.push({ scope: "main", custId: "", spaceId: null, space: "", count: 1, dimensions: "", category: "", location: "", amount: 0, description: "" }); cxRenderItems(); }
 function cxRemoveItem(i) { cxSyncItems(); cxEdit.items.splice(i, 1); cxRenderItems(); }
 
 function cxInstRow(p, i) {
@@ -2912,7 +2914,7 @@ function cxView(id) {
   cxEdit = c; // so cxOutletName scope resolves
   const who = c.level === "coop" ? (c.coopAr || c.coop) : (cxOutletName(c.coop, c.custId) + " — " + (c.coopAr || c.coop));
   const scopeLbl = (it) => it.scope === "outlet" ? cxOutletName(c.coop, it.custId) : t("cxsc_" + (it.scope || "main"));
-  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(it.space || "")}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td><td>${esc(it.description || "")}</td></tr>`).join("");
+  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(it.space || "")}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td><td class="mono">${it.amount ? KD(it.amount) : ""}</td><td>${esc(it.description || "")}</td></tr>`).join("");
   const inst = c.installments.map((p) => `<tr><td>${p.seq}</td><td class="mono-sm">${esc(p.dueDate || "")}</td><td class="mono">${KD(p.amount)}</td><td>${p.status === "paid" ? t("cxPaid") : t("cxPending")}</td></tr>`).join("");
   const valLine = c.valueMode === "pct" ? `${c.pct}% ${t("cxvm_pct")}` : `${KD(c.value)} د.ك`;
   modal(`<div style="max-width:820px;padding:16px 20px">
@@ -2921,7 +2923,7 @@ function cxView(id) {
     <p><b>${t("cxTotal")}:</b> ${valLine} · ${t("cxvk_" + (c.valueKind || "rent"))} · ${t("cxpf_" + (c.payFreq || "once"))}${c.partyRep ? " · " + esc(c.partyRep) : ""}</p>
     ${c.bonusTerms ? `<p><b>${t("cxBonusTerms")}:</b> ${esc(c.bonusTerms)}</p>` : ""}
     ${c.title ? `<p>${esc(c.title)}</p>` : ""}
-    <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=7>—</td></tr>`}</tbody></table>
+    <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=8>—</td></tr>`}</tbody></table>
     <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
     <div class="actions" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
 }

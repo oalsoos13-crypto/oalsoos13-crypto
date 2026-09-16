@@ -190,6 +190,65 @@ function seedUsers() {
   return created;
 }
 
+// Seed real co-op contracts from server/seed_data/contracts.json (once, only if
+// the contracts table is empty). Each entry mirrors the /contracts POST body;
+// the co-op is matched from Arabic to our parent name when possible.
+function seedContracts() {
+  if (db.prepare('SELECT COUNT(*) n FROM contract_hdr').get().n) return 0;
+  let list = [];
+  try { list = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed_data', 'contracts.json'), 'utf8')); }
+  catch (e) { return 0; }
+  if (!Array.isArray(list) || !list.length) return 0;
+
+  let AR = { coops: {} };
+  try { AR = require('./outlet_ar.json'); } catch (e) { /* optional */ }
+  const rev = new Map(); // Arabic coop name -> our English parent
+  for (const [en, ar] of Object.entries(AR.coops || {})) rev.set(String(ar).trim(), en);
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  const matchCoop = (e) => {
+    if (e.coop) return e.coop;
+    const a = norm(e.coopAr);
+    if (rev.has(a)) return rev.get(a);
+    for (const [ar, en] of rev) { if (a && (ar.includes(a) || a.includes(ar))) return en; }
+    return e.coopAr || '';
+  };
+  const n = (v, d = 0) => { const x = parseFloat(v); return isNaN(x) ? d : x; };
+  const now = nowIso();
+  const insH = db.prepare(`INSERT INTO contract_hdr (code,title,subject_year,is_renewal,party_rep,contract_date,
+    level,coop,cust_id,period_from,period_to,renewable,value_mode,value,pct,pay_freq,bonus_terms,value_kind,
+    grace_days,pay_within,kind,parent_id,note,status,created_at,updated_at)
+    VALUES (@code,@title,@subject_year,@is_renewal,@party_rep,@contract_date,@level,@coop,@cust_id,@period_from,@period_to,
+    @renewable,@value_mode,@value,@pct,@pay_freq,@bonus_terms,@value_kind,@grace_days,@pay_within,@kind,@parent_id,@note,@status,@now,@now)`);
+  const insI = db.prepare(`INSERT INTO contract_items (contract_id,scope,cust_id,space_id,space,count,dimensions,category,location,amount,description,note,sort)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  let cnt = 0;
+  const tx = db.transaction((rows) => {
+    for (const e of rows) {
+      const coop = matchCoop(e);
+      const r = insH.run({
+        code: e.code || '', title: e.title || '', subject_year: e.subjectYear || '',
+        is_renewal: e.isRenewal ? 1 : 0, party_rep: e.partyRep || '', contract_date: e.contractDate || '',
+        level: e.level === 'outlet' ? 'outlet' : 'coop', coop, cust_id: e.custId || '',
+        period_from: e.periodFrom || '', period_to: e.periodTo || '', renewable: e.renewable === false ? 0 : 1,
+        value_mode: e.valueMode === 'pct' ? 'pct' : 'lump', value: n(e.value), pct: n(e.pct),
+        pay_freq: e.payFreq || 'once', bonus_terms: e.bonusTerms || '',
+        value_kind: e.valueKind || 'rent', grace_days: n(e.graceDays, 45), pay_within: n(e.payWithin, 14),
+        kind: e.kind === 'addendum' ? 'addendum' : 'base', parent_id: e.parentId || null,
+        note: e.note || '', status: e.status === 'closed' ? 'closed' : 'active', now,
+      });
+      const id = r.lastInsertRowid;
+      (e.items || []).forEach((it, i) => {
+        const sc = ['main', 'branches', 'outlet', 'all'].includes(it.scope) ? it.scope : 'main';
+        insI.run(id, sc, it.custId || '', null, it.space || '', n(it.count, 1),
+          it.dimensions || '', it.category || '', it.location || '', n(it.amount), it.description || '', it.note || '', i);
+      });
+      cnt++;
+    }
+  });
+  tx(list);
+  return cnt;
+}
+
 // Seed the default contract fixture/space types (أدوات العقد) once.
 function seedContractSpaces() {
   const have = db.prepare('SELECT COUNT(*) n FROM contract_spaces').get().n;
@@ -216,6 +275,7 @@ function run() {
   seedPriceProducts();
   seedSalesMonthly();
   seedContractSpaces();
+  seedContracts();
   seedCounter();
   const createdUsers = seedUsers();
   return { createdUsers };

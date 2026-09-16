@@ -45,7 +45,7 @@ function hydrate(c) {
     .map((it) => ({
       id: it.id, scope: it.scope, custId: it.cust_id, spaceId: it.space_id, space: it.space,
       count: it.count, dimensions: it.dimensions, category: it.category, location: it.location,
-      description: it.description, note: it.note,
+      amount: it.amount, description: it.description, note: it.note,
     }));
   const installments = db.prepare('SELECT * FROM contract_installments WHERE contract_id=? ORDER BY seq,id').all(c.id)
     .map((p) => ({ id: p.id, seq: p.seq, dueDate: p.due_date, amount: p.amount, status: p.status, paidDate: p.paid_date, note: p.note }));
@@ -237,12 +237,12 @@ router.post('/contracts', requireRole(...MGMT), asyncH((req, res) => {
         .run({ ...hdr, by: req.user.id, now });
       id = r.lastInsertRowid;
     }
-    const insIt = db.prepare(`INSERT INTO contract_items (contract_id,scope,cust_id,space_id,space,count,dimensions,category,location,description,note,sort)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const insIt = db.prepare(`INSERT INTO contract_items (contract_id,scope,cust_id,space_id,space,count,dimensions,category,location,amount,description,note,sort)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     items.forEach((it, i) => {
       const sc = SCOPES.includes(clean(it.scope)) ? clean(it.scope) : 'main';
       insIt.run(id, sc, sc === 'outlet' ? clean(it.custId) : '', num(it.spaceId, null) || null, clean(it.space),
-        num(it.count, 1), clean(it.dimensions), clean(it.category), clean(it.location), clean(it.description), clean(it.note), i);
+        num(it.count, 1), clean(it.dimensions), clean(it.category), clean(it.location), num(it.amount, 0), clean(it.description), clean(it.note), i);
     });
     const insP = db.prepare(`INSERT INTO contract_installments (contract_id,seq,due_date,amount,status,paid_date,note)
       VALUES (?,?,?,?,?,?,?)`);

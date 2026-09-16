@@ -340,6 +340,7 @@ function migrate() {
       dimensions  TEXT,              -- الأبعاد (free text)
       category    TEXT,              -- الصنف / العلامة
       location    TEXT,              -- الموقع على الرف
+      amount      REAL NOT NULL DEFAULT 0,       -- قيمة إيجار هذه المساحة (اختياري)
       description TEXT,              -- الوصف الكامل للمساحة (نص العقد)
       note        TEXT,
       sort        INTEGER NOT NULL DEFAULT 0
@@ -461,6 +462,7 @@ function migrate() {
   addHdr('bonus_terms', 'TEXT');
   const ciCols = db.prepare("PRAGMA table_info(contract_items)").all().map((c) => c.name);
   if (!ciCols.includes('description')) db.exec('ALTER TABLE contract_items ADD COLUMN description TEXT');
+  if (!ciCols.includes('amount')) db.exec('ALTER TABLE contract_items ADD COLUMN amount REAL NOT NULL DEFAULT 0');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {
