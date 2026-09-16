@@ -1327,7 +1327,8 @@
   ],
   "confidence": "medium",
   "flags": "ZAHRA co-op letterhead (contract drafted by the co-op; جمعية الزهراء = الطرف الأول, United Distinctive = الطرف الثاني); no explicit document date on page",
-  "pdf": "2024-_ZAHRA_FritoLay.pdf"
+  "pdf": "2024-_ZAHRA_FritoLay.pdf",
+  "title": "فريتولي — استاند"
  },
  {
   "id": "63_-_2024_ZAHRA_MAIN__BRANCHES",
@@ -1375,7 +1376,8 @@
   ],
   "confidence": "low",
   "flags": "File contains two separate agreements (same co-op, both ref 1212): main market lump 11000 KD and branches 10% CDA - combined into one record; no document date; no named party rep",
-  "pdf": "63_-_2024_ZAHRA_MAIN__BRANCHES.pdf"
+  "pdf": "63_-_2024_ZAHRA_MAIN__BRANCHES.pdf",
+  "title": "السوق المركزي — عام"
  },
  {
   "id": "2023-_SALMIYA_-FRITOLAY_CDA",
@@ -3375,7 +3377,8 @@
   ],
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead; subject states تجديد (renewal)",
-  "pdf": "65_-_2022_MANGAF_CDA.pdf"
+  "pdf": "65_-_2022_MANGAF_CDA.pdf",
+  "title": "تجديد — المنتجات العامة"
  },
  {
   "id": "2022-_Mangaf",
@@ -3413,7 +3416,8 @@
   ],
   "confidence": "high",
   "flags": "",
-  "pdf": "2022-_Mangaf.pdf"
+  "pdf": "2022-_Mangaf.pdf",
+  "title": "المنتج الأمريكي (فريتولي)"
  },
  {
   "id": "35_-_2015_NUZHA_CDA_DISTINCTIVE",
@@ -4998,7 +5002,8 @@
   ],
   "confidence": "high",
   "flags": "Pepsi/UBC (United Distinctive) letterhead",
-  "pdf": "2022-_ALI_SABAH_AL_SALEM.pdf"
+  "pdf": "2022-_ALI_SABAH_AL_SALEM.pdf",
+  "title": "منتجات أمريكية"
  },
  {
   "id": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE",
@@ -5086,7 +5091,8 @@
   ],
   "confidence": "high",
   "flags": "Includes annual sales-target bonus table in addition to the 10% CDA",
-  "pdf": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE.pdf"
+  "pdf": "7_-_2022_ALI_SABAH_AL_SALEM_CDA_DISTINCTIVE.pdf",
+  "title": "منتجات سعودية"
  },
  {
   "id": "P723-_West_Abdulla_al_Mubarak",
@@ -5567,7 +5573,7 @@
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
-  "note": "مبلغ 1500 دينار سنوي مقابل منحة موقع تسويقي تدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو",
+  "note": "مبلغ 1500 دينار سنوي مقابل منحة موقع تسويقي تدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو | ⚠️ ٣ نسخ بنفس النص بمبالغ مختلفة (1500 / 8250 / 11812.5) — يلزم تأكيد المبلغ النهائي",
   "items": [
    {
     "scope": "main",
@@ -5582,7 +5588,8 @@
   ],
   "confidence": "medium",
   "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA- with different value",
-  "pdf": "2021_MISHREF_CDA.pdf"
+  "pdf": "2021_MISHREF_CDA.pdf",
+  "title": "مبلغ 1500 (بحاجة تأكيد)"
  },
  {
   "id": "2021_MISHREF_CDA-",
@@ -5605,7 +5612,7 @@
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
-  "note": "مبلغ 8250 دينار سنوي (ثمانية آلاف ومائتان وخمسون) مقابل منحة موقع تسويقي تدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو",
+  "note": "مبلغ 8250 دينار سنوي (ثمانية آلاف ومائتان وخمسون) مقابل منحة موقع تسويقي تدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو | ⚠️ ٣ نسخ بنفس النص بمبالغ مختلفة (1500 / 8250 / 11812.5) — يلزم تأكيد المبلغ النهائي",
   "items": [
    {
     "scope": "main",
@@ -5630,7 +5637,8 @@
   ],
   "confidence": "medium",
   "flags": "Mishref co-op letterhead; party order swapped (co-op is party 1, United Distinctive party 2); no document date; near-duplicate of 2021_MISHREF_CDA with different value (8250 vs 1500)",
-  "pdf": "2021_MISHREF_CDA-.pdf"
+  "pdf": "2021_MISHREF_CDA-.pdf",
+  "title": "مبلغ 8250 (بحاجة تأكيد)"
  },
  {
   "id": "2021_MISHREF_CDA_1",
@@ -5653,7 +5661,7 @@
   "bonusTerms": "",
   "graceDays": 45,
   "payWithin": 14,
-  "note": "يدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو مقابل منحة موقع تسويقي",
+  "note": "يدفع خصماً من الحساب على دفعتين الأولى في يناير والثانية في يوليو مقابل منحة موقع تسويقي | ⚠️ ٣ نسخ بنفس النص بمبالغ مختلفة (1500 / 8250 / 11812.5) — يلزم تأكيد المبلغ النهائي",
   "items": [
    {
     "scope": "outlet",
@@ -5858,7 +5866,8 @@
   ],
   "confidence": "high",
   "flags": "Header code MOTHIDA MOTAMYEZA (LAYS) 37-4576; no explicit document date, only period start",
-  "pdf": "2021_MISHREF_CDA_1.pdf"
+  "pdf": "2021_MISHREF_CDA_1.pdf",
+  "title": "مبلغ 11812.5 (بحاجة تأكيد)"
  },
  {
   "id": "21_-_2020_HADIYA_CDA_DISTINCTIVE",
