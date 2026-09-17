@@ -31,12 +31,13 @@ const SIGN = {
   coop: { role: 'مدير المبيعات', name: 'سائد الرمحي' },
   ramiz: { role: 'مدير المبيعات', name: 'محمد اقبال' },
   gm: { role: 'المدير العام', name: 'راشد المنيع' },
-  gm2: { role: 'المدير العام', name: 'عماد الرفاعي' },
+  execadmin: { role: 'المدير التنفيذي الإداري', name: 'عماد فايز الرفاعي' },
   smkt: { role: 'Sales Manager – SMKT', name: 'Muhammad Adnan Iqbal' },
   ecom: { role: 'Sales Manager – SMKT & E-Commerce', name: 'Muhammad Adnan Iqbal' },
 };
-// Selectable general-manager signatories (both are "المدير العام").
-const GM_CHOICES = [SIGN.gm, SIGN.gm2];
+// Selectable signatories for the Union letters: the GM or the executive
+// administrative director (each choice carries its own role + name).
+const GM_CHOICES = [SIGN.gm, SIGN.execadmin];
 
 const LETTER_SPECS = [
   /* ---------- 2) Price Updation (زيادة أسعار) ---------- */
