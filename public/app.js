@@ -2202,6 +2202,28 @@ function toggleLh() {
   LH_MODE = LH_MODE === "full" ? "preprinted" : "full";
   if (curDoc) openDoc(curDoc.rec, curDoc.isLetter);
 }
+// Make a safe file name for the browser's "Save as PDF" dialog. The browser
+// uses document.title as the default file name, so we set it to a meaningful
+// name (recipient + letter type + reference number) just before printing.
+function fnameSafe(s) { return String(s || "").replace(/[\\/:*?"<>|\r\n\t]+/g, " ").replace(/\s+/g, " ").trim(); }
+function docFileName(rec, isLetter) {
+  const who = rec.recipient || coopAr(rec.coop) || "";
+  const type = ltName(rec.type) || (isLetter ? "كتاب" : "إشعار خصم");
+  const ref = (rec.lysal || "").replace(/\//g, "-");
+  return fnameSafe([who, type, ref].filter(Boolean).join(" - ")) || (isLetter ? "كتاب" : "إشعار");
+}
+function printWithName(name) {
+  const prev = document.title;
+  if (name) { try { document.title = name; } catch (e) { /* ignore */ } }
+  const restore = () => { try { document.title = prev; } catch (e) { /* */ } window.removeEventListener("afterprint", restore); };
+  window.addEventListener("afterprint", restore);
+  setTimeout(restore, 60000); // safety net if afterprint never fires
+  window.print();
+}
+function printCur() {
+  if (curDoc && curDoc.rec) printWithName(docFileName(curDoc.rec, curDoc.isLetter));
+  else window.print();
+}
 function openDoc(rec, isLetter) {
   curDoc = { rec, isLetter };
   const att =
@@ -2216,7 +2238,7 @@ function openDoc(rec, isLetter) {
     ? (currentUser.role !== "salesman" && rec.approval === "approved")
     : true;
   const printBtn = canPrint
-    ? `<button class="btn gold sm" onclick="window.print()">${t("print")}</button>`
+    ? `<button class="btn gold sm" onclick="printCur()">${t("print")}</button>`
     : (isLetter && currentUser.role === "salesman" && rec.approval !== "approved"
       ? `<span class="pill-info" style="padding:3px 10px">${t("needApproval")}</span>` : "");
   modal(
@@ -2759,7 +2781,8 @@ function printCoopBatch() {
     const html = specDocHTML(rec, spec);
     return i === 0 ? html : html.replace('<div class="doc ', '<div style="page-break-before:always" class="doc ');
   }).join("");
-  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("batchReady")} — ${t("batchCount").replace("{n}", chosen.length)}</b><div class="actions"><button class="btn gold sm" onclick="window.print()">🖨 ${t("printBatch")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docs}`);
+  window.__batchName = fnameSafe(`كتب الجمعيات - اعتماد أصناف تكميلية - ${date}`);
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("batchReady")} — ${t("batchCount").replace("{n}", chosen.length)}</b><div class="actions"><button class="btn gold sm" onclick="printWithName(window.__batchName)">🖨 ${t("printBatch")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docs}`);
 }
 /* -- price tracker grid -- */
 const TRACK_COLS = [["book_printing", "bookPrinting"], ["upd", "colUpdate"], ["date_update", "dateUpdate"], ["dn_number", "dnNumber"], ["dn_type", "dnType"], ["dn_amount", "dnAmount"], ["date_sales_new", "dateSalesNew"], ["branch_connection", "branchConnection"], ["supply_branch", "supplyBranch"], ["branch_supply_date", "branchSupplyDate"], ["stock", "stockCol"]];
