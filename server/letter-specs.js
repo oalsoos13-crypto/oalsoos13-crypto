@@ -31,9 +31,12 @@ const SIGN = {
   coop: { role: 'مدير المبيعات', name: 'سائد الرمحي' },
   ramiz: { role: 'مدير المبيعات', name: 'محمد اقبال' },
   gm: { role: 'المدير العام', name: 'راشد المنيع' },
+  gm2: { role: 'المدير العام', name: 'عماد الرفاعي' },
   smkt: { role: 'Sales Manager – SMKT', name: 'Muhammad Adnan Iqbal' },
   ecom: { role: 'Sales Manager – SMKT & E-Commerce', name: 'Muhammad Adnan Iqbal' },
 };
+// Selectable general-manager signatories (both are "المدير العام").
+const GM_CHOICES = [SIGN.gm, SIGN.gm2];
 
 const LETTER_SPECS = [
   /* ---------- 2) Price Updation (زيادة أسعار) ---------- */
@@ -201,7 +204,7 @@ const LETTER_SPECS = [
       ],
     },
     closing: ['وتفضلـوا بقبـول فائـق الإحتـرام والتقديـر،،،'],
-    signatory: SIGN.gm,
+    signatory: SIGN.gm, signChoices: GM_CHOICES,
   },
 
   /* ---------- 8) UOC — price increase request to the Union ---------- */
@@ -237,7 +240,7 @@ const LETTER_SPECS = [
       ],
     },
     closing: ['وتفضلـوا بقبـول فائـق الإحتـرام والتقديـر،،،'],
-    signatory: SIGN.gm,
+    signatory: SIGN.gm, signChoices: GM_CHOICES,
   },
 
   /* ---------- 7) Promo Support Debit Note (English) ---------- */

@@ -71,6 +71,12 @@ function computeSpec(spec, body) {
   const meta = {};
   for (const f of spec.fields || []) meta[f.key] = f.type === 'number' ? num(body.fields && body.fields[f.key]) : String((body.fields && body.fields[f.key]) || '');
   if (spec.table2) meta.rows2 = sanitizeSpecRows(spec.table2.cols, body.rows2);
+  // Selectable signatory (e.g. which general manager signs the Union letter).
+  if (Array.isArray(spec.signChoices) && spec.signChoices.length) {
+    let i = parseInt(body.signIdx, 10); if (isNaN(i) || i < 0 || i >= spec.signChoices.length) i = 0;
+    const s = spec.signChoices[i];
+    if (s && (s.name || s.role)) meta.sign = { role: String(s.role || ''), name: String(s.name || '') };
+  }
   let value = 0;
   if (spec.valueMode === 'direct') value = num(meta.value != null ? meta.value : body.value);
   else if (spec.valueMode === 'listingdn') {
@@ -155,8 +161,15 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
   const sales = req.user.role === 'salesman' ? req.user.name : (req.body.sales || req.user.name);
   const id = genId('L');
   const now = nowIso();
-  const num_ = nextCounter();
-  const lysal = refNo(num_);
+  // A manual reference number (رقم الكتاب) may be supplied to match a letter that
+  // was already numbered by the company's existing system; otherwise auto-assign.
+  const manualNo = parseInt(req.body.lysalNo, 10);
+  let num_, lysal;
+  if (Number.isInteger(manualNo) && manualNo > 0) {
+    num_ = manualNo; lysal = refNo(manualNo);
+  } else {
+    num_ = nextCounter(); lysal = refNo(num_);
+  }
 
   // Salesmen's letters need supervisor approval before printing; letters made
   // by management are approved on creation.

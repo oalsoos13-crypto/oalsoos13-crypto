@@ -606,6 +606,9 @@ const T = {
   itemNo: { ar: "رقم الصنف", en: "Item #" },
   cartonBarcode: { ar: "باركود الكرتونة", en: "Carton barcode" },
   pieceBarcode: { ar: "باركود الحبة", en: "Piece barcode" },
+  letterNoOpt: { ar: "رقم الكتاب (LYSAL) — اختياري", en: "Letter no. (LYSAL) — optional" },
+  letterNoAuto: { ar: "تلقائي إذا تركته فاضي", en: "auto if left blank" },
+  signatory: { ar: "التوقيع", en: "Signatory" },
   itemNameAr: { ar: "اسم / وصف الصنف", en: "Item name / description" },
   circularDate: { ar: "تاريخ التعميم", en: "Circular date" },
   unionLysal: { ar: "رقم كتاب الاتحاد", en: "Union letter no." },
@@ -1656,6 +1659,12 @@ function specFormHTML(spec) {
       const def = f.def != null ? ` value="${esc(f.def)}"` : "";
       return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${def}></div>`;
     }).join("")}</div>`;
+  // Optional manual reference number + selectable signatory (e.g. GM name).
+  let extra = `<div class="field"><label>${t("letterNoOpt")}</label><input id="spLysalNo" type="number" inputmode="numeric" placeholder="${t("letterNoAuto")}"></div>`;
+  if (Array.isArray(spec.signChoices) && spec.signChoices.length) {
+    extra += `<div class="field"><label>${t("signatory")}</label><select id="spSignIdx">${spec.signChoices.map((s, i) => `<option value="${i}">${esc(s.role)} — ${esc(s.name)}</option>`).join("")}</select></div>`;
+  }
+  h += `<div class="grid g3" style="margin-top:10px">${extra}</div>`;
   if (spec.table) h += specTableEditor(spec.table, 1);
   if (spec.table2) h += specTableEditor(spec.table2, 2);
   return h;
@@ -1799,6 +1808,8 @@ async function saveSpecLetter(spec) {
     body.fields = {};
     spec.fields.forEach((f) => { const el = g("spf_" + f.key); body.fields[f.key] = el ? el.value : ""; });
   }
+  const lysalEl = g("spLysalNo"); if (lysalEl && lysalEl.value.trim()) body.lysalNo = lysalEl.value.trim();
+  const signEl = g("spSignIdx"); if (signEl) body.signIdx = signEl.value;
   const nonEmpty = (rows, cols) => rows.filter((r) => cols.some((c) => String(r[c.key] || "").trim() !== ""));
   if (spec.table) body.rows = nonEmpty(draftSpecRows, spec.table.cols);
   if (spec.table2) body.rows2 = nonEmpty(draftSpecRows2, spec.table2.cols);
@@ -2127,8 +2138,9 @@ function specDocHTML(rec, spec) {
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
   const closing = (spec.closing || []).map((l) => `<div class="close">${esc(l)}</div>`).join("");
-  const sign = spec.signatory && (spec.signatory.name || spec.signatory.role)
-    ? `<div class="sign"><div class="role">${esc(spec.signatory.role)}</div><div class="who">${esc(spec.signatory.name)}</div></div>`
+  const sg = (rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role)) ? rec.meta.sign : spec.signatory;
+  const sign = sg && (sg.name || sg.role)
+    ? `<div class="sign"><div class="role">${esc(sg.role)}</div><div class="who">${esc(sg.name)}</div></div>`
     : "";
   const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
