@@ -469,3 +469,10 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 
 /* ---- scrollbars ---- */
 *{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+
+/* ---- New-item approval cycle: co-op batch picker ---- */
+.coop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;max-height:38vh;overflow:auto;border:1px solid var(--line,#e3ddd0);border-radius:10px;padding:12px;background:rgba(255,255,255,.6)}
+.coop-pick{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:3px 4px;border-radius:6px}
+.coop-pick:hover{background:rgba(18,63,112,.06)}
+.coop-pick input{width:16px;height:16px;accent-color:var(--gold,#123f70);flex:none}
+@media print{.coop-grid{display:none}}

@@ -596,6 +596,36 @@ const T = {
   consPiece: { ar: "سعر المستهلك", en: "Consumer" },
   coopCarton: { ar: "سعر الجمعية", en: "Coop" },
   circularNo: { ar: "رقم التعميم", en: "Circular #" },
+  // ---- New-item approval cycle (دورة اعتماد صنف جديد) ----
+  cycleHint: { ar: "دورة اعتماد صنف جديد: ① كتاب الاتحاد → ② رفع موافقة الاتحاد → ③ دفعة كتب الجمعيات.", en: "New-item cycle: ① Union letter → ② upload Union approval → ③ batch co-op letters." },
+  stepUnionBook: { ar: "① كتاب الاتحاد", en: "① Union letter" },
+  stepCoopBatch: { ar: "③ دفعة كتب الجمعيات", en: "③ Co-op letters batch" },
+  stepDebitNote: { ar: "إشعار خصم (اختياري)", en: "Debit note (optional)" },
+  editItem: { ar: "تعديل", en: "Edit" },
+  brand: { ar: "العلامة التجارية", en: "Brand" },
+  itemNo: { ar: "رقم الصنف", en: "Item #" },
+  itemNameAr: { ar: "اسم / وصف الصنف", en: "Item name / description" },
+  circularDate: { ar: "تاريخ التعميم", en: "Circular date" },
+  unionLysal: { ar: "رقم كتاب الاتحاد", en: "Union letter no." },
+  approveItemForm: { ar: "بيانات الصنف", en: "Item details" },
+  ratioHint: { ar: "تحقق: سعر الجمعية ÷ الشد × 1.10", en: "Check: coop price ÷ pack × 1.10" },
+  ratioOk: { ar: "مطابق لهامش 10٪ ✓", en: "Matches 10% margin ✓" },
+  ratioOff: { ar: "⚠ بعيد عن هامش 10٪ (متوقع {v})", en: "⚠ off 10% margin (expected {v})" },
+  coopBatchTitle: { ar: "دفعة كتب الجمعيات — اعتماد أصناف تكميلية", en: "Co-op letters batch — supplementary listing" },
+  chooseCoops: { ar: "اختر الجمعيات", en: "Select co-ops" },
+  selectAll: { ar: "تحديد الكل", en: "Select all" },
+  clearAll: { ar: "إلغاء الكل", en: "Clear all" },
+  startRefOpt: { ar: "رقم بداية LYSAL (اختياري)", en: "Start LYSAL no. (optional)" },
+  startRefHint: { ar: "لو تركته فاضي، خانة الرقم بتظل فاضية بكل كتاب.", en: "If empty, the reference line is left blank on each letter." },
+  genBatchPrint: { ar: "🖨 توليد وطباعة الدفعة", en: "🖨 Generate & print batch" },
+  letterhead: { ar: "الليتر هيد", en: "Letterhead" },
+  lhFullOpt: { ar: "كامل (ورق أبيض)", en: "Full (plain paper)" },
+  lhBlankOpt: { ar: "فراغ (ورق رسمي)", en: "Blank (pre-printed)" },
+  batchCount: { ar: "{n} جمعية", en: "{n} co-ops" },
+  noItemsFirst: { ar: "أضف صنفًا واحدًا على الأقل أولاً.", en: "Add at least one item first." },
+  pickCoopFirst: { ar: "اختر جمعية واحدة على الأقل.", en: "Select at least one co-op." },
+  printBatch: { ar: "طباعة", en: "Print" },
+  batchReady: { ar: "معاينة الدفعة — راجعها ثم اطبع", en: "Batch preview — review then print" },
 };
 function t(k) {
   const e = T[k];
@@ -2575,23 +2605,81 @@ async function vApproveItems() {
   document.getElementById("rv").innerHTML = `
   <div class="panel"><header><h3>${t("r_approveItems")}</h3>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn primary sm" onclick="bookFromApprove()">${t("genBook")}</button>
-      <button class="btn gold sm" onclick="addApproveItem()">${t("addProductBtn")}</button>
+      <button class="btn primary sm" onclick="unionBookFromApprove()">${t("stepUnionBook")}</button>
+      <button class="btn primary sm" onclick="coopBatchDialog()">${t("stepCoopBatch")}</button>
+      <button class="btn ghost sm" onclick="bookFromApprove()">${t("stepDebitNote")}</button>
+      <button class="btn gold sm" onclick="editApproveItem()">${t("addProductBtn")}</button>
       <label class="btn ghost sm filebtn">⬆ ${t("importFile")}<input type="file" accept=".csv,.xlsx,.xls" onchange="doImportApprove(this)"></label>
     </div></header>
+    <div class="hint" style="padding:6px 16px">${t("cycleHint")}</div>
     <div id="apMsg" class="hint" style="padding:0 16px"></div>
     <div class="tbl-wrap" id="apBox"><div class="empty">${t("loading")}</div></div></div>`;
   await loadApprove();
 }
+let approveCache = [];
 async function loadApprove() {
   const r = await api("/approve-products");
+  approveCache = r.products || [];
   const box = document.getElementById("apBox"); if (!box) return;
-  box.innerHTML = r.products.length
-    ? `<table><thead><tr><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("origin")}</th><th>${t("consPiece")}</th><th>${t("coopCarton")}</th><th></th></tr></thead><tbody>${r.products.map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.pack || "")}</td><td>${esc(p.origin || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono">${esc(p.coop_carton || "")}</td><td><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></td></tr>`).join("")}</tbody></table>`
+  box.innerHTML = approveCache.length
+    ? `<table><thead><tr><th>${t("itemNo")}</th><th>${t("brand")}</th><th>${t("th_name")}</th><th>${t("origin")}</th><th>${t("th_pack")}</th><th>${t("coopCarton")}</th><th>${t("consPiece")}</th><th>${t("th_barcode")}</th><th>${t("circularNo")}</th><th></th></tr></thead><tbody>${approveCache.map((p) => `<tr><td class="mono-sm">${esc(p.item_no || "")}</td><td>${esc(p.brand || "")}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.origin || "")}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.coop_carton || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono-sm">${esc(p.barcode)}</td><td class="mono-sm">${esc(p.circular || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="editApproveItem('${esc(p.barcode)}')">${t("editItem")}</button><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></div></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noProducts")}</div>`;
 }
 function doImportApprove(input) { const m = document.getElementById("apMsg"); m.textContent = t("loading"); fileToApi(input, "/approve-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadApprove(); }); }
-async function addApproveItem() { const barcode = prompt(t("th_barcode")); if (!barcode) return; const name = prompt(t("th_name")) || ""; try { await api("/approve-products", { method: "POST", body: { barcode, nameAr: name } }); loadApprove(); } catch (e) { toast(e.message); } }
+// Proper add/edit form for an approval item (all fields the letters need).
+function editApproveItem(bc) {
+  const p = bc ? (approveCache.find((x) => x.barcode === bc) || {}) : {};
+  const isEdit = !!bc;
+  const f = (id, v) => `value="${esc(v == null ? "" : v)}"`;
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("approveItemForm")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  <div style="padding:20px 24px;max-height:74vh;overflow:auto">
+    <div class="grid g3">
+      <div class="field"><label>${t("th_barcode")}</label><input id="aiBarcode" ${f("aiBarcode", p.barcode)} ${isEdit ? "readonly" : ""} inputmode="numeric"></div>
+      <div class="field"><label>${t("itemNo")}</label><input id="aiItemNo" ${f("aiItemNo", p.item_no)}></div>
+      <div class="field"><label>${t("brand")}</label><input id="aiBrand" ${f("aiBrand", p.brand)} list="udcBrands"></div>
+      <div class="field" style="grid-column:1/-1"><label>${t("itemNameAr")}</label><input id="aiName" ${f("aiName", p.name_ar || p.name)}></div>
+      <div class="field"><label>${t("origin")}</label><input id="aiOrigin" ${f("aiOrigin", p.origin || "السعودية")}></div>
+      <div class="field"><label>${t("th_pack")}</label><input id="aiPack" ${f("aiPack", p.pack)} placeholder="16 * 85 جرام"></div>
+      <div class="field"><label>${t("coopCarton")}</label><input id="aiCoop" type="number" step="0.001" ${f("aiCoop", p.coop_carton)} oninput="aiRatio()"></div>
+      <div class="field"><label>${t("consPiece")}</label><input id="aiCons" type="number" step="0.001" ${f("aiCons", p.cons_piece)} oninput="aiRatio()"></div>
+      <div class="field"><label>${t("circularNo")}</label><input id="aiCirc" ${f("aiCirc", p.circular)}></div>
+      <div class="field"><label>${t("circularDate")}</label><input id="aiCircDate" ${f("aiCircDate", p.circular_date)} placeholder="dd/mm/yyyy"></div>
+      <div class="field"><label>${t("unionLysal")}</label><input id="aiUnion" ${f("aiUnion", p.union_lysal)}></div>
+    </div>
+    <div class="hint" id="aiRatioMsg" style="margin-top:6px">${t("ratioHint")}</div>
+    <datalist id="udcBrands">${(DB.ref.brands || []).map((b) => `<option value="${esc(b)}">`).join("")}</datalist>
+    <div class="login-err" id="aiErr"></div>
+    <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="saveApproveItem()">${t("save")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
+  </div>`);
+  aiRatio();
+}
+function aiRatio() {
+  const g = (id) => parseFloat((document.getElementById(id) || {}).value) || 0;
+  const packStr = (document.getElementById("aiPack") || {}).value || "";
+  const shad = parseFloat(String(packStr).replace(/[×xX*].*/, "").trim()) || 0; // leading count before "*"
+  const coop = g("aiCoop"), cons = g("aiCons");
+  const box = document.getElementById("aiRatioMsg"); if (!box) return;
+  if (coop > 0 && shad > 0) {
+    const expected = Math.round((coop / shad) * 1.1 * 1000) / 1000;
+    const ok = cons > 0 && Math.abs(cons - expected) <= Math.max(0.003, expected * 0.03);
+    box.textContent = ok ? t("ratioOk") : t("ratioOff").replace("{v}", expected.toFixed(3));
+    box.style.color = ok ? "var(--ok, #2a7)" : "var(--danger, #c33)";
+  } else { box.textContent = t("ratioHint"); box.style.color = ""; }
+}
+async function saveApproveItem() {
+  const g = (id) => (document.getElementById(id) || {}).value || "";
+  const barcode = g("aiBarcode").trim().replace(/\.0$/, "");
+  const err = document.getElementById("aiErr");
+  if (!/^\d{6,14}$/.test(barcode)) { err.textContent = t("th_barcode") + " ⚠"; return; }
+  try {
+    await api("/approve-products", { method: "POST", body: {
+      barcode, itemNo: g("aiItemNo"), brand: g("aiBrand"), nameAr: g("aiName"),
+      origin: g("aiOrigin"), pack: g("aiPack"), coopCarton: g("aiCoop"), consPiece: g("aiCons"),
+      circular: g("aiCirc"), circularDate: g("aiCircDate"), unionLysal: g("aiUnion"),
+    } });
+    closeModal(); toast(t("saved")); loadApprove();
+  } catch (e) { err.textContent = e.message; }
+}
 async function delApprove(bc) { if (!confirm(t("del") + "?")) return; try { await api("/approve-products/" + encodeURIComponent(bc), { method: "DELETE" }); loadApprove(); } catch (e) { toast(e.message); } }
 // Build a listing debit-note letter (اعتماد أصناف) pre-filled with the approve list.
 async function bookFromApprove() {
@@ -2600,8 +2688,63 @@ async function bookFromApprove() {
   openLetterForm();
   const sel = document.getElementById("fType");
   if (sel) { sel.value = "listing_dn"; typeChanged(); }
-  draftSpecRows = r.products.map((p) => ({ item: "", name: p.name_ar || p.name || "", origin: p.origin || "", pack: p.pack || "", coopCarton: p.coop_carton || "", consPiece: p.cons_piece || "", barcode: p.barcode || "" }));
+  draftSpecRows = r.products.map((p) => ({ item: p.item_no || "", name: p.name_ar || p.name || "", origin: p.origin || "", pack: p.pack || "", coopCarton: p.coop_carton || "", consPiece: p.cons_piece || "", barcode: p.barcode || "" }));
   renderSpecRows(1);
+}
+// STAGE ①: the Union supplementary-items letter (الكتاب الأول), pre-filled.
+async function unionBookFromApprove() {
+  const r = await api("/approve-products");
+  if (!r.products.length) { toast(t("noItemsFirst")); return; }
+  openLetterForm();
+  const sel = document.getElementById("fType");
+  if (sel) { sel.value = "uoc_supp"; typeChanged(); }
+  draftSpecRows = r.products.map((p) => ({ item: p.item_no || "", brand: p.brand || "", name: p.name_ar || p.name || "", origin: p.origin || "", pack: p.pack || "", coopCarton: p.coop_carton || "", consPiece: p.cons_piece || "", barcode: p.barcode || "" }));
+  renderSpecRows(1);
+}
+// STAGE ③: batch-generate the co-op supplementary-listing letters (الكتاب الثالث).
+let batchItems = [];
+function coopBatchDialog() {
+  if (!approveCache.length) { toast(t("noItemsFirst")); return; }
+  batchItems = approveCache.slice();
+  const coops = (DB.ref.coops || []).slice();
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = coops.map((c, i) => `<label class="coop-pick"><input type="checkbox" class="bcCoop" value="${esc(c.n)}" checked> ${esc(c.ar || c.n)}</label>`).join("");
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("coopBatchTitle")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  <div style="padding:18px 22px;max-height:76vh;overflow:auto">
+    <div class="grid g3">
+      <div class="field"><label>${t("fDate")}</label><input id="bcDate" type="date" value="${today}"></div>
+      <div class="field"><label>${t("startRefOpt")}</label><input id="bcStart" type="number" inputmode="numeric" placeholder="—"></div>
+      <div class="field"><label>${t("letterhead")}</label><select id="bcLh"><option value="full">${t("lhFullOpt")}</option><option value="preprinted">${t("lhBlankOpt")}</option></select></div>
+    </div>
+    <div class="hint" style="margin:2px 0 10px">${t("startRefHint")}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <b style="color:var(--ink)">${t("chooseCoops")} — <span id="bcCount"></span></b>
+      <div class="actions" style="margin:0"><button class="btn ghost sm" onclick="bcToggle(true)">${t("selectAll")}</button><button class="btn ghost sm" onclick="bcToggle(false)">${t("clearAll")}</button></div>
+    </div>
+    <div class="coop-grid" onchange="bcUpdateCount()">${rows}</div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="printCoopBatch()">${t("genBatchPrint")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
+  </div>`);
+  bcUpdateCount();
+}
+function bcToggle(on) { document.querySelectorAll(".bcCoop").forEach((c) => (c.checked = on)); bcUpdateCount(); }
+function bcUpdateCount() { const n = document.querySelectorAll(".bcCoop:checked").length; const el = document.getElementById("bcCount"); if (el) el.textContent = t("batchCount").replace("{n}", n); }
+function printCoopBatch() {
+  const chosen = [...document.querySelectorAll(".bcCoop:checked")].map((c) => c.value);
+  if (!chosen.length) { toast(t("pickCoopFirst")); return; }
+  const date = (document.getElementById("bcDate") || {}).value || new Date().toISOString().slice(0, 10);
+  const startRaw = (document.getElementById("bcStart") || {}).value;
+  let startNum = parseInt(startRaw, 10); if (isNaN(startNum)) startNum = null;
+  LH_MODE = (document.getElementById("bcLh") || {}).value === "preprinted" ? "preprinted" : "full";
+  const spec = specOf("listing_supp");
+  const items = batchItems.map((p) => ({ name: p.name_ar || p.name || "", origin: p.origin || "", pack: p.pack || "", coopCarton: p.coop_carton || "", consPiece: p.cons_piece || "", barcode: p.barcode || "" }));
+  const docs = chosen.map((n, i) => {
+    const c = coop(n);
+    const coopArName = c && c.ar ? c.ar : n;
+    const rec = { type: "listing_supp", date, lysal: startNum != null ? refNo(startNum + i) : "", recipient: `جمعيـة ${coopArName} التعاونيـة`, items, note: "", meta: null };
+    const html = specDocHTML(rec, spec);
+    return i === 0 ? html : html.replace('<div class="doc ', '<div style="page-break-before:always" class="doc ');
+  }).join("");
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("batchReady")} — ${t("batchCount").replace("{n}", chosen.length)}</b><div class="actions"><button class="btn gold sm" onclick="window.print()">🖨 ${t("printBatch")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docs}`);
 }
 /* -- price tracker grid -- */
 const TRACK_COLS = [["book_printing", "bookPrinting"], ["upd", "colUpdate"], ["date_update", "dateUpdate"], ["dn_number", "dnNumber"], ["dn_type", "dnType"], ["dn_amount", "dnAmount"], ["date_sales_new", "dateSalesNew"], ["branch_connection", "branchConnection"], ["supply_branch", "supplyBranch"], ["branch_supply_date", "branchSupplyDate"], ["stock", "stockCol"]];

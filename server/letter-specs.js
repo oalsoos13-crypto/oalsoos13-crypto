@@ -174,6 +174,36 @@ const LETTER_SPECS = [
     signatory: SIGN.ramiz,
   },
 
+  /* ---------- 8a) UOC — supplementary items request to the Union (الكتاب الأول) ----------
+   * Stage 1 of the new-item approval cycle: the company's letter to the Union
+   * requesting approval of a supplementary item. Mirrors the real 10057/11677
+   * letters exactly (subject "اصناف تكميلية", GM signatory راشد المنيع). */
+  {
+    k: 'uoc_supp', ar: 'طلب اعتماد أصناف تكميلية — الاتحاد', en: 'Union Supplementary Items',
+    group: 'union', lang: 'ar', recipient: 'fixed', recipientFixed: 'إتحاد الجمعيات التعاونية الاستهلاكية',
+    debitFlow: false, valueMode: 'none',
+    subject: { ar: 'اصنـاف تكميليـة', en: 'Supplementary Items' },
+    intro: {
+      ar: 'بالإشـارة إلـى الموضـوع أعـلاه، يـرجـى من سيادتكم الموافقـة علـى الأصنـاف التكميليـة الموضحـة بالجـدول أدنـاه:',
+      en: 'With reference to the above, kindly approve the supplementary items detailed in the table below:',
+    },
+    table: {
+      title: { ar: 'الأصناف التكميلية', en: 'Items' },
+      cols: [
+        { key: 'item', ar: 'رقم الصنف', en: 'Item #', type: 'text' },
+        { key: 'brand', ar: 'العلامة التجارية', en: 'Brand', type: 'text' },
+        { key: 'name', ar: 'وصف الصنف', en: 'Description', type: 'text', wide: true },
+        { key: 'origin', ar: 'المنشأ', en: 'Origin', type: 'text' },
+        { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
+        { key: 'coopCarton', ar: 'سعر شراء الجمعية من', en: 'Coop purchase', type: 'num' },
+        { key: 'consPiece', ar: 'سعر البيع الحبة للمستهلك', en: 'Consumer piece', type: 'num' },
+        { key: 'barcode', ar: 'الباركود', en: 'Barcode', type: 'text' },
+      ],
+    },
+    closing: ['وتفضلـوا بقبـول فائـق الإحتـرام والتقديـر،،،'],
+    signatory: SIGN.gm,
+  },
+
   /* ---------- 8) UOC — price increase request to the Union ---------- */
   {
     k: 'uoc_union', ar: 'طلب زيادة أسعار — الاتحاد', en: 'Union Price Increase',

@@ -266,10 +266,15 @@ function migrate() {
       barcode      TEXT PRIMARY KEY,
       name         TEXT,
       name_ar      TEXT,
+      brand        TEXT,
+      item_no      TEXT,
       pack         TEXT,
       origin       TEXT,
       cons_piece   TEXT,
       coop_carton  TEXT,
+      circular     TEXT,
+      circular_date TEXT,
+      union_lysal  TEXT,
       note         TEXT,
       status       TEXT NOT NULL DEFAULT 'pending',
       added_by     INTEGER,
@@ -469,6 +474,17 @@ function migrate() {
   const ciCols = db.prepare("PRAGMA table_info(contract_items)").all().map((c) => c.name);
   if (!ciCols.includes('description')) db.exec('ALTER TABLE contract_items ADD COLUMN description TEXT');
   if (!ciCols.includes('amount')) db.exec('ALTER TABLE contract_items ADD COLUMN amount REAL NOT NULL DEFAULT 0');
+
+  // New-item approval cycle: extra columns on approve_products for the Union
+  // letter (brand + item #) and the returned Union circular / approval (الكتاب
+  // الثاني): circular no, circular date and the LYSAL of the Union request.
+  const apCols = db.prepare("PRAGMA table_info(approve_products)").all().map((c) => c.name);
+  const addApCol = (name, decl) => { if (!apCols.includes(name)) db.exec(`ALTER TABLE approve_products ADD COLUMN ${name} ${decl}`); };
+  addApCol('brand', 'TEXT');
+  addApCol('item_no', 'TEXT');
+  addApCol('circular', 'TEXT');
+  addApCol('circular_date', 'TEXT');
+  addApCol('union_lysal', 'TEXT');
 
   const cur = db.prepare("SELECT value FROM meta WHERE key='schema_version'").get();
   if (!cur) {

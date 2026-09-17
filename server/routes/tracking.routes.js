@@ -300,17 +300,23 @@ router.get('/approve-products', asyncH((req, res) => {
 }));
 
 const upsertApprove = db.prepare(`INSERT INTO approve_products
-  (barcode,name,name_ar,pack,origin,cons_piece,coop_carton,note,status,added_by,added_at)
-  VALUES (@barcode,@name,@name_ar,@pack,@origin,@cons_piece,@coop_carton,@note,@status,@added_by,@added_at)
+  (barcode,name,name_ar,brand,item_no,pack,origin,cons_piece,coop_carton,circular,circular_date,union_lysal,note,status,added_by,added_at)
+  VALUES (@barcode,@name,@name_ar,@brand,@item_no,@pack,@origin,@cons_piece,@coop_carton,@circular,@circular_date,@union_lysal,@note,@status,@added_by,@added_at)
   ON CONFLICT(barcode) DO UPDATE SET
-    name=excluded.name, name_ar=excluded.name_ar, pack=excluded.pack, origin=excluded.origin,
-    cons_piece=excluded.cons_piece, coop_carton=excluded.coop_carton, note=excluded.note`);
+    name=excluded.name, name_ar=excluded.name_ar, brand=excluded.brand, item_no=excluded.item_no,
+    pack=excluded.pack, origin=excluded.origin,
+    cons_piece=excluded.cons_piece, coop_carton=excluded.coop_carton,
+    circular=excluded.circular, circular_date=excluded.circular_date, union_lysal=excluded.union_lysal,
+    note=excluded.note`);
 
 function approveRow(o, by, now) {
   return {
     barcode: clean(o.barcode).replace(/\.0$/, ''), name: clean(o.name), name_ar: clean(o.nameAr || o.name_ar),
+    brand: clean(o.brand), item_no: clean(o.itemNo || o.item_no),
     pack: clean(o.pack), origin: clean(o.origin), cons_piece: clean(o.consPiece || o.cons_piece),
-    coop_carton: clean(o.coopCarton || o.coop_carton), note: clean(o.note),
+    coop_carton: clean(o.coopCarton || o.coop_carton),
+    circular: clean(o.circular), circular_date: clean(o.circularDate || o.circular_date),
+    union_lysal: clean(o.unionLysal || o.union_lysal), note: clean(o.note),
     status: clean(o.status) || 'pending', added_by: by, added_at: now,
   };
 }
@@ -329,12 +335,14 @@ router.post('/approve-products/import', requireRole('salesman', 'supervisor', ..
   const classify = (h) => {
     const s = clean(h).toLowerCase();
     if (/باركود|barcode/.test(s)) return 'barcode';
+    if (/العلامة|براند|brand/.test(s)) return 'brand';
+    if (/رقم الصنف|item\s*no|item#/.test(s)) return 'itemNo';
     if (/item-?\s*name|english/.test(s)) return 'name';
-    if (/اسم|name|صنف/.test(s)) return 'nameAr';
+    if (/اسم|name|صنف|وصف/.test(s)) return 'nameAr';
     if (/الشد|pack/.test(s)) return 'pack';
     if (/المنشأ|origin/.test(s)) return 'origin';
-    if (/مستهلك|consumer|rsp/.test(s)) return 'consPiece';
-    if (/الجمعية|coop|carton/.test(s)) return 'coopCarton';
+    if (/مستهلك|consumer|rsp|الحبة/.test(s)) return 'consPiece';
+    if (/الجمعية|coop|carton|الكرتون|شراء/.test(s)) return 'coopCarton';
     if (/ملاحظ|note/.test(s)) return 'note';
     return null;
   };
