@@ -527,6 +527,11 @@ const T = {
   defaultPwNote: { ar: "اتركه فارغًا لاستخدام الافتراضي", en: "Leave blank for default" },
   confirmResetPw: { ar: "إعادة تعيين كلمة المرور لهذا المستخدم؟", en: "Reset this user's password?" },
   pwReset: { ar: "تمت إعادة التعيين", en: "Password reset" },
+  resetAllPw: { ar: "إعادة تعيين كلمات مرور الجميع", en: "Reset all passwords" },
+  confirmResetAll: { ar: "إعادة تعيين كلمات المرور لكل المستخدمين (عداك أنت)؟ سيُطلب من كلٍّ تغييرها عند أول دخول.", en: "Reset passwords for ALL users (except you)? Each must change it on next login." },
+  pwResetAllDone: { ar: "تمت إعادة تعيين كلمات المرور للجميع.", en: "All passwords have been reset." },
+  newPwLabel: { ar: "كلمة المرور الجديدة:", en: "New password:" },
+  resetCountLabel: { ar: "عدد المستخدمين:", en: "Users reset:" },
   backupTitle: { ar: "نسخة احتياطية", en: "Backup" },
   backupDesc: { ar: "تنزيل كامل البيانات كملف JSON.", en: "Download all data as a JSON file." },
   downloadBackup: { ar: "تنزيل نسخة احتياطية", en: "Download backup" },
@@ -2260,7 +2265,7 @@ const USER_ROLES = ["admin", "marketing", "division", "supervisor", "salesman", 
 let usersCache = [];
 async function vUsers() {
   document.getElementById("rv").innerHTML =
-    `<div class="panel"><header><h3>${t("userMgmt")}</h3><button class="btn gold sm" onclick="openUserForm()">＋ ${t("addUser")}</button></header><div class="tbl-wrap" id="usersBox"><div class="empty">${t("loading")}</div></div></div>`;
+    `<div class="panel"><header><h3>${t("userMgmt")}</h3><div class="actions" style="margin:0"><button class="btn ghost sm" onclick="resetAllPw()">🔑 ${t("resetAllPw")}</button><button class="btn gold sm" onclick="openUserForm()">＋ ${t("addUser")}</button></div></header><div class="tbl-wrap" id="usersBox"><div class="empty">${t("loading")}</div></div></div>`;
   await refreshUsers();
 }
 async function refreshUsers() {
@@ -2324,6 +2329,14 @@ async function resetUserPw(id) {
   try {
     await api("/admin/users/" + id + "/reset-password", { method: "POST" });
     toast(t("pwReset"));
+    refreshUsers();
+  } catch (e) { toast(e.message); }
+}
+async function resetAllPw() {
+  if (!confirm(t("confirmResetAll"))) return;
+  try {
+    const r = await api("/admin/users/reset-all-passwords", { method: "POST" });
+    alert(t("pwResetAllDone") + "\n\n" + t("newPwLabel") + " " + r.password + "\n" + t("resetCountLabel") + " " + r.count);
     refreshUsers();
   } catch (e) { toast(e.message); }
 }

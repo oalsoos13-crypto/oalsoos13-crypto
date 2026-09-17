@@ -81,6 +81,24 @@ router.post('/admin/users/:id/reset-password', guard, asyncH((req, res) => {
   res.json({ ok: true });
 }));
 
+// POST /api/admin/users/reset-all-passwords  { password? }
+// Resets every other user to the default (or a supplied) password and forces a
+// change on next login. The acting admin is excluded to avoid self-lockout.
+router.post('/admin/users/reset-all-passwords', guard, asyncH((req, res) => {
+  const pw = req.body.password ? String(req.body.password) : config.defaultPassword;
+  const hash = hashPassword(pw);
+  const targets = db.prepare('SELECT id, username FROM users WHERE id <> ?').all(req.user.id);
+  const upd = db.prepare('UPDATE users SET password_hash=?, must_change_password=1, updated_at=? WHERE id=?');
+  const now = nowIso();
+  const tx = db.transaction(() => { for (const u of targets) upd.run(hash, now, u.id); });
+  tx();
+  audit.fromReq(req, 'user.reset_all_passwords', {
+    entityType: 'user', entityId: 'ALL',
+    summary: `Reset passwords for ${targets.length} users (excluding self)`,
+  });
+  res.json({ ok: true, count: targets.length, password: pw });
+}));
+
 // GET /api/admin/export.json — full database backup (excluding password hashes).
 const BACKUP_TABLES = ['budgets', 'channel_alloc', 'dist', 'letters', 'notes', 'counters', 'coops', 'audit_log'];
 router.get('/admin/export.json', guard, asyncH((req, res) => {
