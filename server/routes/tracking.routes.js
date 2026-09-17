@@ -300,11 +300,11 @@ router.get('/approve-products', asyncH((req, res) => {
 }));
 
 const upsertApprove = db.prepare(`INSERT INTO approve_products
-  (barcode,name,name_ar,brand,item_no,pack,origin,cons_piece,coop_carton,circular,circular_date,union_lysal,note,status,added_by,added_at)
-  VALUES (@barcode,@name,@name_ar,@brand,@item_no,@pack,@origin,@cons_piece,@coop_carton,@circular,@circular_date,@union_lysal,@note,@status,@added_by,@added_at)
+  (barcode,name,name_ar,brand,item_no,carton_barcode,pack,origin,cons_piece,coop_carton,circular,circular_date,union_lysal,note,status,added_by,added_at)
+  VALUES (@barcode,@name,@name_ar,@brand,@item_no,@carton_barcode,@pack,@origin,@cons_piece,@coop_carton,@circular,@circular_date,@union_lysal,@note,@status,@added_by,@added_at)
   ON CONFLICT(barcode) DO UPDATE SET
     name=excluded.name, name_ar=excluded.name_ar, brand=excluded.brand, item_no=excluded.item_no,
-    pack=excluded.pack, origin=excluded.origin,
+    carton_barcode=excluded.carton_barcode, pack=excluded.pack, origin=excluded.origin,
     cons_piece=excluded.cons_piece, coop_carton=excluded.coop_carton,
     circular=excluded.circular, circular_date=excluded.circular_date, union_lysal=excluded.union_lysal,
     note=excluded.note`);
@@ -313,6 +313,7 @@ function approveRow(o, by, now) {
   return {
     barcode: clean(o.barcode).replace(/\.0$/, ''), name: clean(o.name), name_ar: clean(o.nameAr || o.name_ar),
     brand: clean(o.brand), item_no: clean(o.itemNo || o.item_no),
+    carton_barcode: clean(o.cartonBarcode || o.carton_barcode).replace(/\.0$/, ''),
     pack: clean(o.pack), origin: clean(o.origin), cons_piece: clean(o.consPiece || o.cons_piece),
     coop_carton: clean(o.coopCarton || o.coop_carton),
     circular: clean(o.circular), circular_date: clean(o.circularDate || o.circular_date),
@@ -334,6 +335,7 @@ router.post('/approve-products/import', requireRole('salesman', 'supervisor', ..
   const rows = readGrid(req.body.contentB64);
   const classify = (h) => {
     const s = clean(h).toLowerCase();
+    if (/كرتون.*باركود|باركود.*كرتون|carton\s*barcode|case\s*barcode/.test(s)) return 'cartonBarcode';
     if (/باركود|barcode/.test(s)) return 'barcode';
     if (/العلامة|براند|brand/.test(s)) return 'brand';
     if (/رقم الصنف|item\s*no|item#/.test(s)) return 'itemNo';

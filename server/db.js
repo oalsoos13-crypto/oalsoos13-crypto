@@ -268,6 +268,7 @@ function migrate() {
       name_ar      TEXT,
       brand        TEXT,
       item_no      TEXT,
+      carton_barcode TEXT,
       pack         TEXT,
       origin       TEXT,
       cons_piece   TEXT,
@@ -482,6 +483,7 @@ function migrate() {
   const addApCol = (name, decl) => { if (!apCols.includes(name)) db.exec(`ALTER TABLE approve_products ADD COLUMN ${name} ${decl}`); };
   addApCol('brand', 'TEXT');
   addApCol('item_no', 'TEXT');
+  addApCol('carton_barcode', 'TEXT');
   addApCol('circular', 'TEXT');
   addApCol('circular_date', 'TEXT');
   addApCol('union_lysal', 'TEXT');

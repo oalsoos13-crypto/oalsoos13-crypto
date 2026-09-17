@@ -604,6 +604,8 @@ const T = {
   editItem: { ar: "تعديل", en: "Edit" },
   brand: { ar: "العلامة التجارية", en: "Brand" },
   itemNo: { ar: "رقم الصنف", en: "Item #" },
+  cartonBarcode: { ar: "باركود الكرتونة", en: "Carton barcode" },
+  pieceBarcode: { ar: "باركود الحبة", en: "Piece barcode" },
   itemNameAr: { ar: "اسم / وصف الصنف", en: "Item name / description" },
   circularDate: { ar: "تاريخ التعميم", en: "Circular date" },
   unionLysal: { ar: "رقم كتاب الاتحاد", en: "Union letter no." },
@@ -2622,7 +2624,7 @@ async function loadApprove() {
   approveCache = r.products || [];
   const box = document.getElementById("apBox"); if (!box) return;
   box.innerHTML = approveCache.length
-    ? `<table><thead><tr><th>${t("itemNo")}</th><th>${t("brand")}</th><th>${t("th_name")}</th><th>${t("origin")}</th><th>${t("th_pack")}</th><th>${t("coopCarton")}</th><th>${t("consPiece")}</th><th>${t("th_barcode")}</th><th>${t("circularNo")}</th><th></th></tr></thead><tbody>${approveCache.map((p) => `<tr><td class="mono-sm">${esc(p.item_no || "")}</td><td>${esc(p.brand || "")}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.origin || "")}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.coop_carton || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono-sm">${esc(p.barcode)}</td><td class="mono-sm">${esc(p.circular || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="editApproveItem('${esc(p.barcode)}')">${t("editItem")}</button><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></div></td></tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>${t("itemNo")}</th><th>${t("brand")}</th><th>${t("th_name")}</th><th>${t("origin")}</th><th>${t("th_pack")}</th><th>${t("coopCarton")}</th><th>${t("consPiece")}</th><th>${t("pieceBarcode")}</th><th>${t("cartonBarcode")}</th><th>${t("circularNo")}</th><th></th></tr></thead><tbody>${approveCache.map((p) => `<tr><td class="mono-sm">${esc(p.item_no || "")}</td><td>${esc(p.brand || "")}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.origin || "")}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.coop_carton || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono-sm">${esc(p.barcode)}</td><td class="mono-sm">${esc(p.carton_barcode || "")}</td><td class="mono-sm">${esc(p.circular || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="editApproveItem('${esc(p.barcode)}')">${t("editItem")}</button><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></div></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noProducts")}</div>`;
 }
 function doImportApprove(input) { const m = document.getElementById("apMsg"); m.textContent = t("loading"); fileToApi(input, "/approve-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadApprove(); }); }
@@ -2634,7 +2636,8 @@ function editApproveItem(bc) {
   modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("approveItemForm")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
   <div style="padding:20px 24px;max-height:74vh;overflow:auto">
     <div class="grid g3">
-      <div class="field"><label>${t("th_barcode")}</label><input id="aiBarcode" ${f("aiBarcode", p.barcode)} ${isEdit ? "readonly" : ""} inputmode="numeric"></div>
+      <div class="field"><label>${t("pieceBarcode")}</label><input id="aiBarcode" ${f("aiBarcode", p.barcode)} ${isEdit ? "readonly" : ""} inputmode="numeric"></div>
+      <div class="field"><label>${t("cartonBarcode")}</label><input id="aiCartonBc" ${f("aiCartonBc", p.carton_barcode)} inputmode="numeric"></div>
       <div class="field"><label>${t("itemNo")}</label><input id="aiItemNo" ${f("aiItemNo", p.item_no)}></div>
       <div class="field"><label>${t("brand")}</label><input id="aiBrand" ${f("aiBrand", p.brand)} list="udcBrands"></div>
       <div class="field" style="grid-column:1/-1"><label>${t("itemNameAr")}</label><input id="aiName" ${f("aiName", p.name_ar || p.name)}></div>
@@ -2673,7 +2676,7 @@ async function saveApproveItem() {
   if (!/^\d{6,14}$/.test(barcode)) { err.textContent = t("th_barcode") + " ⚠"; return; }
   try {
     await api("/approve-products", { method: "POST", body: {
-      barcode, itemNo: g("aiItemNo"), brand: g("aiBrand"), nameAr: g("aiName"),
+      barcode, cartonBarcode: g("aiCartonBc"), itemNo: g("aiItemNo"), brand: g("aiBrand"), nameAr: g("aiName"),
       origin: g("aiOrigin"), pack: g("aiPack"), coopCarton: g("aiCoop"), consPiece: g("aiCons"),
       circular: g("aiCirc"), circularDate: g("aiCircDate"), unionLysal: g("aiUnion"),
     } });
