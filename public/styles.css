@@ -77,8 +77,12 @@ tbody tr:hover{background:#f5f9fd}
 .doc{width:210mm;min-height:297mm;margin:0 auto;background:#fff;color:#111;direction:rtl;text-align:right;
      font-size:12.5pt;line-height:1.85;position:relative;display:flex;flex-direction:column}
 .doc .lh-body{padding:40mm 16mm 42mm;flex:1}                 /* clear zone for pre-printed letterhead */
-.doc.lh-full .lh-h{position:absolute;top:0;left:0;right:0}
-.doc.lh-full .lh-f{position:absolute;bottom:0;left:0;right:0}
+/* Full letterhead: header at the top, footer pinned to the very bottom of the
+   page via normal flex flow (the body grows to fill), so the footer never
+   floats up mid-page when the letter is short — on screen and in print alike. */
+.doc.lh-full .lh-h{flex:none}
+.doc.lh-full .lh-f{flex:none;margin-top:auto}
+.doc.lh-full .lh-body{padding:8mm 16mm}
 .doc.lh-full .lh-h img,.doc.lh-full .lh-f img{display:block;width:100%}
 .doc .meta{display:block;text-align:right;font-weight:700;margin-bottom:10px}
 .doc.ltr .meta{text-align:left}
@@ -130,7 +134,7 @@ tbody tr:hover{background:#f5f9fd}
   .overlay{position:absolute;inset:0;padding:0;background:#fff}
   .doc-tools{display:none}
   .doc-wrap{box-shadow:none;max-width:100%;border-radius:0;overflow:visible}
-  .doc{width:210mm;min-height:auto;box-shadow:none;margin:0}
+  .doc{width:210mm;min-height:297mm;box-shadow:none;margin:0}
   .no-print{display:none!important}
 }
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#123f70;color:#fff;padding:11px 20px;border-radius:10px;font-weight:700;z-index:99;box-shadow:var(--shadow);opacity:0;transition:opacity .2s,transform .2s}
