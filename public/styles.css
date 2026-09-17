@@ -343,3 +343,130 @@ tbody tr:hover td{background:rgba(28,78,138,.07)}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
     transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
+
+/* ==========================================================================
+   THEME v2 — premium visual layer (deep navy + luminous gold + glass)
+   ========================================================================== */
+:root{
+  --navy1:#0a1e3b; --navy2:#123a63; --navy3:#1c4e8a; --navy4:#3f83c6;
+  --gold1:#e7a11f; --gold2:#f6c445; --gold3:#ffe08a;
+  --glass:rgba(255,255,255,.72);
+  --glass-strong:rgba(255,255,255,.86);
+  --glass-brd:rgba(255,255,255,.65);
+  --hair:rgba(16,42,77,.10);
+  --shadow-1:0 1px 2px rgba(10,30,59,.05),0 6px 18px rgba(10,30,59,.08);
+  --shadow-2:0 10px 30px rgba(10,30,59,.14);
+  --shadow-glow:0 8px 30px rgba(28,78,138,.28);
+  --shadow-gold:0 8px 26px rgba(231,161,31,.30);
+  --radius:16px;
+}
+/* ---- ambient aurora background ---- */
+body{
+  background:
+    radial-gradient(1200px 700px at 92% -10%, rgba(246,196,69,.16), transparent 55%),
+    radial-gradient(1100px 720px at -8% 8%, rgba(63,131,198,.20), transparent 55%),
+    radial-gradient(1000px 800px at 50% 118%, rgba(28,78,138,.16), transparent 60%),
+    linear-gradient(160deg,#eef4fb 0%,#e7eefb 45%,#eaf1f9 100%);
+  background-attachment:fixed;
+}
+
+/* ---- app-bar: deep gradient + sheen + gold hairline ---- */
+.appbar{
+  background:linear-gradient(105deg,#081a35 0%,#123a63 48%,#1c4e8a 100%);
+  border-bottom:0;position:sticky;top:0;z-index:40;
+  box-shadow:0 6px 22px rgba(8,26,53,.28);
+}
+.appbar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold2) 30%,var(--gold1) 50%,var(--gold2) 70%,transparent)}
+.appbar .mark{box-shadow:0 4px 14px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.4)}
+.appbar h1{letter-spacing:.2px}
+
+/* ---- role bar: glassy ---- */
+.rolebar{background:linear-gradient(90deg,rgba(255,255,255,.9),rgba(238,244,251,.82));
+  border-bottom:1px solid var(--hair);backdrop-filter:blur(10px)}
+.rolebar h2{background:linear-gradient(90deg,var(--navy2),var(--navy3));-webkit-background-clip:text;
+  background-clip:text;color:transparent}
+.back{background:rgba(255,255,255,.7);backdrop-filter:blur(6px)}
+.back:hover{border-color:var(--navy3);background:#fff}
+
+/* ---- hero title ---- */
+.home-hero h2{font-size:30px;font-weight:700;letter-spacing:.3px;
+  background:linear-gradient(92deg,var(--navy1),var(--navy3) 60%,var(--gold1));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.home-hero p{color:#4a5a70}
+
+/* ---- glass cards / panels ---- */
+.role-card,.panel,.login-card,.card{
+  background:var(--glass-strong);backdrop-filter:blur(14px) saturate(1.05);
+  -webkit-backdrop-filter:blur(14px) saturate(1.05);
+  border:1px solid var(--glass-brd);box-shadow:var(--shadow-1);border-radius:var(--radius)}
+
+/* ---- role cards: lift + gold glow + gradient icon tile ---- */
+.role-card{position:relative;overflow:hidden;padding:22px}
+.role-card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(135deg,rgba(246,196,69,.10),transparent 42%);opacity:0;transition:opacity .25s var(--ease)}
+.role-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-2);border-color:rgba(231,161,31,.55)}
+.role-card:hover::before{opacity:1}
+.role-card .ic{background:linear-gradient(145deg,var(--navy3),var(--navy1));
+  box-shadow:0 8px 20px rgba(18,58,99,.35),inset 0 1px 0 rgba(255,255,255,.25);
+  border-radius:14px;transition:transform .25s var(--ease)}
+.role-card:hover .ic{transform:scale(1.06) rotate(-3deg)}
+.role-card:hover .ic{background:linear-gradient(145deg,var(--navy3),var(--gold1))}
+.role-card .enter{color:var(--navy3);font-weight:700}
+.role-card:hover .enter{color:var(--gold1)}
+
+/* ---- KPI cards: accent bar + big number ---- */
+.card{position:relative;padding:16px 18px;overflow:hidden}
+.card::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:4px;
+  background:linear-gradient(var(--navy3),var(--navy4))}
+.card.accent::before{background:linear-gradient(var(--gold1),var(--gold2))}
+.card.ok::before{background:linear-gradient(#2f9e6b,#57c48d)}
+.card.warn::before{background:linear-gradient(#d69422,#f0c14e)}
+.card b,.card .big{letter-spacing:.3px}
+
+/* ---- panels ---- */
+.panel>header{background:linear-gradient(90deg,rgba(238,244,251,.9),rgba(255,255,255,.5));
+  border-bottom:1px solid var(--hair)}
+.panel>header h3{background:linear-gradient(90deg,var(--navy2),var(--navy3));
+  -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}
+
+/* ---- buttons: gradient + glow ---- */
+.btn{border-radius:11px;font-weight:700;letter-spacing:.2px}
+.btn.primary{background:linear-gradient(135deg,var(--navy3),var(--navy2));color:#fff;
+  box-shadow:var(--shadow-glow)}
+.btn.primary:hover{background:linear-gradient(135deg,var(--navy4),var(--navy3));
+  box-shadow:0 10px 30px rgba(28,78,138,.42)}
+.btn.gold{background:linear-gradient(135deg,var(--gold1),var(--gold2));color:#3a2a00;
+  box-shadow:var(--shadow-gold)}
+.btn.gold:hover{background:linear-gradient(135deg,var(--gold2),var(--gold3));color:#3a2a00}
+.btn.ghost{background:rgba(255,255,255,.7);border:1px solid var(--line2);color:var(--navy2)}
+.btn.ghost:hover{background:#fff;border-color:var(--navy3)}
+.btn.danger{background:linear-gradient(135deg,#b5402f,#8f2f22);color:#fff}
+
+/* ---- inputs ---- */
+input,select,textarea{background:rgba(255,255,255,.85);border:1px solid var(--line2);border-radius:11px}
+input:focus,select:focus,textarea:focus{border-color:var(--navy3);
+  box-shadow:0 0 0 3px rgba(28,78,138,.18),0 0 0 6px rgba(246,196,69,.10)}
+
+/* ---- tables ---- */
+.panel table thead th,.tbl-wrap thead th,.tbl-scroll thead th{
+  background:linear-gradient(180deg,#eaf2fb,#e0ebf7);color:var(--navy2);font-weight:700;
+  border-bottom:1px solid var(--line2)}
+tbody tr:hover td{background:rgba(28,78,138,.06)}
+
+/* ---- login hero ---- */
+.login-card{box-shadow:var(--shadow-2);border-radius:20px;padding:30px 28px}
+.login-card h2{background:linear-gradient(92deg,var(--navy2),var(--navy3),var(--gold1));
+  -webkit-background-clip:text;background-clip:text;color:transparent;font-size:24px}
+
+/* ---- badges / tags / pills ---- */
+.pill-info{background:linear-gradient(135deg,var(--navy3),var(--navy2));color:#fff;
+  padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.tag{border:1px solid transparent;box-shadow:inset 0 0 0 1px rgba(0,0,0,.02)}
+
+/* ---- toast: glass dark ---- */
+.toast{background:linear-gradient(135deg,rgba(12,36,68,.96),rgba(28,78,138,.96));
+  border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 34px rgba(8,26,53,.4);border-radius:12px}
+
+/* ---- scrollbars ---- */
+*{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}

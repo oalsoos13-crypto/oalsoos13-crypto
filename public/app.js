@@ -761,7 +761,7 @@ const ROLES = [
   { k: "doc", ic: "❏" },
 ];
 // Sections hidden from the home tiles and the navigation bar (per request).
-const HIDDEN_ROUTES = new Set(["doc", "outlets", "contracts", "products", "sales", "salesMonthly"]);
+const HIDDEN_ROUTES = new Set(["doc", "outlets", "products", "sales", "salesMonthly"]);
 let role = null;
 function go(r) {
   role = r;
