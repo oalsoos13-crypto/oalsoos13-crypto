@@ -760,6 +760,8 @@ const ROLES = [
   { k: "salesman", ic: "✎" },
   { k: "doc", ic: "❏" },
 ];
+// Sections hidden from the home tiles and the navigation bar (per request).
+const HIDDEN_ROUTES = new Set(["doc", "outlets", "contracts", "products", "sales", "salesMonthly"]);
 let role = null;
 function go(r) {
   role = r;
@@ -809,7 +811,7 @@ function render() {
   } else {
     const extras = EXTRA[currentUser.role] || [];
     const btns = extras
-      .filter((v) => v !== rk)
+      .filter((v) => v !== rk && !HIDDEN_ROUTES.has(v))
       .map((v) => `<button class="back" onclick="go('${v}')">${t("r_" + v)}</button>`)
       .join("");
     const backBtn = rk !== currentUser.role ? `<button class="back" onclick="go('${currentUser.role}')">← ${t("back")}</button>` : "";
@@ -932,7 +934,7 @@ const ADMIN_ROLES = [
   { k: "backup", ic: "💾" },
 ];
 function renderHome() {
-  const cards = ROLES.concat(currentUser.role === "admin" ? ADMIN_ROLES : []);
+  const cards = ROLES.concat(currentUser.role === "admin" ? ADMIN_ROLES : []).filter((r) => !HIDDEN_ROUTES.has(r.k));
   document.getElementById("app").innerHTML =
     `<div class="wrap"><div class="home-hero"><h2>${t("homeTitle")}</h2><p>${t("homeSub")}</p></div><div class="roles">${cards.map((r) => `<div class="role-card" onclick="go('${r.k}')"><div class="ic">${r.ic}</div><h3>${t("r_" + r.k)}</h3><p>${t("r_" + r.k + "_d")}</p><div class="enter">${t("enter")} →</div></div>`).join("")}</div></div>`;
 }
