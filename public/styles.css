@@ -132,6 +132,9 @@ tbody tr:hover{background:#f5f9fd}
   @page{size:A4;margin:0}
   body *{visibility:hidden}.overlay,.overlay *{visibility:visible}
   .overlay{position:absolute;inset:0;padding:0;background:#fff}
+  /* Never let a scroll container's scrollbar bleed into the printed/saved PDF. */
+  *{scrollbar-width:none!important}
+  ::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
   .doc-tools{display:none}
   .doc-wrap{box-shadow:none;max-width:100%;border-radius:0;overflow:visible}
   .doc{width:210mm;min-height:297mm;box-shadow:none;margin:0}
