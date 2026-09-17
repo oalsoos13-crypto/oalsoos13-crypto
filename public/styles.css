@@ -197,3 +197,149 @@ table.price-edit .rm{width:24px;height:24px}
   .btn{padding:8px 12px;font-size:13px}
   .tbl-wrap{-webkit-overflow-scrolling:touch}
 }
+
+/* ============================================================================
+   RESPONSIVE + POLISH LAYER  (mobile / tablet / touch + motion)
+   Appended enhancement — overrides earlier rules via cascade order.
+   ========================================================================== */
+:root{
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;
+  --ring:0 0 0 3px rgba(28,78,138,.22);
+  --shadow-sm:0 1px 2px rgba(14,42,77,.06),0 2px 8px rgba(14,42,77,.05);
+  --shadow-md:0 6px 20px rgba(14,42,77,.12);
+  --shadow-lg:0 20px 50px rgba(14,42,77,.22);
+  --tap:44px;--ease:cubic-bezier(.4,0,.2,1);
+}
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+*{-webkit-tap-highlight-color:transparent}
+/* keyboard-only focus ring, never on mouse */
+:focus{outline:none}
+:focus-visible{outline:none;box-shadow:var(--ring);border-radius:8px}
+
+/* ---- entrance animations ---- */
+@keyframes udcFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes udcPop{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes udcSheetUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes udcOverlayIn{from{opacity:0}to{opacity:1}}
+#app>.wrap,#app>.page{animation:udcFadeUp .28s var(--ease) both}
+.role-card{animation:udcFadeUp .34s var(--ease) both}
+.roles .role-card:nth-child(2){animation-delay:.03s}
+.roles .role-card:nth-child(3){animation-delay:.06s}
+.roles .role-card:nth-child(4){animation-delay:.09s}
+.roles .role-card:nth-child(5){animation-delay:.12s}
+.roles .role-card:nth-child(n+6){animation-delay:.15s}
+.panel{animation:udcFadeUp .3s var(--ease) both}
+
+/* ---- appbar: sticky + safe area ---- */
+.appbar{position:sticky;top:0;z-index:40;padding-top:calc(13px + env(safe-area-inset-top));
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+.appbar .mark img{transition:transform .3s var(--ease)}
+.appbar .logo:active .mark img{transform:scale(.94)}
+
+/* ---- buttons: touch-friendly + press feedback ---- */
+.btn,.back,.lang,.filebtn{transition:background .15s var(--ease),color .15s var(--ease),
+  border-color .15s var(--ease),transform .08s var(--ease),box-shadow .15s var(--ease)}
+.btn{min-height:40px}
+.btn:active,.back:active,.lang:active{transform:translateY(1px) scale(.985)}
+.btn.primary,.btn.gold{box-shadow:0 2px 8px rgba(28,78,138,.25)}
+.btn.primary:hover,.btn.gold:hover{box-shadow:0 4px 14px rgba(28,78,138,.32)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.sm{min-height:34px}
+
+/* ---- cards / roles grid ---- */
+.role-card{will-change:transform}
+.role-card:active{transform:translateY(-1px) scale(.99)}
+.card{transition:box-shadow .18s var(--ease),transform .18s var(--ease)}
+
+/* ---- inputs / fields ---- */
+input,select,textarea{transition:border-color .15s var(--ease),box-shadow .15s var(--ease),background .15s var(--ease)}
+.field label{font-weight:600}
+
+/* ---- tables: smooth scroll, sticky header, zebra, hover ---- */
+.tbl-wrap,.tbl-scroll{overflow:auto;-webkit-overflow-scrolling:touch;border-radius:10px;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.tbl-wrap::-webkit-scrollbar,.tbl-scroll::-webkit-scrollbar{height:9px;width:9px}
+.tbl-wrap::-webkit-scrollbar-thumb,.tbl-scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:20px}
+.panel table thead th,.tbl-wrap thead th,.tbl-scroll thead th{position:sticky;top:0;z-index:3;
+  background:#eef4fb;background-clip:padding-box}
+tbody tr{transition:background .12s var(--ease)}
+tbody tr:nth-child(even) td{background:rgba(238,243,249,.45)}
+tbody tr:hover td{background:rgba(28,78,138,.07)}
+
+/* ---- modal / overlay animation ---- */
+.overlay{animation:udcOverlayIn .18s var(--ease) both;-webkit-overflow-scrolling:touch;backdrop-filter:blur(2px)}
+.doc-wrap{animation:udcPop .26s var(--ease) both}
+
+/* ============================ TABLET  (<=1024px) ======================== */
+@media (max-width:1024px){
+  .wrap{padding:0 18px}
+  .roles{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .grid.g3{grid-template-columns:repeat(2,1fr)}
+  /* content tables scroll horizontally within their panel (keeps column
+     alignment, prevents RTL page overflow) — excludes printable doc tables */
+  .panel table:not(.items){display:block;width:max-content;max-width:100%;
+    overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .doc table,.doc table.items{display:table;width:auto;overflow:visible}
+}
+
+/* ============================ MOBILE  (<=640px) ========================= */
+@media (max-width:640px){
+  body{font-size:15px}
+  .wrap{padding:0 14px}
+  /* prevent iOS zoom on focus: inputs must be >=16px */
+  input,select,textarea{font-size:16px;min-height:var(--tap)}
+  .field{gap:6px}
+  /* full-width primary actions inside forms/modals */
+  .actions{gap:8px}
+  .actions .btn{flex:1 1 auto;justify-content:center}
+  .actions .btn.ghost{flex:0 0 auto}
+  /* roles/cards single column, comfy */
+  .roles{grid-template-columns:1fr;gap:12px;padding:16px 0 30px}
+  .role-card{padding:18px}
+  .cards{grid-template-columns:1fr 1fr;gap:10px}
+  .card{padding:12px}
+  .grid,.grid.g2,.grid.g3{grid-template-columns:1fr}
+  /* rolebar → title stacked, nav becomes a horizontal scroll strip */
+  .rolebar{padding:12px 0}
+  .rolebar .wrap{flex-direction:column;align-items:stretch;gap:10px}
+  .navbtns{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .navbtns::-webkit-scrollbar{display:none}
+  .navbtns .back{white-space:nowrap;flex:0 0 auto}
+  .panel>header{padding:12px 14px;flex-wrap:wrap}
+  .panel>header h3{font-size:15px}
+  /* comfortable tap targets for icon action buttons in table rows */
+  td .btn.sm,.actions .btn.sm{min-height:38px;padding:8px 11px}
+  /* modal becomes a bottom sheet */
+  .overlay{align-items:flex-end;padding:0}
+  .doc-wrap{max-width:100%;width:100%;border-radius:18px 18px 0 0;max-height:92vh;
+    margin:0;animation:udcSheetUp .3s var(--ease) both;
+    padding-bottom:env(safe-area-inset-bottom)}
+  .doc-tools{position:sticky;top:0;z-index:5}
+  /* toast respects gesture bar */
+  .toast{bottom:calc(18px + env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:420px;text-align:center}
+  /* app-bar: keep it on one row without overflow */
+  .appbar .wrap{gap:8px}
+  .appbar h1{font-size:14px;line-height:1.25}
+  .appbar .logo{gap:9px;min-width:0}
+  .appbar .userN{display:none}       /* long name hidden on phones (role chip stays) */
+  .appbar .right{gap:6px;flex-shrink:0}
+  .appbar .lang{padding:7px 11px;font-size:12px}
+  .appbar .right button{padding:8px 11px;min-height:40px}
+}
+
+/* ============================ SMALL  (<=400px) ========================= */
+@media (max-width:400px){
+  .cards{grid-template-columns:1fr}
+  .btn{padding:9px 12px;font-size:13.5px}
+  .appbar .logo{gap:8px}
+  .appbar .mark img{width:34px;height:34px}
+}
+
+/* ---- respect reduced motion ---- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
