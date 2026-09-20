@@ -515,3 +515,18 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 .sec-ic{display:flex;justify-content:center;margin-bottom:6px}
 .sec-logo{width:94px;height:94px;display:block;filter:drop-shadow(0 3px 6px rgba(14,42,77,.14))}
 .sec-card:hover .sec-logo{transform:translateY(-2px);transition:transform .12s}
+
+/* Faded video background (subtle wash behind everything) */
+.bg-video{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;opacity:.16;pointer-events:none}
+@media (prefers-color-scheme:dark){.bg-video{opacity:.10}}
+
+/* Landing (main screen) with section dropdown */
+.landing{position:relative;min-height:calc(100vh - 120px);padding:24px}
+.landing-brand{position:absolute;top:10px;inset-inline-end:8px;font-weight:800;font-size:20px;color:var(--ink);letter-spacing:.2px;text-shadow:0 1px 2px rgba(255,255,255,.6)}
+.landing-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;min-height:60vh;text-align:center}
+.landing-h{margin:0;color:var(--ink);font-size:22px}
+.landing-select{position:relative;width:min(360px,86vw)}
+.landing-select select{width:100%;appearance:none;-webkit-appearance:none;padding:16px 44px 16px 16px;font-size:17px;font-weight:700;color:var(--ink);
+  background:rgba(255,255,255,.96);border:2px solid var(--line2);border-radius:14px;box-shadow:var(--shadow);cursor:pointer}
+.landing-select::after{content:"▾";position:absolute;inset-inline-start:16px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--gold);pointer-events:none}
+.landing-select select:focus{outline:none;border-color:var(--ink2)}

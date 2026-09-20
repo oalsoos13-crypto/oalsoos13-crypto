@@ -88,6 +88,7 @@ const T = {
   sec_ka_online: { ar: "KA + أونلاين", en: "KA + Online" },
   sec_baqalat: { ar: "البقالات", en: "Groceries" },
   sec_enter: { ar: "دخول القسم", en: "Enter section" },
+  landingPick: { ar: "اختر القسم …", en: "Choose section …" },
   comingSoon: { ar: "قريبًا", en: "Coming soon" },
   r_sales_manager: { ar: "مدير المبيعات", en: "Sales Manager" },
   r_sales_manager_d: {
@@ -1048,11 +1049,22 @@ function sectionLogo(k) {
   </svg>`;
 }
 function renderLanding() {
-  const cards = LOGIN_SECTIONS.map((s) =>
-    `<div class="role-card sec-card${s.live ? "" : " soon"}" onclick="pickSection('${s.k}')"><div class="sec-ic">${sectionLogo(s.k)}</div><h3>${t("sec_" + s.k)}</h3><p>${s.live ? t("sec_enter") : t("comingSoon")}</p><div class="enter">${s.live ? t("enter") + " →" : "🔒"}</div></div>`
+  const opts = LOGIN_SECTIONS.map((s) =>
+    `<option value="${s.k}" ${s.live ? "" : "disabled"}>${t("sec_" + s.k)}${s.live ? "" : " — " + t("comingSoon")}</option>`
   ).join("");
   document.getElementById("app").innerHTML =
-    `<div class="wrap"><div class="home-hero"><h2>${t("landingTitle")}</h2><p>${t("landingSub")}</p></div><div class="roles sec-roles">${cards}</div></div>`;
+    `<div class="landing">
+      <div class="landing-brand">${t("landingTitle")}</div>
+      <div class="landing-center">
+        <h2 class="landing-h">${t("landingSub")}</h2>
+        <div class="landing-select">
+          <select id="secSel" onchange="if(this.value)pickSection(this.value)">
+            <option value="" selected disabled>${t("landingPick")}</option>
+            ${opts}
+          </select>
+        </div>
+      </div>
+    </div>`;
 }
 function renderLogin() {
   document.getElementById("app").innerHTML =
