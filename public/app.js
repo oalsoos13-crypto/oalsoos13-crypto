@@ -486,6 +486,26 @@ const T = {
   bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
+  // Monthly budget plan.
+  r_budgetPlan: { ar: "البتجيت الشهري", en: "Monthly budget" },
+  r_budgetPlan_d: { ar: "سقوف الشهر وتوزيعها على المشرفين والمصروف.", en: "Monthly caps, allocation and spend." },
+  bp_month: { ar: "الشهر", en: "Month" },
+  bp_closed: { ar: "مسكّر", en: "Closed" },
+  bp_open_m: { ar: "مفتوح", en: "Open" },
+  bp_close: { ar: "🔒 تسكير الشهر", en: "🔒 Close month" },
+  bp_reopen: { ar: "🔓 فتح الشهر", en: "🔓 Reopen month" },
+  bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
+  bp_cap: { ar: "السقف", en: "Cap" },
+  bp_note: { ar: "ملاحظة", en: "Note" },
+  bp_openCap: { ar: "مفتوح — بلا سقف", en: "Open — no cap" },
+  bp_alloc: { ar: "توزيع على المشرفين (مدير المبيعات)", en: "Allocation to supervisors (sales manager)" },
+  bp_allocated: { ar: "الموزّع", en: "Allocated" },
+  bp_letterSpend: { ar: "مصروف الكتاب", en: "Letter spend" },
+  bp_noteSpend: { ar: "مصروف الإشعار", en: "Note spend" },
+  bp_remaining: { ar: "المتبقّي", en: "Remaining" },
+  bp_spend: { ar: "الملخّص", en: "Summary" },
+  bp_overCap: { ar: "تجاوز السقف", en: "Over cap" },
+  bp_save: { ar: "حفظ", en: "Save" },
   mon_byBudget: { ar: "حسب الباجت", en: "By budget" },
   setBt: { ar: "تصنيف الباجت", en: "Classify budget" },
   mon_sup: { ar: "المشرف", en: "Supervisor" },
@@ -917,7 +937,7 @@ function render() {
   // Letters/notes-only scope: managers see the letters history (and sales ops the
   // audit log); everything else is hidden.
   const EXTRA = {
-    sales_manager: ["lettersHistory"],
+    sales_manager: ["budgetPlan", "lettersHistory"],
     marketing_manager: ["lettersHistory"],
     sales_ops: ["lettersHistory", "audit"],
     supervisor: ["lettersHistory"],
@@ -967,6 +987,7 @@ function render() {
     contracts: vContracts,
     printQueue: vPrintQueue,
     monitor: vMonitor,
+    budgetPlan: vBudgetPlan,
   }[rk];
   if (view) view();
   else renderHome();
@@ -1114,6 +1135,7 @@ async function doChangePw() {
 // still exist in code but are hidden from the UI per the co-op-only scope.
 const ADMIN_ROLES = [
   { k: "monitor", ic: "📡" },
+  { k: "budgetPlan", ic: "💰" },
   { k: "printQueue", ic: "🖨" },
   { k: "lettersHistory", ic: "📜" },
   { k: "audit", ic: "🛡" },
@@ -1624,6 +1646,78 @@ function vMonitor() {
     `${dnApprovalsPanel()}
      <div class="panel"><header><h3>${t("mon_awaiting")} (${awaiting.length})</h3></header><div class="tbl-wrap">${awaiting.length ? letterTbl(awaiting.slice().reverse()) : `<div class="empty">${t("noPending")}</div>`}</div></div>
      <div class="panel"><header><h3>${t("mon_summary")} — <span class="mono">${KD(grand)} ${t("kd")}</span></h3><div class="actions">${toggle("budget", t("mon_byBudget"))}${toggle("salesman", t("mon_bySales"))}${toggle("coop", t("mon_byCoop"))}${toggle("outlet", t("mon_byOutlet"))}</div></header><div class="body">${treeHtml}</div></div>`;
+}
+/* ---------- monthly budget plan ---------- */
+let bpMonth = null, bpData = null;
+async function vBudgetPlan() {
+  const month = bpMonth || new Date().toISOString().slice(0, 7);
+  try { bpData = await api("/budget-plan?month=" + month); bpMonth = bpData.month; }
+  catch (e) { document.getElementById("rv").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  renderBudgetPlan();
+}
+function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
+function bpSpend(bt) { return (bpData.spend.byType && bpData.spend.byType[bt]) || { letter: 0, note: 0 }; }
+function bpAllocSum(bt) { return bpData.alloc.filter((a) => a.budgetType === bt).reduce((s, a) => s + (+a.amount || 0), 0); }
+function bpAllocOf(bt, sup) { const a = bpData.alloc.find((x) => x.budgetType === bt && x.supervisor === sup); return a ? a.amount : ""; }
+function renderBudgetPlan() {
+  const d = bpData, isAdmin = currentUser.role === "admin", isSM = currentUser.role === "sales_manager";
+  const closed = d.closed, dis = closed ? "disabled" : "";
+  // Month bar
+  const monthOpts = (d.months && d.months.length ? d.months.map((m) => m.month) : [d.month]);
+  if (!monthOpts.includes(d.month)) monthOpts.unshift(d.month);
+  const monthBar = `<div class="panel"><div class="body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <label>${t("bp_month")}:</label>
+    <input type="month" value="${esc(d.month)}" onchange="bpSetMonth(this.value)">
+    <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span>
+    ${isAdmin ? `<button class="btn ${closed ? "ghost" : "danger"} sm" onclick="bpCloseMonth(${closed ? "false" : "true"})">${closed ? t("bp_reopen") : t("bp_close")}</button>` : ""}
+  </div></div>`;
+  // Caps (admin)
+  let capsPanel = "";
+  if (isAdmin) {
+    const rows = d.capped.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>
+      <td><input id="cap_${bt}" type="number" step="0.001" value="${d.caps[bt] && d.caps[bt].amount != null ? d.caps[bt].amount : ""}" style="width:120px" ${dis}></td>
+      <td><input id="capn_${bt}" value="${esc((d.caps[bt] && d.caps[bt].note) || "")}" style="width:160px" ${dis}></td>
+      <td><button class="btn primary sm" onclick="bpSaveCap('${bt}')" ${dis}>${t("bp_save")}</button></td></tr>`).join("");
+    capsPanel = `<div class="panel"><header><h3>${t("bp_caps")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_note")}</th><th></th></tr></thead><tbody>${rows}
+      <tr><td>${budgetTypeLabel("offinv")}</td><td colspan="3"><span class="pill-info">${t("bp_openCap")}</span></td></tr></tbody></table></div></div>`;
+  }
+  // Spend summary (all types)
+  const sumRows = d.types.map((bt) => {
+    const cap = d.caps[bt] && d.caps[bt].amount != null ? +d.caps[bt].amount : null;
+    const sp = bpSpend(bt), alloc = bpAllocSum(bt);
+    const rem = cap != null ? cap - sp.note : null;
+    const over = cap != null && sp.note > cap;
+    return `<tr><td>${budgetTypeLabel(bt)}</td><td class="mono">${cap != null ? KD(cap) : "—"}</td><td class="mono">${bt === "offinv" ? "—" : KD(alloc)}</td><td class="mono">${KD(sp.letter)}</td><td class="mono">${KD(sp.note)}</td><td class="mono ${over ? "" : ""}" style="${over ? "color:var(--danger);font-weight:700" : ""}">${rem != null ? KD(rem) : "—"}${over ? " ⚠" : ""}</td></tr>`;
+  }).join("");
+  const spendPanel = `<div class="panel"><header><h3>${t("bp_spend")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_allocated")}</th><th>${t("bp_letterSpend")}</th><th>${t("bp_noteSpend")}</th><th>${t("bp_remaining")}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
+  // Allocation (sales manager)
+  let allocPanel = "";
+  if (isSM || isAdmin) {
+    const sups = d.supervisors || [];
+    const blocks = d.capped.map((bt) => {
+      const cap = d.caps[bt] && d.caps[bt].amount != null ? +d.caps[bt].amount : null;
+      const sum = bpAllocSum(bt), over = cap != null && sum > cap;
+      const rows = sups.length ? sups.map((sup) => `<tr><td>${esc(sup)}</td><td><input type="number" step="0.001" value="${bpAllocOf(bt, sup)}" onchange="bpSaveAlloc('${bt}',this.dataset.sup,this.value)" data-sup="${esc(sup)}" style="width:120px" ${isSM && !closed ? "" : "disabled"}></td></tr>`).join("") : `<tr><td colspan="2"><div class="empty">${t("noAssign")}</div></td></tr>`;
+      return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bp_allocated")}: <span class="mono ${over ? "" : ""}" style="${over ? "color:var(--danger)" : ""}">${KD(sum)}${cap != null ? " / " + KD(cap) : ""}</span>${over ? " ⚠" : ""}</summary><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("supervisor")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
+    }).join("");
+    allocPanel = `<div class="panel"><header><h3>${t("bp_alloc")}</h3></header><div class="body">${blocks}</div></div>`;
+  }
+  document.getElementById("rv").innerHTML = monthBar + capsPanel + spendPanel + allocPanel;
+}
+async function bpSaveCap(bt) {
+  const amount = document.getElementById("cap_" + bt).value;
+  const note = document.getElementById("capn_" + bt).value;
+  try { await api("/budget-caps", { method: "POST", body: { month: bpMonth, budgetType: bt, amount, note } }); toast(t("saved")); vBudgetPlan(); }
+  catch (e) { toast(e.message); }
+}
+async function bpCloseMonth(close) {
+  if (!confirm(close ? t("bp_close") + "؟" : t("bp_reopen") + "؟")) return;
+  try { await api("/budget-month/close", { method: "POST", body: { month: bpMonth, closed: close } }); toast(t("saved")); vBudgetPlan(); }
+  catch (e) { toast(e.message); }
+}
+async function bpSaveAlloc(bt, sup, amount) {
+  try { await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } }); toast(t("saved")); vBudgetPlan(); }
+  catch (e) { toast(e.message); }
 }
 // Admin-only: letters that cleared the whole chain and are ready to print.
 function vPrintQueue() {

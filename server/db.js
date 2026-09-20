@@ -506,6 +506,31 @@ function migrate() {
       budget_type TEXT NOT NULL,
       updated_at  TEXT
     )`);
+  // Monthly budget planning. Admin sets a per-type ceiling for each month, closes
+  // the month (تسكيرة), then opens the next. The sales manager splits each type's
+  // ceiling across supervisors. Spend is tracked from letters two ways: the
+  // letter value and the debit-note value. 'offinv' (خارج الاستثمار) is uncapped.
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_months (
+      month     TEXT PRIMARY KEY,          -- 'YYYY-MM'
+      closed    INTEGER NOT NULL DEFAULT 0,
+      closed_by INTEGER, closed_at TEXT, created_at TEXT
+    )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_caps (
+      month       TEXT NOT NULL,
+      budget_type TEXT NOT NULL,
+      amount      REAL,                     -- NULL = open (offinv)
+      note        TEXT,
+      updated_at  TEXT,
+      PRIMARY KEY (month, budget_type)
+    )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc (
+      month       TEXT NOT NULL,
+      budget_type TEXT NOT NULL,
+      supervisor  TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, budget_type, supervisor)
+    )`);
   // Backfill for letters created before the chain existed: an already-approved
   // letter is treated as ready to print; a still-pending one enters the chain at
   // the first (supervisor) stage. Rejected letters keep a null stage.
