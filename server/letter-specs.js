@@ -32,8 +32,6 @@ const SIGN = {
   salesops: { role: 'مدير عمليات البيع والتسويق', name: 'أحمد شوقي' },
   gm: { role: 'المدير العام', name: 'راشد المنيع' },
   execadmin: { role: 'المدير التنفيذي الإداري', name: 'عماد فايز الرفاعي' },
-  smkt: { role: 'Sales Manager – SMKT', name: 'Muhammad Adnan Iqbal' },
-  ecom: { role: 'Sales Manager – SMKT & E-Commerce', name: 'Muhammad Adnan Iqbal' },
 };
 // Selectable signatories for the Union letters: the GM or the executive
 // administrative director (each choice carries its own role + name).
@@ -271,31 +269,6 @@ const LETTER_SPECS = [
     signatory: SIGN.coop,
   },
 
-  /* ---------- 11) Ramiz — new items (اعتماد أصناف جديدة) ---------- */
-  {
-    k: 'ramiz', ar: 'رامز — اعتماد أصناف جديدة', en: 'Ramiz — New Items',
-    group: 'market', lang: 'ar', recipient: 'free', recipientDefault: 'سوق رامز المركزي',
-    debitFlow: false, valueMode: 'none',
-    subject: { ar: 'اعتماد اصناف جديدة', en: 'New Items Approval' },
-    intro: {
-      ar: 'يسر الشركة المتحدة المتميزة تعديل اسعار منتجاتنا ليتم اعتمادها لديكم في افرع اسواقكم.',
-      en: 'United Distinctive Co. is pleased to update our product prices for approval in your outlets.',
-    },
-    table: {
-      title: { ar: 'الأصناف', en: 'Items' },
-      cols: [
-        { key: 'name', ar: 'الصنف بالعربي', en: 'Item', type: 'text', wide: true },
-        { key: 'barcodeOld', ar: 'الباركود الحالي', en: 'Old barcode', type: 'text' },
-        { key: 'barcodeNew', ar: 'الباركود الجديد', en: 'New barcode', type: 'text' },
-        { key: 'costOld', ar: 'التكلفة الحالية', en: 'Old cost', type: 'num' },
-        { key: 'costNew', ar: 'التكلفة الجديدة', en: 'New cost', type: 'num' },
-        { key: 'price', ar: 'سعر البيع', en: 'Sell price', type: 'num' },
-      ],
-    },
-    closing: ['نرجو اعتماد الاصناف اعلاه في اقرب وقت .', 'و تقبلوا فائق الاحترام و التقدير'],
-    signatory: SIGN.coop,
-  },
-
   /* ---------- 8a) UOC — supplementary items request to the Union (الكتاب الأول) ----------
    * Stage 1 of the new-item approval cycle: the company's letter to the Union
    * requesting approval of a supplementary item. Mirrors the real 10057/11677
@@ -362,107 +335,6 @@ const LETTER_SPECS = [
     signatory: SIGN.gm, signChoices: GM_CHOICES,
   },
 
-  /* ---------- 7) Promo Support Debit Note (English) ---------- */
-  {
-    k: 'promo', ar: 'دعم برومو (Promo Support DN)', en: 'Promo Support DN',
-    group: 'export', lang: 'en', recipient: 'free', debitFlow: false, valueMode: 'sum:amount',
-    subject: { ar: '[{principal}] Promo Support for {period}', en: '[{principal}] Promo Support for {period}' },
-    intro: {
-      ar: 'As agreed, we confirm KD {value}/- as the promo support for {period}.',
-      en: 'As agreed, we confirm KD {value}/- as the promo support for {period}.',
-    },
-    fields: [
-      { key: 'dept', ar: 'القسم', en: 'Department', type: 'text' },
-      { key: 'principal', ar: 'Principal', en: 'Principal', type: 'text' },
-      { key: 'period', ar: 'الفترة', en: 'Period', type: 'text' },
-    ],
-    table: {
-      title: { ar: 'التفاصيل', en: 'Details' },
-      cols: [
-        { key: 'desc', ar: 'Description', en: 'Description', type: 'text', wide: true },
-        { key: 'amount', ar: 'Amount (KD)', en: 'Amount (KD)', type: 'num' },
-      ],
-    },
-    closing: ['Thanks, and Regards.'],
-    signatory: SIGN.ecom,
-  },
-
-  /* ---------- 6) Credit Note (English) ---------- */
-  {
-    k: 'credit', ar: 'إشعار دائن (Credit Note)', en: 'Credit Note',
-    group: 'export', lang: 'en', recipient: 'free', debitFlow: false, valueMode: 'sum:amount',
-    subject: { ar: 'Credit Note {title}', en: 'Credit Note {title}' },
-    intro: {
-      ar: 'We are pleased to submit this credit note against {reason}:',
-      en: 'We are pleased to submit this credit note against {reason}:',
-    },
-    fields: [
-      { key: 'title', ar: 'العميل/العنوان', en: 'Title', type: 'text' },
-      { key: 'reason', ar: 'السبب', en: 'Reason', type: 'text' },
-      { key: 'settled', ar: 'ملاحظة التسوية', en: 'Settlement note', type: 'text' },
-    ],
-    table: {
-      title: { ar: 'التفاصيل', en: 'Details' },
-      cols: [
-        { key: 'desc', ar: 'Details', en: 'Details', type: 'text', wide: true },
-        { key: 'amount', ar: 'Amounts (KD)', en: 'Amounts (KD)', type: 'num' },
-      ],
-    },
-    closing: ['Kind Regards,'],
-    signatory: SIGN.smkt,
-  },
-
-  /* ---------- 9) IFA — Promo Price Support (English) ---------- */
-  {
-    k: 'ifa', ar: 'IFA — دعم سعر برومو', en: 'IFA Promo Price Support',
-    group: 'export', lang: 'en', recipient: 'free', debitFlow: false, valueMode: 'sum:pdTotal',
-    subject: { ar: 'PROMO PRICE SUPPORT.', en: 'PROMO PRICE SUPPORT.' },
-    intro: {
-      ar: 'As agreed, we confirm KD {value}/- as promo price support during the promotion from {from} till {to} for the below items.',
-      en: 'As agreed, we confirm KD {value}/- as promo price support during the promotion from {from} till {to} for the below items.',
-    },
-    fields: [
-      { key: 'attn', ar: 'Attn', en: 'Attn', type: 'text' },
-      { key: 'from', ar: 'من', en: 'From', type: 'text' },
-      { key: 'to', ar: 'إلى', en: 'To', type: 'text' },
-    ],
-    table: {
-      title: { ar: 'Items', en: 'Items' },
-      cols: [
-        { key: 'promoDate', ar: 'PROMO DATE', en: 'PROMO DATE', type: 'text' },
-        { key: 'article', ar: 'ARTICLE', en: 'ARTICLE', type: 'text' },
-        { key: 'desc', ar: 'DESCRIPTION', en: 'DESCRIPTION', type: 'text', wide: true },
-        { key: 'cpMap', ar: 'CP/MAP', en: 'CP/MAP', type: 'num' },
-        { key: 'promoRsp', ar: 'PROMO RSP', en: 'PROMO RSP', type: 'num' },
-        { key: 'pdUnit', ar: 'PD Value', en: 'PD Value', type: 'num' },
-        { key: 'soldQty', ar: 'SOLD QTY', en: 'SOLD QTY', type: 'num' },
-        { key: 'pdTotal', ar: 'PD Total', en: 'PD Total', type: 'num' },
-      ],
-    },
-    closing: ['Thanks, and Regards'],
-    signatory: SIGN.smkt,
-  },
-
-  /* ---------- 10) Addendum (English) ---------- */
-  {
-    k: 'addendum', ar: 'ملحق اتفاقية (Addendum)', en: 'Addendum',
-    group: 'export', lang: 'en', recipient: 'free', debitFlow: false, valueMode: 'none',
-    subject: { ar: 'Business Agreement Addendum', en: 'Business Agreement Addendum' },
-    intro: {
-      ar: 'Please find below the agreed counter-parts, to be attached as an addendum to the original business agreement:',
-      en: 'Please find below the agreed counter-parts, to be attached as an addendum to the original business agreement:',
-    },
-    table: {
-      title: { ar: 'Rebate Break-down', en: 'Rebate Break-down' },
-      cols: [
-        { key: 'item', ar: 'Item', en: 'Item', type: 'text' },
-        { key: 'rebate', ar: 'Rebate', en: 'Rebate', type: 'text' },
-        { key: 'counter', ar: 'Counter parts', en: 'Counter parts', type: 'text', wide: true },
-      ],
-    },
-    closing: ['Regards,'],
-    signatory: { role: '', name: '' },
-  },
 ];
 
 const SPEC_BY_KEY = Object.fromEntries(LETTER_SPECS.map((s) => [s.k, s]));
