@@ -17,7 +17,52 @@ function modeOf(type) {
   if (SPEC_BY_KEY[type]) return 'spec';
   return null;
 }
-const getCoop = db.prepare('SELECT mains, listing_markets FROM coops WHERE name = ?');
+const getCoop = db.prepare('SELECT code, mains, listing_markets FROM coops WHERE name = ?');
+const getCoopContracts = db.prepare(
+  "SELECT value_mode, pct, value, value_kind, period_from, period_to, status FROM contract_hdr WHERE pcode = ? AND kind <> 'addendum'"
+);
+
+// Letter types whose cost the contract percentage already bundles (clause 3 +
+// the % decomposition: rent + festivals + price-diff + listing + returns). When
+// a co-op is on a percentage/CDA contract, billing these separately is a
+// potential double-charge and is flagged (never blocked).
+const BUNDLED_TYPES = new Set([
+  'priceoff', 'listing', 'listing_dn', 'listing_supp', 'stand', 'pallet',
+  'rentstand', 'rentdebit', 'priceupd', 'changeprice',
+]);
+// Types that themselves ARE the contract percentage being drawn down.
+const REBATE_TYPES = new Set(['cda_pct']);
+
+// Non-blocking contract-compliance checks surfaced on the create response.
+function contractWarnings(coopName, type, body, value, dateStr) {
+  const out = [];
+  if (!coopName) return out;
+  const c = getCoop.get(coopName);
+  if (!c || !c.code) return out;
+  const rows = getCoopContracts.all(c.code);
+  if (!rows.length) { out.push({ code: 'NO_CONTRACT', msg: 'لا يوجد عقد مسجّل لهذه الجمعية' }); return out; }
+  const date = String(dateStr || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
+  // Governing contract: one whose period covers the letter date, else the most
+  // recent by end date.
+  const covering = rows.filter((r) => (!r.period_from || r.period_from <= date) && (!r.period_to || r.period_to >= date));
+  const gov = covering[0] || rows.slice().sort((a, b) => String(b.period_to || '').localeCompare(String(a.period_to || '')))[0];
+  if (!covering.length && gov && gov.period_to) {
+    out.push({ code: 'EXPIRED_CONTRACT', msg: `العقد الحاكم منتهٍ (انتهى ${gov.period_to}) — يُفوتَر بلا عقد ساري` });
+  }
+  const pctContract = rows.find((r) => r.value_mode === 'pct' && r.pct > 0);
+  if (pctContract) {
+    // Rate over-claim: a rebate letter billed above the contracted percentage.
+    if (REBATE_TYPES.has(type)) {
+      const asked = num(body.pct);
+      if (asked > 0 && asked > pctContract.pct + 0.001) {
+        out.push({ code: 'RATE_OVERCLAIM', msg: `النسبة المطلوبة ${asked}% أعلى من نسبة العقد ${pctContract.pct}%` });
+      }
+    } else if (BUNDLED_TYPES.has(type)) {
+      out.push({ code: 'BUNDLED_IN_PCT', msg: `هذا البند مغطّى بنسبة العقد (${pctContract.pct}%) — احذر الدفع المزدوج` });
+    }
+  }
+  return out;
+}
 
 // The set of co-op (parent) names a salesman/supervisor may address, derived
 // from the outlets master via their PF code. null == unrestricted (management).
@@ -227,7 +272,10 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
     details: { lysal, type, coop, recipient, brand: req.body.brand || '', sales, value: calc.value },
   });
   const created = db.prepare('SELECT * FROM letters WHERE id = ?').get(id);
-  res.json({ ok: true, id, lysal, num: num_, value: calc.value, letter: created });
+  // Contract-compliance advisories (never block the letter — informational).
+  let warnings = [];
+  try { warnings = contractWarnings(coop, type, req.body, calc.value, req.body.date); } catch (e) { warnings = []; }
+  res.json({ ok: true, id, lysal, num: num_, value: calc.value, letter: created, warnings });
 }));
 
 // DELETE /api/letters/:id  (own draft, or admin)

@@ -723,11 +723,11 @@ async function loadState() {
   DB.ref = SEED;
   if (s.year) YEAR = s.year;
 }
-function toast(m) {
+function toast(m, ms) {
   const t = document.getElementById("toast");
   t.textContent = m;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1900);
+  setTimeout(() => t.classList.remove("show"), ms || 1900);
 }
 function refNo(n) {
   return "LYSAL/" + n + "/" + YEAR;
@@ -1833,10 +1833,18 @@ async function saveSpecLetter(spec) {
     await loadState();
     closeModal();
     toast(t("savedLetter"));
+    flashWarnings(r.warnings);
     render();
     const L = DB.letters.find((x) => x.id === r.id);
     if (L) openDoc(L, true);
   } catch (e) { toast(e.message); }
+}
+// Contract-compliance advisories returned by the server on letter creation.
+// Non-blocking: the letter is already saved; these just alert the user.
+function flashWarnings(warnings) {
+  if (!Array.isArray(warnings) || !warnings.length) return;
+  // Stagger so each advisory is readable (the toast is a single shared element).
+  warnings.forEach((w, i) => setTimeout(() => toast("⚠️ " + (w && w.msg ? w.msg : w), 3200), 2200 + 2600 * i));
 }
 async function saveLetter() {
   const type = document.getElementById("fType").value;
@@ -1889,6 +1897,7 @@ async function saveLetter() {
     await loadState();
     closeModal();
     toast(t("savedLetter"));
+    flashWarnings(r.warnings);
     render();
     const L = DB.letters.find((x) => x.id === r.id);
     if (L) openDoc(L, true);
