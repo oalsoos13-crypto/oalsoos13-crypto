@@ -463,6 +463,23 @@ const T = {
   saveDN: { ar: "حفظ الإشعار", en: "Save note" },
   dnSaved: { ar: "تم حفظ الإشعار", en: "Debit note saved" },
   attachments: { ar: "المرفقات (صور/PDF)", en: "Attachments (images/PDF)" },
+  camera: { ar: "الكاميرا", en: "Camera" },
+  attachImg: { ar: "صورة / PDF", en: "Image / PDF" },
+  dnNeeded: { ar: "أدخل إشعار الخصم", en: "Enter debit note" },
+  dnAwaitPrint: { ar: "بانتظار الطباعة", en: "Awaiting print" },
+  st_waitAdmin: { ar: "بانتظار اعتماد الأدمن", en: "Awaiting admin approval" },
+  pendDNTitle: { ar: "إشعارات بانتظار اعتماد الأدمن", en: "Debit notes awaiting admin approval" },
+  // Monitoring screen.
+  r_monitor: { ar: "شاشة المراقبة", en: "Monitoring" },
+  r_monitor_d: { ar: "اعتماد الإشعارات والملخّص التجميعي للكتب المالية.", en: "Approve debit notes and the aggregate summary." },
+  budgetType: { ar: "نوع الباجت", en: "Budget type" },
+  mon_sup: { ar: "المشرف", en: "Supervisor" },
+  noSup: { ar: "بدون مشرف", en: "No supervisor" },
+  mon_awaiting: { ar: "كتب بانتظار إدخال الإشعار", en: "Letters awaiting debit-note entry" },
+  mon_summary: { ar: "الملخّص التجميعي", en: "Aggregate summary" },
+  mon_bySales: { ar: "حسب المندوب", en: "By salesman" },
+  mon_byCoop: { ar: "حسب الجمعية", en: "By co-op" },
+  mon_byOutlet: { ar: "حسب الأوتليت", en: "By outlet" },
   st_pending: { ar: "بانتظار الإشعار", en: "Awaiting note" },
   st_done: { ar: "مكتمل", en: "Completed" },
   printLetter: { ar: "طباعة الكتاب", en: "Print letter" },
@@ -929,6 +946,7 @@ function render() {
     salesMonthly: vSalesMonthly,
     contracts: vContracts,
     printQueue: vPrintQueue,
+    monitor: vMonitor,
   }[rk];
   if (view) view();
   else renderHome();
@@ -1008,6 +1026,7 @@ async function doChangePw() {
   }
 }
 const ADMIN_ROLES = [
+  { k: "monitor", ic: "📡" },
   { k: "printQueue", ic: "🖨" },
   { k: "outlets", ic: "🏪" },
   { k: "products", ic: "📦" },
@@ -1334,7 +1353,7 @@ let distOutlets = [];
 // his to sign) and the manager stage of debit-note approvals.
 function vSalesManager() {
   document.getElementById("rv").innerHTML =
-    `${stageLettersPanel("sales_manager")}${mgrApprovalsPanel()}`;
+    `${stageLettersPanel("sales_manager")}`;
 }
 async function vDivision() {
   const pool = distPool(),
@@ -1447,7 +1466,6 @@ function vSupervisor() {
   document.getElementById("rv").innerHTML =
     `<div class="cards">${card("accent", t("c_recv"), KD(recv), 1)}${card("", t("c_rowsN"), myRows.length, 0)}</div>
   ${stageLettersPanel("supervisor")}
-  ${supApprovalsPanel(me)}
   <div class="panel"><header><h3>${t("myAssignments")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("salesman")}</th><th>${t("mainCoop")}</th><th>${t("outlet")}</th><th>${t("wob")}</th><th>${t("amount")} (${t("kd")})</th></tr></thead><tbody>${myRows.length ? myRows.map((r) => `<tr><td>${esc(r.sales)}</td><td>${esc(r.coop)}</td><td>${esc(r.outlet)}</td><td class="mono">${+r.wob || 0}</td><td class="mono">${KD(rowAmt(r))}</td></tr>`).join("") : `<tr><td colspan="5"><div class="empty">${t("noAssign")}</div></td></tr>`}</tbody></table></div></div>
   <div class="panel"><header><h3>${t("coopsRef")}</h3><span class="pill-info">${DB.ref.coops.length} ${t("coopsN")}</span></header><div class="tbl-wrap" style="max-height:300px"><table><thead><tr><th>${t("coop")}</th><th>${t("mainOut")}</th><th>${t("branches")}</th></tr></thead><tbody>${DB.ref.coops.map((c) => `<tr><td>${esc(c.n)}</td><td class="mono">${c.m}</td><td>${c.b}</td></tr>`).join("")}</tbody></table></div></div>`;
 }
@@ -1457,6 +1475,55 @@ function vLettersHistory() {
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
   const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></td></tr>`).join("");
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+}
+/* ---------- monitoring screen (شاشة المراقبة) ---------- */
+// Grouping dimension for the aggregate tree: salesman | coop | outlet (always
+// nested under the supervisor). Toggled by the buttons at the top.
+let monitorDim = "salesman";
+function setMonitorDim(d) { monitorDim = d; vMonitor(); }
+function noteActiveOf(L) { return DB.notes.find((n) => n.letterId === L.id && n.status !== "rejected"); }
+function supOfSales(sales) { const d = DB.dist.find((x) => x.sales === sales); return (d && d.sup) || t("noSup"); }
+function monVal(L) { const n = noteActiveOf(L); return n ? (+n.value || 0) : (+L.value || 0); }
+function monDimValue(L) {
+  if (monitorDim === "coop") return coopAr(L.coop) || L.coop || "—";
+  if (monitorDim === "outlet") return L.recipient || coopAr(L.coop) || "—";
+  return L.sales || "—";
+}
+function vMonitor() {
+  // Only monetary letters (money) participate in the debit-note monitoring.
+  const mon = DB.letters.filter((l) => (+l.value || 0) > 0);
+  const awaiting = mon.filter((L) => !!L.printedAt && !noteActiveOf(L));
+  // Build supervisor -> dimension -> letters tree.
+  const tree = {};
+  mon.forEach((L) => {
+    const s = supOfSales(L.sales); tree[s] = tree[s] || {};
+    const dv = monDimValue(L); (tree[s][dv] = tree[s][dv] || []).push(L);
+  });
+  const dimLabel = monitorDim === "coop" ? t("coop") : monitorDim === "outlet" ? t("outlet") : t("salesman");
+  const rowFor = (L) => {
+    const n = noteActiveOf(L);
+    const dnBtn = n ? `<button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>` : "";
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopAr(L.coop) || L.coop || "")}</td><td>${esc(L.recipient || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}</div></td></tr>`;
+  };
+  const letterTbl = (arr) => `<table><thead><tr><th>${t("letterNo")}</th><th>${t("budgetType")}</th><th>${t("coop")}</th><th>${t("outlet")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_status")}</th><th></th></tr></thead><tbody>${arr.map(rowFor).join("")}</tbody></table>`;
+  const sups = Object.keys(tree).sort();
+  const treeHtml = sups.length ? sups.map((s) => {
+    const groups = tree[s];
+    const supTotal = Object.values(groups).flat().reduce((a, L) => a + monVal(L), 0);
+    const supCount = Object.values(groups).flat().length;
+    const inner = Object.keys(groups).sort().map((dv) => {
+      const arr = groups[dv];
+      const sub = arr.reduce((a, L) => a + monVal(L), 0);
+      return `<details class="mon-node"><summary><b>${esc(dimLabel)}:</b> ${esc(dv)} — <span class="mono">${KD(sub)} ${t("kd")}</span> <span class="pill-info" style="padding:0 7px">${arr.length}</span></summary><div class="tbl-wrap" style="margin:8px 0 4px">${letterTbl(arr.slice().reverse())}</div></details>`;
+    }).join("");
+    return `<details class="mon-node mon-sup"><summary><b>${t("mon_sup")}:</b> ${esc(s)} — <span class="mono">${KD(supTotal)} ${t("kd")}</span> <span class="pill-info" style="padding:0 7px">${supCount}</span></summary><div style="padding:6px 0 6px 14px">${inner}</div></details>`;
+  }).join("") : `<div class="empty">${t("noLetters")}</div>`;
+  const grand = mon.reduce((a, L) => a + monVal(L), 0);
+  const toggle = (d, lbl) => `<button class="btn ${monitorDim === d ? "primary" : "ghost"} sm" onclick="setMonitorDim('${d}')">${lbl}</button>`;
+  document.getElementById("rv").innerHTML =
+    `${dnApprovalsPanel()}
+     <div class="panel"><header><h3>${t("mon_awaiting")} (${awaiting.length})</h3></header><div class="tbl-wrap">${awaiting.length ? letterTbl(awaiting.slice().reverse()) : `<div class="empty">${t("noPending")}</div>`}</div></div>
+     <div class="panel"><header><h3>${t("mon_summary")} — <span class="mono">${KD(grand)} ${t("kd")}</span></h3><div class="actions">${toggle("salesman", t("mon_bySales"))}${toggle("coop", t("mon_byCoop"))}${toggle("outlet", t("mon_byOutlet"))}</div></header><div class="body">${treeHtml}</div></div>`;
 }
 // Admin-only: letters that cleared the whole chain and are ready to print.
 function vPrintQueue() {
@@ -1581,16 +1648,22 @@ function tblSalesLetters(list) {
   return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("coop")}</th><th>${t("th_brand")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list
     .map((L) => {
       const isPrice = L.type === "changeprice" || !!specOf(L.type);
-      const done = L.status === "noted";
-      const n = DB.notes.find((x) => x.letterId === L.id);
-      const na = (n && n.attachments && n.attachments.length) || 0;
-      const statusCell = `${letterApprovalTag(L)}${n ? " " + noteStatusTag(n) : ""}${na ? ` <span class="pill-info" style="padding:1px 7px">📎 ${na}</span>` : ""}`;
-      const dnBtn = isPrice
-        ? ""
-        : done
-          ? `<button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>`
-          : `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
+      const monetary = (+L.value || 0) > 0;
+      const printed = !!L.printedAt;
+      // The active (non-rejected) debit note for this letter, if any.
+      const active = DB.notes.find((x) => x.letterId === L.id && x.status !== "rejected");
+      const na = (active && active.attachments && active.attachments.length) || 0;
+      // Monetary letters need a DN once printed; show where they stand.
+      const dnState = active
+        ? " " + noteStatusTag(active)
+        : (monetary ? (printed ? ` <span class="pill-info" style="padding:1px 7px">${t("dnNeeded")}</span>` : ` <span class="pill-info" style="padding:1px 7px">${t("dnAwaitPrint")}</span>`) : "");
+      const statusCell = `${letterApprovalTag(L)}${dnState}${na ? ` <span class="pill-info" style="padding:1px 7px">📎 ${na}</span>` : ""}`;
+      let dnBtn = "";
+      if (monetary) {
+        if (active) dnBtn = `<button class="btn primary sm" onclick="openDocById('${active.id}')">${t("viewDN")}</button>`;
+        else if (printed) dnBtn = `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
+      }
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -1605,7 +1678,12 @@ function openDNForm(id) {
      <div class="field"><label>${t("th_value")} (${t("kd")})</label><input id="dnVal" type="number" step="0.001" value="${L.value}"></div>
      <div class="field"><label>${t("fDate")}</label><input id="dnDate" type="date" value="${L.date || new Date().toISOString().slice(0, 10)}"></div>
    </div>
-   <div class="field" style="margin-top:14px"><label>${t("attachments")}</label><input type="file" multiple accept="image/*,.pdf" onchange="onAttach(this)"></div>
+   <div class="field" style="margin-top:14px"><label>${t("attachments")}</label>
+     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+       <label class="btn gold sm" style="cursor:pointer">📷 ${t("camera")}<input type="file" accept="image/*" capture="environment" onchange="onAttach(this)" style="display:none"></label>
+       <label class="btn ghost sm" style="cursor:pointer">🖼 ${t("attachImg")}<input type="file" multiple accept="image/*,.pdf" onchange="onAttach(this)" style="display:none"></label>
+     </div>
+   </div>
    <div id="attList" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveDN('${id}')">${t("saveDN")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
   </div>`);
@@ -2062,42 +2140,28 @@ async function delLetter(id) {
 function noteStatusTag(n) {
   const s = n.status || "approved";
   const map = {
-    pending_sup: ["draft", t("st_waitSup")],
-    pending_mgr: ["draft", t("st_waitMgr")],
+    pending: ["draft", t("st_waitAdmin")],
+    pending_sup: ["draft", t("st_waitAdmin")],
+    pending_mgr: ["draft", t("st_waitAdmin")],
     approved: ["appr", t("st_approved2")],
     rejected: ["", t("st_rejected")],
   };
   const a = map[s] || ["appr", t("st_approved2")];
-  return `<span class="tag ${a[0]}">${a[1]}</span>`;
+  return `<span class="tag ${a[0]}" ${s === "rejected" && n.rejectReason ? `title="${esc(n.rejectReason)}"` : ""}>${a[1]}</span>`;
 }
-function tblApprovals(list, level) {
+// Debit notes awaiting ADMIN approval, with attachments viewer + approve/reject.
+function tblApprovals(list) {
   if (!list.length) return `<div class="empty">${t("noPending")}</div>`;
-  return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(n.coop)}</td><td>${esc(n.sales || "")}</td><td class="mono">${KD(n.value)}</td><td><div class="actions"><button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("view")}</button><button class="btn gold sm" onclick="${level === "sup" ? "supApprove" : "mgrApprove"}('${n.id}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectNote('${n.id}')">${t("reject")}</button></div></td></tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>📎</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(n.coop)}</td><td>${esc(n.sales || "")}</td><td class="mono">${KD(n.value)}</td><td>${(n.attachments && n.attachments.length) || 0}</td><td><div class="actions"><button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveNote('${n.id}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectNote('${n.id}')">${t("reject")}</button></div></td></tr>`).join("")}</tbody></table>`;
 }
-function supApprovalsPanel(me) {
-  const myS = new Set(
-    DB.dist.filter((r) => !me || r.sup === me).map((r) => r.sales),
-  );
-  const pend = DB.notes.filter(
-    (n) => n.status === "pending_sup" && (!me || myS.has(n.sales)),
-  );
-  return `<div class="panel"><header><h3>${t("pendSupTitle")} (${pend.length})</h3></header><div class="tbl-wrap">${tblApprovals(pend, "sup")}</div></div>`;
+// Admin-only debit-note approval queue.
+function dnApprovalsPanel() {
+  const pend = DB.notes.filter((n) => n.status === "pending");
+  return `<div class="panel"><header><h3>${t("pendDNTitle")} (${pend.length})</h3></header><div class="tbl-wrap">${tblApprovals(pend)}</div></div>`;
 }
-function mgrApprovalsPanel() {
-  const pend = DB.notes.filter((n) => n.status === "pending_mgr");
-  return `<div class="panel"><header><h3>${t("pendMgrTitle")} (${pend.length})</h3></header><div class="tbl-wrap">${tblApprovals(pend, "mgr")}</div></div>`;
-}
-async function supApprove(id) {
+async function approveNote(id) {
   try {
-    await api("/notes/" + id + "/approve-sup", { method: "POST" });
-    await loadState();
-    toast(t("apprd"));
-    render();
-  } catch (e) { toast(e.message); }
-}
-async function mgrApprove(id) {
-  try {
-    await api("/notes/" + id + "/approve-mgr", { method: "POST" });
+    await api("/notes/" + id + "/approve", { method: "POST" });
     await loadState();
     toast(t("apprd"));
     render();

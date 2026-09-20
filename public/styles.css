@@ -494,3 +494,11 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 /* The [hidden] attribute must always win over display:grid/flex utilities
    (e.g. spec letters hide the classic coop/outlet row via el.hidden = true). */
 [hidden]{display:none!important}
+
+/* Monitoring aggregate tree */
+.mon-node{border:1px solid var(--line);border-radius:8px;margin:6px 0;background:#fff}
+.mon-node>summary{cursor:pointer;padding:9px 12px;font-size:14px;list-style:none;user-select:none}
+.mon-node>summary::-webkit-details-marker{display:none}
+.mon-node>summary::before{content:"▸ ";color:var(--gold)}
+.mon-node[open]>summary::before{content:"▾ "}
+.mon-sup>summary{background:var(--soft,#f6f8fb);font-weight:700}
