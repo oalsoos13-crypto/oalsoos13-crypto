@@ -29,7 +29,14 @@
 
 const SIGN = {
   coop: { role: 'مدير المبيعات', name: 'سائد الرمحي' },
-  ramiz: { role: 'مدير المبيعات', name: 'محمد اقبال' },
+  // Signed the co-op letters until early June 2026; still needed to reprint
+  // anything issued before the handover.
+  ahmadm: { role: 'مدير المبيعات', name: 'أحمد محمود' },
+  // Covers the private markets (صحاري الديرة، أطلس الجزيرة، سويلم الخير، مانجو…).
+  tamer: { role: 'مدير المبيعات', name: 'تامر حسني' },
+  salesops: { role: 'مدير عمليات البيع والتسويق', name: 'أحمد شوقي' },
+  // Every Ramiz letter in the archive signs the full name.
+  ramiz: { role: 'مدير المبيعات', name: 'محمد عدنان اقبال' },
   gm: { role: 'المدير العام', name: 'راشد المنيع' },
   execadmin: { role: 'المدير التنفيذي الإداري', name: 'عماد فايز الرفاعي' },
   smkt: { role: 'Sales Manager – SMKT', name: 'Muhammad Adnan Iqbal' },
@@ -38,6 +45,9 @@ const SIGN = {
 // Selectable signatories for the Union letters: the GM or the executive
 // administrative director (each choice carries its own role + name).
 const GM_CHOICES = [SIGN.gm, SIGN.execadmin];
+// The co-op letters are signed by whichever sales manager owns the account, so
+// every co-op spec offers the same roster rather than a single fixed name.
+const COOP_CHOICES = [SIGN.coop, SIGN.ahmadm, SIGN.tamer, SIGN.ramiz, SIGN.salesops];
 
 const LETTER_SPECS = [
   /* ---------- 2) Price Updation (زيادة أسعار) ---------- */
@@ -91,8 +101,11 @@ const LETTER_SPECS = [
 
   /* ---------- 5) Rent Stand (إيجار استاند) ---------- */
   {
+    // A permission request, not a charge: none of the archived ايجار استاند
+    // letters carries an amount, and the template never printed one either —
+    // yet valueMode:'direct' made the form reject a submission without it.
     k: 'rentstand', ar: 'إيجار استاند', en: 'Rent Stand',
-    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'none',
     subject: { ar: 'ايجار استاند', en: 'Stand Rental' },
     intro: {
       ar: 'بالاشـارة الى الموضوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقه على ايجار عدد ({count}) استاند بمساحة {size} {place} لمدة {duration} من تاريخ التركيب لعرض منتجات {brand}.',
@@ -104,10 +117,9 @@ const LETTER_SPECS = [
       { key: 'place', ar: 'الموقع', en: 'Place', type: 'text' },
       { key: 'duration', ar: 'المدة', en: 'Duration', type: 'text' },
       { key: 'brand', ar: 'المنتجات', en: 'Products', type: 'text' },
-      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
     ],
     closing: ['وتفضـلوا بقبـول فائـق الاحـترام والتقـدير،،،'],
-    signatory: SIGN.coop,
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
   },
 
   /* ---------- 4b) New-items Listing Debit Note (إشعار + جدول) ---------- */
@@ -116,7 +128,7 @@ const LETTER_SPECS = [
     group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'listingdn',
     subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
     intro: {
-      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـة للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل اعتماد أصناف جديدة.',
+      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل اعتماد أصناف جديدة.',
       en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the listing of new items.',
     },
     table: {
@@ -141,7 +153,7 @@ const LETTER_SPECS = [
     group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
     subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
     intro: {
-      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـة للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) وذلك القيمة إيجـارات عن الفتـرة من {from} حتى {to} وذلك بنـاءً على العقـد المبـرم بيننا.',
+      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) وذلك القيمة إيجـارات عن الفتـرة من {from} حتى {to} وذلك بنـاءً على العقـد المبـرم بيننا.',
       en: 'With reference to the above, kindly approve a debit note against the account of United Distinctive General Trading & Foodstuff Co. for (KD {value}) being rent for the period from {from} to {to}, as per the contract concluded between us.',
     },
     fields: [

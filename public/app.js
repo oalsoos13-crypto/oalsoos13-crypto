@@ -19,6 +19,13 @@ const KD = (n) =>
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
+// Letter dates print as DD/MM/YYYY (the form used by 2046 of the 2642 archived
+// letters). The date inputs hand us an ISO YYYY-MM-DD, which must not reach the
+// page as-is; anything already formatted is passed through untouched.
+function fmtDateAr(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "").trim());
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(s || "");
+}
 // Arabic amount-in-words (تفقيط) for Kuwaiti dinars + fils.
 function _below1000(n) {
   // House style, measured over the 1166 spelled-out amounts in the letter
@@ -2054,7 +2061,7 @@ function signBlock() {
 }
 function metaBlock(rec, isLetter) {
   // Date, then the LYSAL reference directly beneath it, both flush to the left.
-  return `<div class="meta"><div>التاريخ : <b>${esc(rec.date || "")}</b></div><div class="mono">${esc(rec.lysal || "")}</div>${
+  return `<div class="meta"><div>التاريخ : <b>${esc(fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div>${
     !isLetter && rec.coopDN ? `<div class="mono">رقم الإشعار بالجمعية: <b>${esc(rec.coopDN)}</b></div>` : ""
   }</div>`;
 }
@@ -2104,7 +2111,7 @@ function debitLetterInner(rec, isLetter) {
     : "دعم تجاري (CDA).";
   return `${metaBlock(rec, isLetter)}${toBlock(rec)}
   <div class="subj">الموضـوع : عمل إشعار خصم</div>
-  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة، مقابل ${reason}</div>
+  <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامه للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة، مقابل ${reason}</div>
   ${items}${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
   <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
   ${signBlock()}`;
@@ -2141,7 +2148,7 @@ function specDocHTML(rec, spec) {
   const to = en
     ? `<div class="to">${esc(who)}</div>`
     : `<div class="to">السـادة / ${esc(who)} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
-  const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(rec.date || "")}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
+  const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(en ? (rec.date || "") : fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
   const closing = (spec.closing || []).map((l) => `<div class="close">${esc(l)}</div>`).join("");
@@ -2165,7 +2172,7 @@ function listingDnHTML(rec, spec) {
   // Page 1 — debit note text with value + tafqit
   const p1 = `${meta}${to}
     <div class="subj">الموضـوع : عمل إشعار خصم</div>
-    <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة مقابل اعتماد أصناف جديدة.</div>
+    <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامه للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة مقابل اعتماد أصناف جديدة.</div>
     <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock()}`;
   // Page 2 — items table (تحديث بيانات)
   const tbl = specTablePrint(spec.table, rec.items);
