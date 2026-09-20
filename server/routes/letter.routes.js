@@ -57,6 +57,12 @@ const BUNDLED_TYPES = new Set([
 ]);
 // Types that themselves ARE the contract percentage being drawn down.
 const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
+// The four budget classifications a letter can be tagged with.
+const BUDGET_TYPES = new Set(['rental', 'pricediff', 'polypack', 'foc']);
+// Auto-classification: the budget type previously chosen for this letter type.
+function autoBudgetType(letterType) {
+  try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); return r ? r.budget_type : null; } catch (e) { return null; }
+}
 
 // Non-blocking contract-compliance checks surfaced on the create response.
 function contractWarnings(coopName, type, body, value, dateStr) {
@@ -270,9 +276,12 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
   // printable until it clears all stages (supervisor -> sales_manager ->
   // marketing_manager -> sales_ops -> print).
   const custId = String(req.body.custId || '').trim() || null;
+  // Auto-classify by the learned letter-type -> budget-type map (only for
+  // monetary letters, since only those feed the budget summary).
+  const autoBt = (num(calc.value) > 0) ? autoBudgetType(type) : null;
   db.prepare(`INSERT INTO letters
-      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, approved_by, approved_at, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending','pending','supervisor',NULL,NULL,@by,@now)`)
+      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, budget_type, approved_by, approved_at, created_by, created_at)
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending','pending','supervisor',@bt,NULL,NULL,@by,@now)`)
     .run({
       id, num: num_, lysal, type, coop,
       brand: req.body.brand || '', sales,
@@ -280,7 +289,7 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
       principal: req.body.principal || '', note: req.body.note || '',
       value: calc.value, base: calc.base ?? null, pct: calc.pct ?? null,
       items: calc.items ? toJson(calc.items) : null,
-      recipient, meta: metaJson, custId,
+      recipient, meta: metaJson, custId, bt: autoBt,
       by: req.user.id, now,
     });
 
@@ -476,6 +485,29 @@ router.post('/letters/:id/reject', requireRole('supervisor', 'sales_manager', 'm
     .run(req.user.id, now, reason, now, L.id);
   audit.fromReq(req, 'letter.reject', { entityType: 'letter', entityId: L.id, summary: `Rejected letter ${L.lysal} at ${stage}`, details: { reason, stage } });
   res.json({ ok: true });
+}));
+
+// POST /api/letters/:id/budget-type — the sales manager designates which budget
+// a letter belongs to (rental/pricediff/polypack/foc); admin may also set it.
+// The choice is remembered per letter type so future letters auto-classify.
+// Body: { budgetType } ('' clears it).
+router.post('/letters/:id/budget-type', requireRole('sales_manager'), asyncH((req, res) => {
+  const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
+  if (!L) throw notFound('الكتاب غير موجود');
+  const bt = String(req.body.budgetType || '').trim();
+  if (bt && !BUDGET_TYPES.has(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_BUDGET_TYPE');
+  // FOC is booked under the co-op's expenses, so it needs a co-op (+ outlet).
+  if (bt === 'foc' && !(L.coop || L.recipient)) throw badRequest('المجاني يحتاج جمعية/أوتليت', 'FOC_NEEDS_COOP');
+  const now = nowIso();
+  db.prepare('UPDATE letters SET budget_type=?, updated_at=? WHERE id=?').run(bt || null, now, L.id);
+  // Learn the mapping so the next letter of this type is auto-classified.
+  if (bt) {
+    db.prepare(`INSERT INTO budget_type_map (letter_type, budget_type, updated_at) VALUES (?,?,?)
+      ON CONFLICT(letter_type) DO UPDATE SET budget_type=excluded.budget_type, updated_at=excluded.updated_at`)
+      .run(L.type, bt, now);
+  }
+  audit.fromReq(req, 'letter.budget_type', { entityType: 'letter', entityId: L.id, summary: `Set budget type of ${L.lysal} = ${bt || '-'}`, details: { budgetType: bt } });
+  res.json({ ok: true, budgetType: bt || null });
 }));
 
 // POST /api/letters/:id/print — ADMIN ONLY. A letter can be printed only after it

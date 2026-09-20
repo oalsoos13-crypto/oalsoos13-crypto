@@ -473,6 +473,13 @@ const T = {
   r_monitor: { ar: "شاشة المراقبة", en: "Monitoring" },
   r_monitor_d: { ar: "اعتماد الإشعارات والملخّص التجميعي للكتب المالية.", en: "Approve debit notes and the aggregate summary." },
   budgetType: { ar: "نوع الباجت", en: "Budget type" },
+  bt_rental: { ar: "رنتل (إيجارات)", en: "Rental" },
+  bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
+  bt_polypack: { ar: "بولي باك", en: "Poly pack" },
+  bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
+  bt_none: { ar: "غير مصنّف", en: "Unclassified" },
+  mon_byBudget: { ar: "حسب الباجت", en: "By budget" },
+  setBt: { ar: "تصنيف الباجت", en: "Classify budget" },
   mon_sup: { ar: "المشرف", en: "Supervisor" },
   noSup: { ar: "بدون مشرف", en: "No supervisor" },
   mon_awaiting: { ar: "كتب بانتظار إدخال الإشعار", en: "Letters awaiting debit-note entry" },
@@ -1476,6 +1483,18 @@ function vLettersHistory() {
   const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></td></tr>`).join("");
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
 }
+/* ---------- budget-type classification ---------- */
+const BUDGET_TYPE_KEYS = ["rental", "pricediff", "polypack", "foc"];
+function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
+// A <select> to classify a letter's budget type (used by sales manager + admin).
+function budgetTypeSelect(L) {
+  const opts = `<option value="">${t("bt_none")}</option>` + BUDGET_TYPE_KEYS.map((k) => `<option value="${k}" ${L.budgetType === k ? "selected" : ""}>${t("bt_" + k)}</option>`).join("");
+  return `<select onchange="setBudgetType('${L.id}',this.value)" style="max-width:150px">${opts}</select>`;
+}
+async function setBudgetType(id, bt) {
+  try { await api("/letters/" + id + "/budget-type", { method: "POST", body: { budgetType: bt } }); await loadState(); render(); toast(t("saved")); }
+  catch (e) { toast(e.message); }
+}
 /* ---------- monitoring screen (شاشة المراقبة) ---------- */
 // Grouping dimension for the aggregate tree: salesman | coop | outlet (always
 // nested under the supervisor). Toggled by the buttons at the top.
@@ -1487,23 +1506,28 @@ function monVal(L) { const n = noteActiveOf(L); return n ? (+n.value || 0) : (+L
 function monDimValue(L) {
   if (monitorDim === "coop") return coopAr(L.coop) || L.coop || "—";
   if (monitorDim === "outlet") return L.recipient || coopAr(L.coop) || "—";
+  if (monitorDim === "budget") return budgetTypeLabel(L.budgetType);
   return L.sales || "—";
 }
 function vMonitor() {
+  const isAdmin = currentUser.role === "admin";
   // Only monetary letters (money) participate in the debit-note monitoring.
   const mon = DB.letters.filter((l) => (+l.value || 0) > 0);
   const awaiting = mon.filter((L) => !!L.printedAt && !noteActiveOf(L));
+  // The summary shows only letters the sales manager classified into a budget.
+  const classified = mon.filter((L) => !!L.budgetType);
   // Build supervisor -> dimension -> letters tree.
   const tree = {};
-  mon.forEach((L) => {
+  classified.forEach((L) => {
     const s = supOfSales(L.sales); tree[s] = tree[s] || {};
     const dv = monDimValue(L); (tree[s][dv] = tree[s][dv] || []).push(L);
   });
-  const dimLabel = monitorDim === "coop" ? t("coop") : monitorDim === "outlet" ? t("outlet") : t("salesman");
+  const dimLabel = monitorDim === "coop" ? t("coop") : monitorDim === "outlet" ? t("outlet") : monitorDim === "budget" ? t("budgetType") : t("salesman");
   const rowFor = (L) => {
     const n = noteActiveOf(L);
     const dnBtn = n ? `<button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>` : "";
-    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopAr(L.coop) || L.coop || "")}</td><td>${esc(L.recipient || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}</div></td></tr>`;
+    const btCell = isAdmin ? budgetTypeSelect(L) : budgetTypeLabel(L.budgetType);
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopAr(L.coop) || L.coop || "")}</td><td>${esc(L.recipient || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}</div></td></tr>`;
   };
   const letterTbl = (arr) => `<table><thead><tr><th>${t("letterNo")}</th><th>${t("budgetType")}</th><th>${t("coop")}</th><th>${t("outlet")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_status")}</th><th></th></tr></thead><tbody>${arr.map(rowFor).join("")}</tbody></table>`;
   const sups = Object.keys(tree).sort();
@@ -1518,12 +1542,12 @@ function vMonitor() {
     }).join("");
     return `<details class="mon-node mon-sup"><summary><b>${t("mon_sup")}:</b> ${esc(s)} — <span class="mono">${KD(supTotal)} ${t("kd")}</span> <span class="pill-info" style="padding:0 7px">${supCount}</span></summary><div style="padding:6px 0 6px 14px">${inner}</div></details>`;
   }).join("") : `<div class="empty">${t("noLetters")}</div>`;
-  const grand = mon.reduce((a, L) => a + monVal(L), 0);
+  const grand = classified.reduce((a, L) => a + monVal(L), 0);
   const toggle = (d, lbl) => `<button class="btn ${monitorDim === d ? "primary" : "ghost"} sm" onclick="setMonitorDim('${d}')">${lbl}</button>`;
   document.getElementById("rv").innerHTML =
     `${dnApprovalsPanel()}
      <div class="panel"><header><h3>${t("mon_awaiting")} (${awaiting.length})</h3></header><div class="tbl-wrap">${awaiting.length ? letterTbl(awaiting.slice().reverse()) : `<div class="empty">${t("noPending")}</div>`}</div></div>
-     <div class="panel"><header><h3>${t("mon_summary")} — <span class="mono">${KD(grand)} ${t("kd")}</span></h3><div class="actions">${toggle("salesman", t("mon_bySales"))}${toggle("coop", t("mon_byCoop"))}${toggle("outlet", t("mon_byOutlet"))}</div></header><div class="body">${treeHtml}</div></div>`;
+     <div class="panel"><header><h3>${t("mon_summary")} — <span class="mono">${KD(grand)} ${t("kd")}</span></h3><div class="actions">${toggle("budget", t("mon_byBudget"))}${toggle("salesman", t("mon_bySales"))}${toggle("coop", t("mon_byCoop"))}${toggle("outlet", t("mon_byOutlet"))}</div></header><div class="body">${treeHtml}</div></div>`;
 }
 // Admin-only: letters that cleared the whole chain and are ready to print.
 function vPrintQueue() {
@@ -1561,11 +1585,15 @@ function stageLabel(st) { return t("stg_" + st) || st; }
 function stageLettersPanel(stage) {
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
   const pend = DB.letters.filter((l) => l.apprStage === stage && l.approval !== "rejected");
-  const head = `<tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr>`;
+  // The sales manager classifies the budget type while approving.
+  const showBudget = stage === "sales_manager";
+  const btHead = showBudget ? `<th>${t("budgetType")}</th>` : "";
+  const head = `<tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th>${btHead}<th>${t("th_date")}</th><th>${t("th_actions")}</th></tr>`;
   const body = pend.length
     ? `<table><thead>${head}</thead><tbody>${pend.slice().reverse().map((L) => {
         const sig = stageNeedsSig(stage, L) ? ` <span class="pill-info" style="padding:1px 7px">✍ ${t("needsSign")}</span>` : "";
-        return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}${sig}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}','${stage}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div></td></tr>`;
+        const btCell = showBudget ? `<td>${(+L.value || 0) > 0 ? budgetTypeSelect(L) : "—"}</td>` : "";
+        return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}${sig}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) && !((+L.value || 0) > 0) ? "—" : KD(L.value)}</td>${btCell}<td>${esc(L.date || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}','${stage}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div></td></tr>`;
       }).join("")}</tbody></table>`
     : `<div class="empty">${t("noLetters")}</div>`;
   return `<div class="panel"><header><h3>${t("lettersToApprove")} (${pend.length})</h3></header><div class="tbl-wrap">${body}</div></div>`;

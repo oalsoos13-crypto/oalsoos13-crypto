@@ -21,6 +21,7 @@ function mapLetter(r, nameOf) {
     items: fromJson(r.items, null), status: r.status,
     approval: r.approval || 'pending',
     apprStage: r.appr_stage || null,
+    budgetType: r.budget_type || null,
     printedAt: r.printed_at || null, printedBy: r.printed_by, printedByName: nameOf(r.printed_by),
     approvedBy: r.approved_by, approvedByName: nameOf(r.approved_by), approvedAt: r.approved_at,
     rejectedBy: r.rejected_by, rejectedByName: nameOf(r.rejected_by), rejectedAt: r.rejected_at,

@@ -496,6 +496,16 @@ function migrate() {
   addLetterCol('appr_stage', 'TEXT');
   addLetterCol('printed_at', 'TEXT');
   addLetterCol('printed_by', 'INTEGER');
+  // Budget classification (rental / pricediff / polypack / foc). Set on specific
+  // letters by the sales manager or admin; only classified letters appear in the
+  // monitoring summary. A letter-type -> budget-type map lets future letters of
+  // the same type be classified automatically.
+  addLetterCol('budget_type', 'TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_type_map (
+      letter_type TEXT PRIMARY KEY,
+      budget_type TEXT NOT NULL,
+      updated_at  TEXT
+    )`);
   // Backfill for letters created before the chain existed: an already-approved
   // letter is treated as ready to print; a still-pending one enters the chain at
   // the first (supervisor) stage. Rejected letters keep a null stage.
