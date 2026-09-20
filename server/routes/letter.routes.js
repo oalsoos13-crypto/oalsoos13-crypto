@@ -347,6 +347,53 @@ router.delete('/letters/:id', requireRole('salesman', 'marketing', 'division'), 
   res.json({ ok: true });
 }));
 
+// GET /api/letters/suggestions — history-driven autocompletes for the create
+// form. For every free-text field (recipient, salesman, and each spec text
+// field) we return the distinct values used before, most-frequent first, so the
+// rep picks from history instead of retyping — while still free to enter a new
+// value (the frontend renders these as <datalist> comboboxes). Cached briefly.
+const TEXT_FIELD_KEYS = (() => {
+  const set = new Set();
+  for (const s of Object.values(SPEC_BY_KEY)) {
+    for (const f of s.fields || []) if (f.type === 'text') set.add(f.key);
+  }
+  return [...set];
+})();
+let _sugCache = null, _sugAt = 0;
+function distinctCol(col, limit) {
+  // Most-used non-empty distinct values of a plain letters column.
+  return db.prepare(
+    `SELECT ${col} v, COUNT(*) c FROM letters
+      WHERE ${col} IS NOT NULL AND TRIM(${col}) <> ''
+      GROUP BY ${col} ORDER BY c DESC, v ASC LIMIT ?`
+  ).all(limit).map((r) => r.v);
+}
+function distinctMeta(key, limit) {
+  // Most-used non-empty distinct values of a meta.<key> across all letters.
+  return db.prepare(
+    `SELECT json_extract(meta, '$.' || ?) v, COUNT(*) c FROM letters
+      WHERE meta IS NOT NULL AND json_extract(meta, '$.' || ?) IS NOT NULL
+        AND TRIM(json_extract(meta, '$.' || ?)) <> ''
+      GROUP BY v ORDER BY c DESC, v ASC LIMIT ?`
+  ).all(key, key, key, limit).map((r) => r.v);
+}
+function buildSuggestions() {
+  if (_sugCache && Date.now() - _sugAt < 60000) return _sugCache;
+  const fields = {};
+  for (const k of TEXT_FIELD_KEYS) {
+    try { const vals = distinctMeta(k, 60); if (vals.length) fields[k] = vals; } catch (e) { /* skip */ }
+  }
+  let recipients = [], salesmen = [];
+  try { recipients = distinctCol('recipient', 200); } catch (e) { /* */ }
+  try { salesmen = distinctCol('sales', 100); } catch (e) { /* */ }
+  _sugCache = { recipients, salesmen, fields };
+  _sugAt = Date.now();
+  return _sugCache;
+}
+router.get('/letters/suggestions', asyncH((req, res) => {
+  res.json(buildSuggestions());
+}));
+
 // A supervisor may only moderate letters whose co-op is within their scope;
 // management may moderate any.
 function assertCanModerate(req, L) {

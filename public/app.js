@@ -1570,6 +1570,28 @@ function buildProdDatalists() {
   const nm = productCache.map((p) => `<option value="${esc(p.name)}"></option>`).join("");
   host.innerHTML = `<datalist id="prodBC">${bc}</datalist><datalist id="prodNM">${nm}</datalist>`;
 }
+/* ---------- history-driven suggestions (recipient / salesman / spec fields) ----------
+   Every free-text field in the create form becomes a combobox fed by the values
+   used in past letters, so the rep picks from history instead of retyping — and
+   can still type any new value. Values come from GET /letters/suggestions. */
+let SUG = null;
+async function ensureSuggestions() {
+  if (SUG) { buildSugDatalists(); return; }
+  try { SUG = await api("/letters/suggestions"); } catch (e) { SUG = { recipients: [], salesmen: [], fields: {} }; }
+  buildSugDatalists();
+}
+function sugDatalist(id, values) {
+  return `<datalist id="${id}">${(values || []).map((v) => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
+}
+function buildSugDatalists() {
+  if (!SUG) return;
+  let host = document.getElementById("sugDLs");
+  if (!host) { host = document.createElement("div"); host.id = "sugDLs"; host.hidden = true; document.body.appendChild(host); }
+  let h = sugDatalist("sugRecipient", SUG.recipients) + sugDatalist("sugSales", SUG.salesmen);
+  const fields = SUG.fields || {};
+  for (const k in fields) h += sugDatalist("sugf_" + k, fields[k]);
+  host.innerHTML = h;
+}
 // Fill a row object's known columns from a matched product.
 function fillRowFromProduct(row, cols, p) {
   const keys = new Set(cols.map((c) => c.key));
@@ -1640,7 +1662,7 @@ function openLetterForm() {
      <div class="field"><label>${t("coop")}</label>${coopSelectHTML("fCoop", "onCoopChange('f')")}</div>
      <div class="field" id="fOutletWrap"${scopeCoops() ? "" : " hidden"}><label>${t("outlet")}</label><span id="fOutletBox"></span></div>
      <div class="field"><label>${t("fBrand")}</label><select id="fBrand">${DB.ref.brands.map((b) => `<option>${esc(b)}</option>`).join("")}</select></div>
-     <div class="field"><label>${t("salesman")}</label><input id="fSales" value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
+     <div class="field"><label>${t("salesman")}</label><input id="fSales" ${scopeName() ? "" : 'list="sugSales"'} value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
      <div class="field"><label>${t("fPrin")}</label><select id="fPrin">${DB.ref.principals.map((p) => `<option>${p}</option>`).join("")}</select></div>
    </div>
    <div id="typeArea" style="margin-top:16px"></div>
@@ -1648,6 +1670,7 @@ function openLetterForm() {
    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveLetter()">${t("saveLetter")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
   typeChanged();
   ensureProducts();
+  ensureSuggestions();
 }
 /* ---- spec-driven letter form ---- */
 let draftSpecRows = [], draftSpecRows2 = [];
@@ -1666,7 +1689,7 @@ function specFormHTML(spec) {
   else if (spec.recipient === "fixed")
     h += `<div class="field" style="max-width:360px"><label>${t("recipient")}</label><input value="${esc(spec.recipientFixed)}" readonly></div>`;
   else
-    h += `<div class="field" style="max-width:420px"><label>${t("recipient")}</label><input id="spRecipient" value="${esc(spec.recipientDefault || "")}"></div>`;
+    h += `<div class="field" style="max-width:420px"><label>${t("recipient")}</label><input id="spRecipient" list="sugRecipient" value="${esc(spec.recipientDefault || "")}"></div>`;
   if (spec.fields && spec.fields.length)
     h += `<div class="grid g3" style="margin-top:10px">${spec.fields.map((f) => {
       const lbl = esc(LANG === "en" ? f.en : f.ar);
@@ -1674,7 +1697,11 @@ function specFormHTML(spec) {
         return `<div class="field"><label>${lbl}</label><select id="spf_${f.key}">${(f.opts || []).map((o) => `<option value="${esc(o.v)}">${esc(LANG === "en" ? o.en : o.ar)}</option>`).join("")}</select></div>`;
       }
       const def = f.def != null ? ` value="${esc(f.def)}"` : "";
-      return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${def}></div>`;
+      // Text fields become history-fed comboboxes: pick a past value or type a new
+      // one. A missing/empty datalist just behaves like a plain input, and the
+      // browser resolves the list by id once buildSugDatalists() injects it.
+      const listAttr = f.type === "text" ? ` list="sugf_${f.key}"` : "";
+      return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${listAttr}${def}></div>`;
     }).join("")}</div>`;
   // Optional manual reference number + selectable signatory (e.g. GM name).
   let extra = `<div class="field"><label>${t("letterNoOpt")}</label><input id="spLysalNo" type="number" inputmode="numeric" placeholder="${t("letterNoAuto")}"></div>`;
