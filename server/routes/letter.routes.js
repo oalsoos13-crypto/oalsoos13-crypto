@@ -61,6 +61,9 @@ const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
 // الاستثمار) is uncapped and covers the Union letters (supplementary/new items,
 // price increase, data update).
 const BUDGET_TYPES = new Set(['rental', 'pricediff', 'polypack', 'foc', 'offinv']);
+// Letters addressed to the Cooperatives Union. Admin-only to create; they enter
+// the chain at the sales-manager stage (no salesman/supervisor step).
+const UNION_TYPES = new Set(['uoc_supp', 'uoc_union', 'uoc_newitems', 'uoc_dataupd']);
 // Auto-classification: the budget type previously chosen for this letter type.
 function autoBudgetType(letterType) {
   try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); return r ? r.budget_type : null; } catch (e) { return null; }
@@ -223,6 +226,9 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
   const type = String(req.body.type || '');
   const mode = modeOf(type);
   if (!mode) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
+  // Union letters can only be created by the admin.
+  const isUnion = UNION_TYPES.has(type);
+  if (isUnion && req.user.role !== 'admin') throw forbidden('كتب الاتحاد يصدرها المدير فقط', 'UNION_ADMIN_ONLY');
 
   let coop = req.body.coop || '';
   let recipient = null;
@@ -281,10 +287,13 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
   // Auto-classify by the learned letter-type -> budget-type map (only for
   // monetary letters, since only those feed the budget summary).
   const autoBt = (num(calc.value) > 0) ? autoBudgetType(type) : null;
+  // Union letters skip the salesman/supervisor step and enter at the sales manager.
+  const startStage = isUnion ? 'sales_manager' : 'supervisor';
   db.prepare(`INSERT INTO letters
       (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, budget_type, approved_by, approved_at, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending','pending','supervisor',@bt,NULL,NULL,@by,@now)`)
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending','pending',@stage,@bt,NULL,NULL,@by,@now)`)
     .run({
+      stage: startStage,
       id, num: num_, lysal, type, coop,
       brand: req.body.brand || '', sales,
       date: req.body.date || now.slice(0, 10),

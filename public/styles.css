@@ -16,7 +16,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .lang{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:20px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px}
 .lang:hover{background:rgba(255,255,255,.28)}
 .userN{color:#fff;font-weight:700;font-size:13px;margin-inline-end:2px}
-.login-wrap{max-width:400px;margin:60px auto;padding:0 18px}
+.login-wrap{max-width:400px;margin-top:110px;margin-bottom:40px;margin-inline-start:6vw;margin-inline-end:auto;padding:0 18px}
 .login-card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:28px 26px}
 .login-card h2{margin:0 0 4px;color:#123f70;font-size:22px}
 .login-card p{margin:0 0 18px;color:var(--muted);font-size:14px}
@@ -516,10 +516,6 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 .sec-logo{width:94px;height:94px;display:block;filter:drop-shadow(0 3px 6px rgba(14,42,77,.14))}
 .sec-card:hover .sec-logo{transform:translateY(-2px);transition:transform .12s}
 
-/* Faded video background (subtle wash behind everything) */
-.bg-video{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;opacity:.16;pointer-events:none}
-@media (prefers-color-scheme:dark){.bg-video{opacity:.10}}
-
 /* Landing (main screen) with section dropdown */
 .landing{position:relative;min-height:calc(100vh - 120px);padding:24px}
 .landing-brand{position:absolute;top:10px;inset-inline-end:8px;font-weight:800;font-size:20px;color:var(--ink);letter-spacing:.2px;text-shadow:0 1px 2px rgba(255,255,255,.6)}
@@ -530,3 +526,30 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
   background:rgba(255,255,255,.96);border:2px solid var(--line2);border-radius:14px;box-shadow:var(--shadow);cursor:pointer}
 .landing-select::after{content:"▾";position:absolute;inset-inline-start:16px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--gold);pointer-events:none}
 .landing-select select:focus{outline:none;border-color:var(--ink2)}
+
+/* Landing dropdown positioned top-right (not centered) */
+.landing-topsel{position:absolute;top:16px;inset-inline-end:16px;width:min(300px,80vw);z-index:2}
+
+/* Bilingual left side navigation (post-login) */
+.shell{display:flex;direction:ltr;min-height:calc(100vh - 64px);align-items:stretch}
+.sidenav{width:236px;flex-shrink:0;background:rgba(255,255,255,.94);border-inline-end:1px solid var(--line);box-shadow:var(--shadow);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
+.content{flex:1;min-width:0;padding:0 0 30px}
+.content .wrap{padding-inline:18px}
+.rolebar-lite{background:linear-gradient(90deg,#fff,#f2f7fc);border-bottom:1px solid var(--line);padding:14px 18px;margin-bottom:18px}
+.rolebar-lite h2{margin:0;color:var(--ink);font-size:20px}
+.rolebar-lite .sub{color:var(--muted);font-size:13px}
+.nav-item{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:11px 13px;border-radius:10px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:14px;color:var(--text);transition:background .12s,color .12s;direction:ltr}
+.nav-item:hover{background:var(--bg)}
+.nav-item.active{background:var(--ink);color:#fff;font-weight:700;box-shadow:var(--shadow)}
+.nav-item .nav-en{font-weight:600;opacity:.9}
+.nav-item .nav-ar{font-weight:700}
+.nav-item.active .nav-en{opacity:1}
+@media (max-width:760px){
+  .shell{flex-direction:column}
+  .sidenav{width:auto;flex-direction:row;overflow-x:auto;border-inline-end:none;border-bottom:1px solid var(--line);gap:8px}
+  .nav-item{width:auto;flex-direction:column;gap:2px;white-space:nowrap;padding:8px 12px}
+  .nav-item .nav-en{font-size:11px}
+}
+
+/* Remove the built-in brand watermark background from all screens */
+body::before{display:none!important}

@@ -68,11 +68,11 @@ function tafqitKD(value) {
 /* ---------- i18n ---------- */
 let LANG = "ar";
 const T = {
-  barTitle: { ar: "نظام إشعارات الخصم", en: "Debit Note System" },
-  barSub: {
+  barTitle: {
     ar: "UDC · الشركة المتحدة المتميزة للتجارة العامة للمواد الغذائية",
     en: "UDC · United Distinctive Co. for Gen. Trad. for Foodstuffs",
   },
+  barSub: { ar: "", en: "" },
   langBtn: { ar: "EN", en: "ع" },
   roles: { ar: "الأدوار", en: "Roles" },
   back: { ar: "الأدوار", en: "Roles" },
@@ -477,6 +477,12 @@ const T = {
   dnAwaitPrint: { ar: "بانتظار الطباعة", en: "Awaiting print" },
   st_waitAdmin: { ar: "بانتظار اعتماد الأدمن", en: "Awaiting admin approval" },
   pendDNTitle: { ar: "إشعارات بانتظار اعتماد الأدمن", en: "Debit notes awaiting admin approval" },
+  // Union section.
+  r_union: { ar: "اتحاد الجمعيات", en: "Cooperatives Union" },
+  r_union_d: { ar: "كتب الاتحاد: اعتماد أصناف/تحديث/رفع سعر ثم دفعة الجمعيات.", en: "Union letters then co-op batch." },
+  newUnionLetter: { ar: "＋ كتاب اتحاد جديد", en: "New Union letter" },
+  unionCycleHint: { ar: "الدورة: ① كتاب الاتحاد (المدير ينشئ ← سائد ← منير ← العمليات ← طباعة) → ② رفع موافقة الاتحاد → ③ دفعة كتب الجمعيات.", en: "Cycle: ① Union letter (admin→sales mgr→marketing→ops→print) → ② upload Union approval → ③ co-op batch." },
+  unionLetters: { ar: "كتب الاتحاد", en: "Union letters" },
   // Monitoring screen.
   r_monitor: { ar: "شاشة المراقبة", en: "Monitoring" },
   r_monitor_d: { ar: "اعتماد الإشعارات والملخّص التجميعي للكتب المالية.", en: "Approve debit notes and the aggregate summary." },
@@ -910,6 +916,12 @@ function go(r) {
   role = r;
   render();
 }
+// Bilingual sidebar label: English on the left, Arabic on the right.
+function navLabel(k) {
+  const e = T["r_" + k];
+  const ar = e ? e.ar : k, en = e ? e.en : k;
+  return `<span class="nav-en">${esc(en)}</span><span class="nav-ar">${esc(ar)}</span>`;
+}
 function render() {
   applyDir();
   if (!currentUser) {
@@ -929,14 +941,7 @@ function render() {
     return;
   }
   const isAdmin = currentUser.role === "admin";
-  if (isAdmin && !role) {
-    document.getElementById("roleChip").innerHTML = "";
-    renderHome();
-    return;
-  }
-  // Read-only reference/report views each role may open beyond its own home.
-  // Letters/notes-only scope: managers see the letters history (and sales ops the
-  // audit log); everything else is hidden.
+  // Each role's sections (the sidebar). Letters/notes-only scope.
   const EXTRA = {
     sales_manager: ["budgetPlan", "lettersHistory"],
     marketing_manager: ["lettersHistory"],
@@ -944,28 +949,26 @@ function render() {
     supervisor: ["lettersHistory"],
     salesman: [],
   };
-  let rk;
-  if (isAdmin) rk = role;
-  else if (role && (EXTRA[currentUser.role] || []).includes(role)) rk = role;
-  else rk = currentUser.role;
+  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "lettersHistory", "audit", "users", "backup"];
+  const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
+    .filter((k) => !HIDDEN_ROUTES.has(k));
+  let rk = (role && navKeys.includes(role)) ? role : navKeys[0];
   role = rk;
-  document.getElementById("roleChip").innerHTML =
-    `<span class="role-chip">${t("r_" + rk)}</span>`;
-  // Navigation buttons (right side of the role bar).
-  let nav = "";
-  if (isAdmin) {
-    nav = `<button class="back" onclick="go(null)">← ${t("back")}</button>`;
-  } else {
-    const extras = EXTRA[currentUser.role] || [];
-    const btns = extras
-      .filter((v) => v !== rk && !HIDDEN_ROUTES.has(v))
-      .map((v) => `<button class="back" onclick="go('${v}')">${t("r_" + v)}</button>`)
-      .join("");
-    const backBtn = rk !== currentUser.role ? `<button class="back" onclick="go('${currentUser.role}')">← ${t("back")}</button>` : "";
-    nav = backBtn + btns;
-  }
+  document.getElementById("roleChip").innerHTML = "";
+  // Bilingual side navigation (English left, Arabic right within each item).
+  const items = navKeys.map((k) =>
+    `<button class="nav-item ${k === rk ? "active" : ""}" onclick="go('${k}')">${navLabel(k)}</button>`
+  ).join("");
+  const subKey = "r_" + rk + "_d";
+  const sub = T[subKey] ? t(subKey) : "";
   document.getElementById("app").innerHTML =
-    `<div class="rolebar"><div class="wrap"><div><h2>${t("r_" + rk)}</h2><div class="sub">${t("r_" + rk + "_d")}</div></div><div class="navbtns">${nav}</div></div></div><div class="page"><div class="wrap" id="rv"></div></div>`;
+    `<div class="shell">
+      <nav class="sidenav">${items}</nav>
+      <main class="content" dir="${LANG}">
+        <div class="rolebar-lite"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>
+        <div class="wrap" id="rv"></div>
+      </main>
+    </div>`;
   const view = {
     sales_manager: vSalesManager,
     marketing_manager: vMarketingMgr,
@@ -989,6 +992,7 @@ function render() {
     printQueue: vPrintQueue,
     monitor: vMonitor,
     budgetPlan: vBudgetPlan,
+    union: vUnion,
   }[rk];
   if (view) view();
   else renderHome();
@@ -1054,15 +1058,11 @@ function renderLanding() {
   ).join("");
   document.getElementById("app").innerHTML =
     `<div class="landing">
-      <div class="landing-brand">${t("landingTitle")}</div>
-      <div class="landing-center">
-        <h2 class="landing-h">${t("landingSub")}</h2>
-        <div class="landing-select">
-          <select id="secSel" onchange="if(this.value)pickSection(this.value)">
-            <option value="" selected disabled>${t("landingPick")}</option>
-            ${opts}
-          </select>
-        </div>
+      <div class="landing-select landing-topsel">
+        <select id="secSel" onchange="if(this.value)pickSection(this.value)">
+          <option value="" selected disabled>${t("landingPick")}</option>
+          ${opts}
+        </select>
       </div>
     </div>`;
 }
@@ -1147,6 +1147,7 @@ async function doChangePw() {
 // still exist in code but are hidden from the UI per the co-op-only scope.
 const ADMIN_ROLES = [
   { k: "monitor", ic: "📡" },
+  { k: "union", ic: "🏛" },
   { k: "budgetPlan", ic: "💰" },
   { k: "printQueue", ic: "🖨" },
   { k: "lettersHistory", ic: "📜" },
@@ -1731,6 +1732,19 @@ async function bpSaveAlloc(bt, sup, amount) {
   try { await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } }); toast(t("saved")); vBudgetPlan(); }
   catch (e) { toast(e.message); }
 }
+/* ---------- Cooperatives Union section (admin) ---------- */
+function vUnion() {
+  const list = DB.letters.filter((L) => isUnionType(L.type)).slice().reverse();
+  const rows = list.length ? list.map((L) => {
+    const canPrint = currentUser.role === "admin" && L.apprStage === "print";
+    const printBtn = canPrint ? `<button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button>` : "";
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || "الاتحاد")}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${printBtn}</div></td></tr>`;
+  }).join("") : `<tr><td colspan="6"><div class="empty">${t("noLetters")}</div></td></tr>`;
+  document.getElementById("rv").innerHTML =
+    `<div class="panel"><header><h3>${t("unionLetters")} (${list.length})</h3><button class="btn gold sm" onclick="openLetterForm({union:true})">${t("newUnionLetter")}</button></header>
+      <div class="hint" style="padding:6px 16px">${t("unionCycleHint")}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
 // Admin-only: letters that cleared the whole chain and are ready to print.
 function vPrintQueue() {
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
@@ -2040,12 +2054,18 @@ function typeLabel(x) {
 function colLabel(c) {
   return LANG === "en" ? c.en : c.ar;
 }
-function openLetterForm() {
+const UNION_TYPES_FE = ["uoc_supp", "uoc_newitems", "uoc_dataupd", "uoc_union"];
+function isUnionType(k) { return UNION_TYPES_FE.includes(k); }
+// opts.union = true → only Union letter types (admin's Union section);
+// otherwise the normal form excludes Union types.
+function openLetterForm(opts) {
+  const unionOnly = !!(opts && opts.union);
   draftItems = [{ name: "", price: "" }];
   draftPrice = [emptyPriceRow()];
   draftSpecRows = [];
   draftSpecRows2 = [];
   const topts = DB.ref.letterTypes
+    .filter((x) => unionOnly ? isUnionType(x.k) : !isUnionType(x.k))
     .map((x) => `<option value="${x.k}">${esc(typeLabel(x))}</option>`)
     .join("");
   const today = new Date().toISOString().slice(0, 10);

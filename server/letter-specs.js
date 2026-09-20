@@ -335,6 +335,59 @@ const LETTER_SPECS = [
     signatory: SIGN.gm, signChoices: GM_CHOICES,
   },
 
+  /* ---------- 8c) UOC — new items approval to the Union (اعتماد أصناف جديدة) ---------- */
+  {
+    k: 'uoc_newitems', ar: 'اعتماد أصناف جديدة — الاتحاد', en: 'Union New Items',
+    group: 'union', lang: 'ar', recipient: 'fixed', recipientFixed: 'إتحاد الجمعيات التعاونية الاستهلاكية',
+    debitFlow: false, valueMode: 'none',
+    subject: { ar: 'اعتمـاد اصنـاف جديـدة', en: 'New Items Approval' },
+    intro: {
+      ar: 'بالإشـارة إلـى الموضـوع أعـلاه، يـرجـى من سيادتكم الموافقـة علـى اعتمـاد الأصنـاف الجديـدة الموضحـة بالجـدول أدنـاه:',
+      en: 'With reference to the above, kindly approve the new items detailed in the table below:',
+    },
+    table: {
+      title: { ar: 'الأصناف الجديدة', en: 'New items' },
+      cols: [
+        { key: 'item', ar: 'رقم الصنف', en: 'Item #', type: 'text' },
+        { key: 'brand', ar: 'العلامة التجارية', en: 'Brand', type: 'text' },
+        { key: 'name', ar: 'وصف الصنف', en: 'Description', type: 'text', wide: true },
+        { key: 'origin', ar: 'المنشأ', en: 'Origin', type: 'text' },
+        { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
+        { key: 'coopCarton', ar: 'سعر شراء الجمعية', en: 'Coop purchase', type: 'num' },
+        { key: 'consPiece', ar: 'سعر البيع الحبة للمستهلك', en: 'Consumer piece', type: 'num' },
+        { key: 'barcode', ar: 'الباركود', en: 'Barcode', type: 'text' },
+      ],
+    },
+    closing: ['وتفضلـوا بقبـول فائـق الإحتـرام والتقديـر،،،'],
+    signatory: SIGN.gm, signChoices: GM_CHOICES,
+  },
+
+  /* ---------- 8d) UOC — data update to the Union (تحديث بيانات) ---------- */
+  {
+    k: 'uoc_dataupd', ar: 'تحديث بيانات — الاتحاد', en: 'Union Data Update',
+    group: 'union', lang: 'ar', recipient: 'fixed', recipientFixed: 'إتحاد الجمعيات التعاونية الاستهلاكية',
+    debitFlow: false, valueMode: 'none',
+    subject: { ar: 'تحديـث بيانـات اصنـاف', en: 'Items Data Update' },
+    intro: {
+      ar: 'بالإشـارة إلـى الموضـوع أعـلاه، يـرجـى من سيادتكم الموافقـة علـى تحديـث بيانـات الأصنـاف الموضحـة بالجـدول أدنـاه:',
+      en: 'With reference to the above, kindly approve the item-data update detailed in the table below:',
+    },
+    table: {
+      title: { ar: 'تحديث البيانات', en: 'Data update' },
+      cols: [
+        { key: 'item', ar: 'رقم الصنف', en: 'Item #', type: 'text' },
+        { key: 'name', ar: 'وصف الصنف', en: 'Description', type: 'text', wide: true },
+        { key: 'barcodeOld', ar: 'الباركود الحالي', en: 'Old barcode', type: 'text' },
+        { key: 'barcodeNew', ar: 'الباركود الجديد', en: 'New barcode', type: 'text' },
+        { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
+        { key: 'coopCarton', ar: 'سعر شراء الجمعية', en: 'Coop purchase', type: 'num' },
+        { key: 'consPiece', ar: 'سعر البيع الحبة للمستهلك', en: 'Consumer piece', type: 'num' },
+      ],
+    },
+    closing: ['وتفضلـوا بقبـول فائـق الإحتـرام والتقديـر،،،'],
+    signatory: SIGN.gm, signChoices: GM_CHOICES,
+  },
+
 ];
 
 const SPEC_BY_KEY = Object.fromEntries(LETTER_SPECS.map((s) => [s.k, s]));
