@@ -17,6 +17,30 @@ function modeOf(type) {
   if (SPEC_BY_KEY[type]) return 'spec';
   return null;
 }
+// Union circular master (barcode -> registered carton/piece price + circular).
+// The Union price is a CEILING ("الحد الأعلى لسعر الشراء"); billing above it, or
+// billing an unregistered item, is flagged when a letter carries an item table.
+let UNION_PRICES = {};
+try { UNION_PRICES = require('../union_prices.json'); } catch (e) { UNION_PRICES = {}; }
+const bnorm = (s) => { const d = String(s == null ? '' : s).replace(/\D/g, ''); return d ? String(parseInt(d, 10)) : ''; };
+function itemPriceWarnings(items) {
+  const out = [];
+  if (!Array.isArray(items) || !items.length) return out;
+  let above = 0, unreg = 0, checked = 0;
+  for (const it of items) {
+    const bc = bnorm(it.barcode);
+    if (!bc) continue;
+    const u = UNION_PRICES[bc];
+    const price = num(it.coopCarton);
+    if (!u) { unreg++; continue; }
+    checked++;
+    if (price > 0 && u.carton > 0 && price > u.carton * 1.02) above++;
+  }
+  if (above) out.push({ code: 'PRICE_ABOVE_CEILING', msg: `${above} صنف بسعر أعلى من سقف تعميم الاتحاد` });
+  if (unreg) out.push({ code: 'ITEM_UNREGISTERED', msg: `${unreg} صنف غير مسجّل بتعميم الاتحاد` });
+  return out;
+}
+
 const getCoop = db.prepare('SELECT code, mains, listing_markets FROM coops WHERE name = ?');
 const getCoopContracts = db.prepare(
   "SELECT value_mode, pct, value, value_kind, period_from, period_to, status FROM contract_hdr WHERE pcode = ? AND kind <> 'addendum'"
@@ -274,7 +298,10 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
   const created = db.prepare('SELECT * FROM letters WHERE id = ?').get(id);
   // Contract-compliance advisories (never block the letter — informational).
   let warnings = [];
-  try { warnings = contractWarnings(coop, type, req.body, calc.value, req.body.date); } catch (e) { warnings = []; }
+  try {
+    warnings = contractWarnings(coop, type, req.body, calc.value, req.body.date)
+      .concat(itemPriceWarnings(calc.items));
+  } catch (e) { warnings = []; }
   res.json({ ok: true, id, lysal, num: num_, value: calc.value, letter: created, warnings });
 }));
 

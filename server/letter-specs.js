@@ -153,6 +153,113 @@ const LETTER_SPECS = [
     signatory: SIGN.coop,
   },
 
+  /* ---------- 4d) Price-Difference Debit Note (إشعار خصم — فروق أسعار) ----------
+   * The single largest family in the archive (~886 letters). A flat value with
+   * an optional qualifier appended to "فروق اسعار" (مهرجان يوليو / السوق المركزي
+   * / سوق A). Verbatim body per 9218-JLEEB and the 800+ matching letters. */
+  {
+    k: 'pricediff', ar: 'إشعار خصم — فروق أسعار', en: 'Price-Difference Debit Note',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل فروق اسعار{reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being price differences{reason}.',
+    },
+    fields: [
+      { key: 'reason', ar: 'تفصيل إضافي (مهرجان / السوق) — اختياري', en: 'Qualifier (festival / outlet)', type: 'text' },
+      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
+    ],
+    closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
+  /* ---------- 4e) Data-Update Debit Note (إشعار خصم — تحديث بيانات) ----------
+   * ~80 letters. Flat negotiated fee, no table. Optional brand suffix. */
+  {
+    k: 'dataupd_dn', ar: 'إشعار خصم — تحديث بيانات', en: 'Data-Update Debit Note',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل تحديث بيانات{brand}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the item-data update{brand}.',
+    },
+    fields: [
+      { key: 'brand', ar: 'البيان (اختياري: فريتولي الامريكي / ليز السعودي …)', en: 'Qualifier', type: 'text' },
+      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
+    ],
+    closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
+  /* ---------- 4f) Percentage Sales-Rebate Debit Note (خصم % على المبيعات) ----------
+   * The CDA quarterly/monthly rebate drawn down by debit note (البند الثالث). */
+  {
+    k: 'pctrebate', ar: 'إشعار خصم — نسبة على المبيعات', en: 'Percentage Sales Rebate',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل خصم ({pct}%) على اجمالي مبيعات {brand} عن {period} وذلك حسب العقد المبرم بيننا.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being a {pct}% rebate on total {brand} sales for {period}, as per the contract.',
+    },
+    fields: [
+      { key: 'pct', ar: 'النسبة %', en: 'Rate %', type: 'number' },
+      { key: 'brand', ar: 'المنتج / العلامة', en: 'Brand', type: 'text' },
+      { key: 'period', ar: 'الفترة', en: 'Period', type: 'text' },
+      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
+    ],
+    closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
+  /* ---------- 4g) Link Items to Branches (ربط أصناف معتمدة بالفروع) ----------
+   * ~20 letters. No money; approves linking already-listed items to branches. */
+  {
+    k: 'linkitems', ar: 'ربط أصناف معتمدة بالفروع', en: 'Link Items to Branches',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'none',
+    subject: { ar: 'ربــط أصنــاف معتمــدة بالفــروع', en: 'Link Approved Items to Branches' },
+    intro: {
+      ar: 'بالإشـارة الـى الموضـوع اعـلاه ، يرجــى مـن سيادتكـم التكـرم بالموافقـة علـى ربـط الأصنــاف التاليــة :',
+      en: 'With reference to the above, kindly approve linking the following items to the branches:',
+    },
+    table: {
+      title: { ar: 'الأصناف', en: 'Items' },
+      cols: [
+        { key: 'name', ar: 'الصــنف', en: 'Item', type: 'text', wide: true },
+        { key: 'origin', ar: 'المنشــأ', en: 'Origin', type: 'text' },
+        { key: 'pack', ar: 'الشـــد', en: 'Pack', type: 'text' },
+        { key: 'coopCarton', ar: 'سعـر بيـع الكرتون للجمعية', en: 'Coop carton', type: 'num' },
+        { key: 'consPiece', ar: 'سعر بيع الحبة للمستهلك', en: 'Consumer piece', type: 'num' },
+        { key: 'barcode', ar: 'باركود الحبة', en: 'Barcode', type: 'text' },
+      ],
+    },
+    closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
+  /* ---------- 4h) Consumer Special Offers (عروض خاصة للمستهلك) ----------
+   * ~24 letters. Approves the promo pack + promo consumer price. No money. */
+  {
+    k: 'promotion', ar: 'عروض خاصة للمستهلك', en: 'Consumer Special Offers',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'none',
+    subject: { ar: 'عروض خاصة للـمـستهـلك', en: 'Consumer Special Offers' },
+    intro: {
+      ar: 'بالإشـارة إلى الموضوع أعلاه ، يـرجـى من سيادتكـم التكـرم بالموافقـة علـى اعتماد العـروض الخـاصة الموضح أدنـاه بالسـوق المركـزي لـدى جمعيتكـم الموقـرة وهـي كالتالـي:',
+      en: 'With reference to the above, kindly approve the special consumer offers below for the central market of your esteemed co-operative:',
+    },
+    table: {
+      title: { ar: 'العروض', en: 'Offers' },
+      cols: [
+        { key: 'name', ar: 'الصنف', en: 'Item', type: 'text', wide: true },
+        { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
+        { key: 'promoCost', ar: 'سعر تكلفة العرض', en: 'Promo cost', type: 'num' },
+        { key: 'promoCons', ar: 'سعر العرض للزبون', en: 'Promo consumer', type: 'num' },
+        { key: 'barcode', ar: 'الباركود', en: 'Barcode', type: 'text' },
+      ],
+    },
+    closing: ['وتفضـلوا بقبـول فائـق الإحـترام والتقـدير ،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
   /* ---------- 5b) Rent Debit Note (إشعار خصم إيجارات) ---------- */
   {
     k: 'rentdebit', ar: 'إشعار خصم — إيجارات', en: 'Rent Debit Note',

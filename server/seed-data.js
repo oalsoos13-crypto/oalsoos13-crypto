@@ -53,6 +53,7 @@ const SEED = {
     { n: "Khaitan", p: "P46", m: 1, b: 0 },
     { n: "Khaldiya", p: "P14", m: 1, b: 4 },
     { n: "Manqaf Co Op Society", p: "P475", m: 1, b: 0 },
+    { n: "Mutlaa", p: "P843", m: 2, b: 0 },
     { n: "National Guard", p: "P37", m: 1, b: 0 },
     { n: "Omariya", p: "P47", m: 1, b: 5 },
     { n: "P655-North West Sulaibkhat Co Op.", p: "p655", m: 1, b: 0 },
