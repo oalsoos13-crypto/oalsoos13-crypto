@@ -29,14 +29,7 @@
 
 const SIGN = {
   coop: { role: 'مدير المبيعات', name: 'سائد الرمحي' },
-  // Signed the co-op letters until early June 2026; still needed to reprint
-  // anything issued before the handover.
-  ahmadm: { role: 'مدير المبيعات', name: 'أحمد محمود' },
-  // Covers the private markets (صحاري الديرة، أطلس الجزيرة، سويلم الخير، مانجو…).
-  tamer: { role: 'مدير المبيعات', name: 'تامر حسني' },
   salesops: { role: 'مدير عمليات البيع والتسويق', name: 'أحمد شوقي' },
-  // Every Ramiz letter in the archive signs the full name.
-  ramiz: { role: 'مدير المبيعات', name: 'محمد عدنان اقبال' },
   gm: { role: 'المدير العام', name: 'راشد المنيع' },
   execadmin: { role: 'المدير التنفيذي الإداري', name: 'عماد فايز الرفاعي' },
   smkt: { role: 'Sales Manager – SMKT', name: 'Muhammad Adnan Iqbal' },
@@ -47,7 +40,7 @@ const SIGN = {
 const GM_CHOICES = [SIGN.gm, SIGN.execadmin];
 // The co-op letters are signed by whichever sales manager owns the account, so
 // every co-op spec offers the same roster rather than a single fixed name.
-const COOP_CHOICES = [SIGN.coop, SIGN.ahmadm, SIGN.tamer, SIGN.ramiz, SIGN.salesops];
+const COOP_CHOICES = [SIGN.coop, SIGN.salesops];
 
 const LETTER_SPECS = [
   /* ---------- 2) Price Updation (زيادة أسعار) ---------- */
@@ -300,7 +293,7 @@ const LETTER_SPECS = [
       ],
     },
     closing: ['نرجو اعتماد الاصناف اعلاه في اقرب وقت .', 'و تقبلوا فائق الاحترام و التقدير'],
-    signatory: SIGN.ramiz,
+    signatory: SIGN.coop,
   },
 
   /* ---------- 8a) UOC — supplementary items request to the Union (الكتاب الأول) ----------

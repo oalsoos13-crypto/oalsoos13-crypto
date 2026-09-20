@@ -503,6 +503,9 @@ const T = {
   pwMismatch: { ar: "كلمتا المرور غير متطابقتين.", en: "Passwords do not match." },
   pwChanged: { ar: "تم تغيير كلمة المرور", en: "Password changed" },
   confirmDel: { ar: "تأكيد الحذف؟", en: "Confirm delete?" },
+  confirmDelNoted: { ar: "هذا الكتاب صدر عنه إشعار خصم. سيؤدي الإلغاء إلى شطب الكتاب وإلغاء إشعار الخصم المرتبط به. هل تريد المتابعة؟", en: "This letter has a debit note. Cancelling will delete the letter and void the linked debit note. Continue?" },
+  delNotedForbidden: { ar: "لا يمكن حذف كتاب صدر عنه إشعار خصم — يتطلب صلاحية المدير", en: "Cannot delete a letter with a debit note — requires admin" },
+  letterCancelled: { ar: "تم شطب الكتاب وإلغاء إشعار الخصم المرتبط", en: "Letter cancelled and linked debit note voided" },
   overBudgetWarn: { ar: "التوزيع أكبر من إجمالي الميزانية. المتابعة؟", en: "Distribution exceeds total budget. Continue?" },
   rejectReason: { ar: "سبب الرفض", en: "Reject reason" },
   rejectReasonPh: { ar: "اكتب سبب الرفض…", en: "Type the reason…" },
@@ -1904,11 +1907,19 @@ async function saveLetter() {
   } catch (e) { toast(e.message); }
 }
 async function delLetter(id) {
-  if (!confirm(t("confirmDel"))) return;
+  const L = (DB.letters || []).find((x) => x.id === id);
+  const noted = L && L.status === "noted";
+  // A noted letter carries a debit note; only an admin can cancel it, and doing
+  // so also voids that note. Warn explicitly before the cascade.
+  if (noted) {
+    if (currentUser && currentUser.role !== "admin") { toast(t("delNotedForbidden")); return; }
+    if (!confirm(t("confirmDelNoted"))) return;
+  } else if (!confirm(t("confirmDel"))) { return; }
   try {
-    await api("/letters/" + id, { method: "DELETE" });
+    const r = await api("/letters/" + id, { method: "DELETE" });
     await loadState();
     render();
+    if (r && r.voidedNotes) toast(t("letterCancelled"));
   } catch (e) { toast(e.message); }
 }
 /* ---------- doc/tracking ---------- */
@@ -2083,7 +2094,7 @@ function toBlock(rec) {
   // When a specific outlet was addressed (scoped salesman) show it directly;
   // otherwise fall back to the "جمعية … التعاونية" wrapper around the co-op name.
   const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
-  return `<div class="to">السـادة / ${who} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  return `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
 }
 
 // Price-update ("change price") letter body.
@@ -2156,7 +2167,7 @@ function specDocHTML(rec, spec) {
   const who = rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopAr(rec.coop) : (spec.recipientFixed || ""));
   const to = en
     ? `<div class="to">${esc(who)}</div>`
-    : `<div class="to">السـادة / ${esc(who)} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+    : `<div class="to"><span>السـادة / ${esc(who)}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
   const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(en ? (rec.date || "") : fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
@@ -2174,7 +2185,7 @@ function specDocHTML(rec, spec) {
 function listingDnHTML(rec, spec) {
   const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
   const meta = metaBlock(rec, true);
-  const to = `<div class="to">السـادة / ${who} &nbsp;&nbsp; المحتـرمين</div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  const to = `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
   const wrap = (inner, extra) => `<div class="doc lh-${LH_MODE}"${extra || ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;

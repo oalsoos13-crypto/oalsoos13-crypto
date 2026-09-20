@@ -311,7 +311,34 @@ router.delete('/letters/:id', requireRole('salesman', 'marketing', 'division'), 
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
   if (req.user.role !== 'admin' && L.sales !== req.user.name) throw forbidden('لا يمكنك حذف كتاب مندوب آخر');
-  if (L.status === 'noted') throw badRequest('لا يمكن حذف كتاب صدر عنه إشعار خصم', 'HAS_NOTE');
+  // Notes issued from this letter that are still live (anything not already
+  // rejected — including an *approved* note). Once such a note exists the
+  // letter is 'noted' and a normal user cannot delete it.
+  const liveNotes = db.prepare("SELECT id, value, coop, status FROM notes WHERE letter_id = ? AND status != 'rejected'").all(L.id);
+  if (L.status === 'noted' || liveNotes.length) {
+    // A non-admin still cannot delete a letter that carries a debit note.
+    // An admin may cancel it, which also voids the linked note(s) — this is
+    // the only way to clear a letter whose note was already approved (there
+    // is otherwise no path back from an approved note).
+    if (req.user.role !== 'admin') {
+      throw badRequest('لا يمكن حذف كتاب صدر عنه إشعار خصم', 'HAS_NOTE');
+    }
+    const now = nowIso();
+    const tx = db.transaction(() => {
+      for (const n of liveNotes) {
+        db.prepare("UPDATE notes SET status='rejected', rejected_by=?, rejected_at=?, rejected_stage='admin', reject_reason=?, updated_at=? WHERE id=?")
+          .run(req.user.id, now, 'إلغاء الكتاب من قبل المدير', now, n.id);
+      }
+      db.prepare('DELETE FROM letters WHERE id = ?').run(req.params.id);
+    });
+    tx();
+    audit.fromReq(req, 'letter.delete', {
+      entityType: 'letter', entityId: req.params.id,
+      summary: `Admin cancelled letter ${L.lysal} and voided ${liveNotes.length} debit note(s)`,
+      details: { lysal: L.lysal, value: L.value, voidedNotes: liveNotes.map((n) => ({ id: n.id, value: n.value, status: n.status })) },
+    });
+    return res.json({ ok: true, voidedNotes: liveNotes.length });
+  }
   db.prepare('DELETE FROM letters WHERE id = ?').run(req.params.id);
   audit.fromReq(req, 'letter.delete', {
     entityType: 'letter', entityId: req.params.id,
