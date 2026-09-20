@@ -184,7 +184,7 @@ function seedUsers() {
   const exists = db.prepare('SELECT 1 FROM users WHERE username = ?');
   const insert = db.prepare(`
     INSERT INTO users (username, password_hash, name, role, active, must_change_password, created_at, updated_at)
-    VALUES (@username, @hash, @name, @role, 1, 1, @now, @now)
+    VALUES (@username, @hash, @name, @role, 1, @mc, @now, @now)
   `);
   const now = nowIso();
   let created = 0;
@@ -193,7 +193,9 @@ function seedUsers() {
       if (exists.get(u.u)) continue;
       // Explicit per-user password (u.pw) wins; otherwise fall back to the role default.
       const pw = u.pw || (u.role === 'admin' ? config.adminPassword : config.defaultPassword);
-      insert.run({ username: u.u, hash: hashPassword(pw), name: u.name, role: u.role, now });
+      // must_change_password: 1 (force change on first login) unless the row opts out (mc: 0).
+      const mc = u.mc === 0 ? 0 : 1;
+      insert.run({ username: u.u, hash: hashPassword(pw), name: u.name, role: u.role, mc, now });
       created++;
     }
   });

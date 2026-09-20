@@ -869,6 +869,8 @@ const DEFAULT_DIST = [
 
 const DEFAULT_USERS = [
   { u: "admin", p: "admin", name: "System Admin", role: "admin" },
+  // Owner admin (Omar Zain). Fixed password, not forced to change on first login.
+  { u: "omar zain", pw: "12345678", name: "Omar Zain", role: "admin", mc: 0 },
   {
     u: "marketing",
     p: "1234",
