@@ -66,7 +66,7 @@ function sanitizeSpecRows(cols, rows) {
 
 // Compute a spec-driven letter: value (per valueMode), items (primary table),
 // and meta (scalar fields + secondary table).
-function computeSpec(spec, body) {
+function computeSpec(spec, body, coopName, recipient) {
   const items = spec.table ? sanitizeSpecRows(spec.table.cols, body.rows || body.items) : null;
   const meta = {};
   for (const f of spec.fields || []) meta[f.key] = f.type === 'number' ? num(body.fields && body.fields[f.key]) : String((body.fields && body.fields[f.key]) || '');
@@ -81,10 +81,17 @@ function computeSpec(spec, body) {
   if (spec.valueMode === 'direct') value = num(meta.value != null ? meta.value : body.value);
   else if (spec.valueMode === 'listingdn') {
     // Per item: carton price, or consumer piece x pack; times the bonus ratio.
+    // The listing consideration is one free carton per item per central market
+    // (contract clause 4, "(1+1) مجانا ... و يتم ربطها بالأسواق والفروع"), so the
+    // per-outlet total is multiplied by the co-op's main-outlet count — the same
+    // rule computeValue() already applies to the classic 'items' letters. A
+    // letter addressed to one named outlet counts as a single outlet.
     const mode = String(meta.calcMode || 'carton');
     const ratio = num(meta.ratio) || 1;
+    const c = getCoop.get(coopName);
+    const mains = recipient ? 1 : (c ? c.mains : 1);
     const base = (items || []).reduce((s, r) => s + (mode === 'piece' ? num(r.consPiece) * num(r.pack) : num(r.coopCarton)), 0);
-    value = base * ratio;
+    value = Math.round(base * ratio * mains * 1000) / 1000;
   } else if (spec.valueMode && spec.valueMode.startsWith('sum:')) {
     const col = spec.valueMode.slice(4);
     value = (items || []).reduce((s, r) => s + num(r[col]), 0);
@@ -130,7 +137,7 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
     if (spec.recipient === 'coop') { recipient = req.body.recipient ? String(req.body.recipient).trim() : null; }
     else if (spec.recipient === 'fixed') { recipient = spec.recipientFixed; coop = ''; }
     else { recipient = String(req.body.recipient || spec.recipientDefault || '').trim(); coop = ''; }
-    const r = computeSpec(spec, req.body);
+    const r = computeSpec(spec, req.body, coop, recipient);
     if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
     if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
     calc = { value: r.value, items: r.items };
