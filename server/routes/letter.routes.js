@@ -51,11 +51,12 @@ const getCoopContracts = db.prepare(
 // a co-op is on a percentage/CDA contract, billing these separately is a
 // potential double-charge and is flagged (never blocked).
 const BUNDLED_TYPES = new Set([
-  'priceoff', 'listing', 'listing_dn', 'listing_supp', 'stand', 'pallet',
-  'rentstand', 'rentdebit', 'priceupd', 'changeprice',
+  'priceoff', 'pricediff', 'listing', 'listing_dn', 'listing_supp', 'linkitems',
+  'stand', 'pallet', 'rentstand', 'rentdebit', 'priceupd', 'changeprice',
+  'dataupd_dn',
 ]);
 // Types that themselves ARE the contract percentage being drawn down.
-const REBATE_TYPES = new Set(['cda_pct']);
+const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
 
 // Non-blocking contract-compliance checks surfaced on the create response.
 function contractWarnings(coopName, type, body, value, dateStr) {
