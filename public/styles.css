@@ -513,5 +513,5 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 .sec-card p{text-align:center;min-height:20px}
 .sec-card .enter{text-align:center}
 .sec-ic{display:flex;justify-content:center;margin-bottom:6px}
-.sec-logo{width:80px;height:80px;display:block;filter:drop-shadow(0 3px 6px rgba(14,42,77,.14))}
+.sec-logo{width:94px;height:94px;display:block;filter:drop-shadow(0 3px 6px rgba(14,42,77,.14))}
 .sec-card:hover .sec-logo{transform:translateY(-2px);transition:transform .12s}

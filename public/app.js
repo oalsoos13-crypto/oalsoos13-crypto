@@ -983,33 +983,46 @@ function pickSection(k) {
   if (!s || !s.live) { toast(t("comingSoon")); return; }
   loginSection = k; render();
 }
-// Custom two-tone SVG logo for each section (inherits the app's navy palette).
+// Premium emblem logo for each section: a navy gradient badge with a gold accent
+// and a bold white glyph.
+function emblemDefs(id) {
+  return `<defs>
+    <linearGradient id="bg_${id}" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#2a5f9e"/><stop offset=".55" stop-color="#143a68"/><stop offset="1" stop-color="#091a33"/></linearGradient>
+    <linearGradient id="gd_${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4cd63"/><stop offset="1" stop-color="#c8952b"/></linearGradient>
+    <linearGradient id="sh_${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect x="4" y="3" width="88" height="88" rx="26" fill="url(#bg_${id})"/>
+  <rect x="4" y="3" width="88" height="44" rx="26" fill="url(#sh_${id})"/>
+  <rect x="5.5" y="4.5" width="85" height="85" rx="24.5" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="1.4"/>`;
+}
 function sectionLogo(k) {
-  if (k === "coop") return `<svg viewBox="0 0 72 72" class="sec-logo" aria-hidden="true">
-    <path d="M9 31 L16 17 H56 L63 31 Z" fill="var(--gold)"/>
-    <path d="M22 17 L21 31 M32 17 L31.5 31 M42 17 L42 31 M52 17 L52.5 31" stroke="#fff" stroke-width="2" opacity=".55"/>
-    <rect x="14" y="31" width="44" height="30" rx="3" fill="var(--ink)"/>
-    <rect x="24" y="43" width="11" height="18" rx="1.5" fill="#fff"/>
-    <rect x="40" y="43" width="11" height="11" rx="1.5" fill="#cfe0f2"/>
-    <path d="M31 27 a4 4 0 0 1 5 -1 a4 4 0 0 1 5 1" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
+  if (k === "coop") return `<svg viewBox="0 0 96 94" class="sec-logo" aria-hidden="true">${emblemDefs("coop")}
+    <rect x="27" y="47" width="42" height="30" rx="3.5" fill="#fff"/>
+    <rect x="27" y="47" width="42" height="30" rx="3.5" fill="#dce8f5" opacity=".0"/>
+    <rect x="34" y="59" width="11" height="18" rx="1.5" fill="#153a67"/>
+    <circle cx="43" cy="68" r="1.1" fill="url(#gd_coop)"/>
+    <rect x="50" y="59" width="11" height="10" rx="1.5" fill="url(#gd_coop)"/>
+    <path d="M23 47 v-6 a4 4 0 0 1 4 -4 h42 a4 4 0 0 1 4 4 v6 q-4.17 6 -8.33 0 q-4.17 6 -8.33 0 q-4.17 6 -8.33 0 q-4.17 6 -8.33 0 q-4.17 6 -8.33 0 q-4.17 6 -8.33 0 z" fill="url(#gd_coop)"/>
+    <path d="M48 24 a7 7 0 0 1 9 -1.3 M48 24 a7 7 0 0 0 -9 -1.3" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="48" cy="30" r="2.4" fill="#fff"/>
   </svg>`;
-  if (k === "ka_online") return `<svg viewBox="0 0 72 72" class="sec-logo" aria-hidden="true">
-    <path d="M49 11 a11 11 0 0 1 11 11 M51.5 14 a7.5 7.5 0 0 1 7.5 7.5" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round"/>
-    <rect x="12" y="17" width="48" height="33" rx="5" fill="var(--ink)"/>
-    <rect x="17" y="26" width="38" height="19" rx="2" fill="#fff"/>
-    <circle cx="19" cy="21" r="1.5" fill="#fff" opacity=".8"/><circle cx="24" cy="21" r="1.5" fill="#fff" opacity=".8"/>
-    <path d="M23 31 h4 l2.4 9 h9 l2.2 -6 h-13.5" fill="none" stroke="var(--gold)" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="31" cy="43" r="1.7" fill="var(--gold)"/><circle cx="39" cy="43" r="1.7" fill="var(--gold)"/>
-    <rect x="30" y="50" width="12" height="4" fill="var(--ink2)"/>
-    <rect x="25" y="54" width="22" height="3.4" rx="1.7" fill="var(--ink)"/>
+  if (k === "ka_online") return `<svg viewBox="0 0 96 94" class="sec-logo" aria-hidden="true">${emblemDefs("ka")}
+    <path d="M63 22 a13 13 0 0 1 13 13 M66 22 a10 10 0 0 1 10 10" fill="none" stroke="url(#gd_ka)" stroke-width="3" stroke-linecap="round"/>
+    <rect x="24" y="26" width="48" height="34" rx="5" fill="#fff"/>
+    <rect x="24" y="26" width="48" height="9" rx="5" fill="#153a67"/>
+    <circle cx="30" cy="30.5" r="1.5" fill="#fff" opacity=".85"/><circle cx="35" cy="30.5" r="1.5" fill="#fff" opacity=".85"/>
+    <path d="M34 40 h4 l3 12 h11 l2.6 -8 h-16" fill="none" stroke="url(#gd_ka)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="43" cy="55.5" r="2.2" fill="url(#gd_ka)"/><circle cx="52" cy="55.5" r="2.2" fill="url(#gd_ka)"/>
+    <rect x="42" y="60" width="12" height="5" fill="#153a67"/>
+    <rect x="35" y="65" width="26" height="4" rx="2" fill="#fff"/>
   </svg>`;
-  return `<svg viewBox="0 0 72 72" class="sec-logo" aria-hidden="true">
-    <path d="M25 29 a11 11 0 0 1 22 0" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
-    <rect x="31" y="18" width="4.4" height="13" rx="2.2" fill="var(--gold)"/>
-    <circle cx="43" cy="26" r="4.2" fill="var(--ink2)"/>
-    <path d="M17 30 H55 L50.5 55 a4.5 4.5 0 0 1 -4.4 3.6 H25.9 a4.5 4.5 0 0 1 -4.4 -3.6 Z" fill="var(--ink)"/>
-    <rect x="17" y="30" width="38" height="6.2" rx="2.2" fill="var(--gold)"/>
-    <path d="M29 39 l1.4 15 M39 39 l0 15 M49 39 l-1.4 15" stroke="#fff" stroke-width="2" opacity=".5"/>
+  return `<svg viewBox="0 0 96 94" class="sec-logo" aria-hidden="true">${emblemDefs("bq")}
+    <path d="M35 33 a13 13 0 0 1 26 0" fill="none" stroke="url(#gd_bq)" stroke-width="3.4" stroke-linecap="round"/>
+    <circle cx="40" cy="30" r="4.6" fill="#fff"/>
+    <rect x="54" y="22" width="5" height="14" rx="2.5" fill="url(#gd_bq)"/>
+    <path d="M24 40 H72 L66.5 68 a5 5 0 0 1 -4.9 4 H34.9 a5 5 0 0 1 -4.9 -4 Z" fill="#fff"/>
+    <rect x="24" y="39" width="48" height="7" rx="3" fill="url(#gd_bq)"/>
+    <path d="M38 49 l1.6 16 M48 49 l0 16 M58 49 l-1.6 16" stroke="#153a67" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
   </svg>`;
 }
 function renderLanding() {
