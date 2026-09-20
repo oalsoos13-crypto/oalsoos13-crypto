@@ -490,6 +490,22 @@ function migrate() {
   addLetterCol('rejected_at', 'TEXT');
   addLetterCol('reject_reason', 'TEXT');
   addLetterCol('cust_id', 'TEXT'); // addressed outlet, links letters to the price tracker
+  // Multi-stage approval chain: supervisor -> sales_manager -> marketing_manager
+  // -> sales_ops -> print (admin). appr_stage holds the stage currently pending.
+  // Signatures captured at approval are stored in meta.signatures (data URLs).
+  addLetterCol('appr_stage', 'TEXT');
+  addLetterCol('printed_at', 'TEXT');
+  addLetterCol('printed_by', 'INTEGER');
+  // Backfill for letters created before the chain existed: an already-approved
+  // letter is treated as ready to print; a still-pending one enters the chain at
+  // the first (supervisor) stage. Rejected letters keep a null stage.
+  db.exec(
+    "UPDATE letters SET appr_stage = CASE " +
+    "WHEN approval = 'approved' THEN 'print' " +
+    "WHEN approval = 'pending' THEN 'supervisor' " +
+    "ELSE appr_stage END " +
+    "WHERE appr_stage IS NULL AND approval IN ('approved','pending')"
+  );
   // coop_terms redesign: per (coop + letter_type). Recreate the table if it
   // predates the letter_type column (config-only, safe to rebuild).
   const ctInfo = db.prepare("PRAGMA table_info(coop_terms)").all();
