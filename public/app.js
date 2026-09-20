@@ -24,7 +24,9 @@ function _below1000(n) {
   const ones = ["", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة"];
   const teens = ["عشرة", "أحد عشر", "اثنا عشر", "ثلاثة عشر", "أربعة عشر", "خمسة عشر", "ستة عشر", "سبعة عشر", "ثمانية عشر", "تسعة عشر"];
   const tens = ["", "", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"];
-  const hund = ["", "مئة", "مئتان", "ثلاثمائة", "أربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة"];
+  // The company always spells the hundreds "مائة"/"مائتان" (1120 letters in the
+  // archive) — never "مئة"/"مئتان" (2). Keep this consistent with the rest.
+  const hund = ["", "مائة", "مائتان", "ثلاثمائة", "أربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة"];
   const parts = []; const h = Math.floor(n / 100), r = n % 100;
   if (h) parts.push(hund[h]);
   if (r) {
@@ -47,6 +49,8 @@ function _intWords(n) {
 function tafqitKD(value) {
   const v = Math.round((Number(value) || 0) * 1000);
   const dinars = Math.floor(v / 1000), fils = v % 1000;
+  // A sub-dinar amount reads as fils only — never "صفر دينار و…".
+  if (!dinars && fils) return "فقط " + _intWords(fils) + " فلس لا غير";
   let s = "فقط " + _intWords(dinars) + " دينار";
   if (fils) s += " و" + _intWords(fils) + " فلس";
   return s + " لا غير";
