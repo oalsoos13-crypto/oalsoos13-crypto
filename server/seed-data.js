@@ -5,7 +5,7 @@
 
 const SEED = {
   coops: [
-    { n: "Rawda", p: "P9", m: 6, b: 4 },
+    { n: "Rawda", p: "P9", m: 8, b: 4 },
     { n: "Sabah Al-Ahmad", p: "P452", m: 5, b: 21 },
     { n: "Jaber Al-Ahmad", p: "P498", m: 4, b: 19 },
     { n: "Saad Al-Abdullah", p: "P53", m: 4, b: 14 },
@@ -47,7 +47,6 @@ const SEED = {
     { n: "Ferdous", p: "P48", m: 1, b: 10 },
     { n: "Fintas", p: "P24", m: 1, b: 3 },
     { n: "Hadiya", p: "P26", m: 1, b: 6 },
-    { n: "Hawally (?)", p: "", m: 1, b: 0 },
     { n: "Heteen", p: "P196", m: 1, b: 1 },
     { n: "Jaber Ali", p: "P25", m: 1, b: 9 },
     { n: "Keifan", p: "P15", m: 1, b: 5 },
@@ -55,7 +54,6 @@ const SEED = {
     { n: "Khaldiya", p: "P14", m: 1, b: 4 },
     { n: "Manqaf Co Op Society", p: "P475", m: 1, b: 0 },
     { n: "National Guard", p: "P37", m: 1, b: 0 },
-    { n: "Nugra (?)", p: "", m: 1, b: 0 },
     { n: "Omariya", p: "P47", m: 1, b: 5 },
     { n: "P655-North West Sulaibkhat Co Op.", p: "p655", m: 1, b: 0 },
     { n: "P702-Al-Massayel", p: "p702", m: 1, b: 0 },

@@ -17,7 +17,7 @@ function modeOf(type) {
   if (SPEC_BY_KEY[type]) return 'spec';
   return null;
 }
-const getCoop = db.prepare('SELECT mains FROM coops WHERE name = ?');
+const getCoop = db.prepare('SELECT mains, listing_markets FROM coops WHERE name = ?');
 
 // The set of co-op (parent) names a salesman/supervisor may address, derived
 // from the outlets master via their PF code. null == unrestricted (management).
@@ -82,16 +82,26 @@ function computeSpec(spec, body, coopName, recipient) {
   else if (spec.valueMode === 'listingdn') {
     // Per item: carton price, or consumer piece x pack; times the bonus ratio.
     // The listing consideration is one free carton per item per central market
-    // (contract clause 4, "(1+1) مجانا ... و يتم ربطها بالأسواق والفروع"), so the
-    // per-outlet total is multiplied by the co-op's main-outlet count — the same
-    // rule computeValue() already applies to the classic 'items' letters. A
-    // letter addressed to one named outlet counts as a single outlet.
+    // (contract clause 4, "(1+1) مجانا ... و يتم ربطها بالأسواق والفروع"). The
+    // multiplier is the co-op's *listing_markets* — the number of markets the
+    // co-op actually lists Frito-Lay on, proven per co-op from the archive and
+    // often a subset of its central markets (Rawda 8 markets → bills ×3). The
+    // letter may override it (partial roll-out) via meta.markets, and a letter
+    // to one named outlet counts as a single market.
     const mode = String(meta.calcMode || 'carton');
     const ratio = num(meta.ratio) || 1;
-    const c = getCoop.get(coopName);
-    const mains = recipient ? 1 : (c ? c.mains : 1);
+    const override = num(meta.markets);
+    let markets;
+    if (recipient) markets = 1;
+    else if (override > 0) markets = override;
+    else {
+      const c = getCoop.get(coopName);
+      if (!c) throw badRequest('الجمعية غير معروفة — لا يمكن حساب عدد الأسواق', 'UNKNOWN_COOP');
+      markets = num(c.listing_markets) > 0 ? num(c.listing_markets) : num(c.mains);
+      if (!(markets > 0)) throw badRequest('عدد أسواق الإدراج غير محدد لهذه الجمعية — أدخله يدويًا', 'NO_MARKETS');
+    }
     const base = (items || []).reduce((s, r) => s + (mode === 'piece' ? num(r.consPiece) * num(r.pack) : num(r.coopCarton)), 0);
-    value = Math.round(base * ratio * mains * 1000) / 1000;
+    value = Math.round(base * ratio * markets * 1000) / 1000;
   } else if (spec.valueMode && spec.valueMode.startsWith('sum:')) {
     const col = spec.valueMode.slice(4);
     value = (items || []).reduce((s, r) => s + num(r[col]), 0);
@@ -107,12 +117,20 @@ function computeValue(type, body, coopName, recipient) {
   }
   if (mode === 'items') {
     // Addressed to a single outlet (scoped salesman) -> multiplier of 1;
-    // otherwise multiply the per-outlet total by the co-op's main-outlet count.
-    const c = getCoop.get(coopName);
-    const mains = recipient ? 1 : (c ? c.mains : 0);
+    // otherwise multiply the per-outlet total by the co-op's listing_markets
+    // (its actual listing footprint, falling back to the main-outlet count).
+    // An unknown co-op must error, not silently price the note at zero.
     const items = Array.isArray(body.items) ? body.items : [];
     const perOutlet = items.reduce((s, it) => s + num(it.price), 0);
-    return { value: perOutlet * mains, items: items.map((it) => ({ name: it.name || '', price: num(it.price) })) };
+    const mapped = items.map((it) => ({ name: it.name || '', price: num(it.price) }));
+    if (recipient) return { value: perOutlet, items: mapped };
+    const override = num(body.markets);
+    if (override > 0) return { value: perOutlet * override, items: mapped };
+    const c = getCoop.get(coopName);
+    if (!c) throw badRequest('الجمعية غير معروفة — لا يمكن حساب عدد الأسواق', 'UNKNOWN_COOP');
+    const markets = num(c.listing_markets) > 0 ? num(c.listing_markets) : num(c.mains);
+    if (!(markets > 0)) throw badRequest('عدد أسواق الإدراج غير محدد لهذه الجمعية — أدخله يدويًا', 'NO_MARKETS');
+    return { value: perOutlet * markets, items: mapped };
   }
   if (mode === 'pct') {
     const base = num(body.base), pct = num(body.pct);

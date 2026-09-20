@@ -35,12 +35,18 @@ function migrate() {
     );
 
     -- Reference: co-operatives (m = main outlets, b = branches).
+    -- listing_markets = the number of central markets a NEW-ITEM listing fee is
+    -- actually billed against. It is NOT the same as mains: the real letters
+    -- show co-ops that list Frito-Lay on a fixed subset of their markets
+    -- (Rawda has 8 central markets but every listing DN bills x3, Jaber
+    -- Al-Ahmad has 4 but bills x2). NULL/0 means fall back to mains.
     CREATE TABLE IF NOT EXISTS coops (
       name     TEXT PRIMARY KEY,
       name_ar  TEXT,
       code     TEXT,
       mains    INTEGER NOT NULL DEFAULT 0,
-      branches INTEGER NOT NULL DEFAULT 0
+      branches INTEGER NOT NULL DEFAULT 0,
+      listing_markets INTEGER
     );
 
     -- Live distribution table (managed by Division): supervisor -> salesman ->
@@ -414,6 +420,15 @@ function migrate() {
   if (!letterCols.includes('meta')) db.exec('ALTER TABLE letters ADD COLUMN meta TEXT');
   const coopCols = db.prepare("PRAGMA table_info(coops)").all().map((c) => c.name);
   if (!coopCols.includes('name_ar')) db.exec('ALTER TABLE coops ADD COLUMN name_ar TEXT');
+  if (!coopCols.includes('listing_markets')) db.exec('ALTER TABLE coops ADD COLUMN listing_markets INTEGER');
+  // One-off data corrections for existing databases (idempotent):
+  // Rawda P9 really has 8 central markets; the two "(?)" placeholder rows are
+  // outlets of Rawda mis-seeded as standalone co-ops (they distorted the
+  // main-outlet count that prices listing debit notes).
+  try {
+    db.prepare("UPDATE coops SET mains = 8 WHERE code = 'P9' AND mains = 6").run();
+    db.prepare("DELETE FROM coops WHERE name IN ('Hawally (?)', 'Nugra (?)')").run();
+  } catch (e) { /* corrections are best-effort */ }
   const prodCols = db.prepare("PRAGMA table_info(products)").all().map((c) => c.name);
   for (const col of ['weight', 'circular', 'circular_date']) {
     if (!prodCols.includes(col)) db.exec(`ALTER TABLE products ADD COLUMN ${col} TEXT`);

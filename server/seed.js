@@ -17,6 +17,17 @@ function seedCoops() {
     for (const c of rows) stmt.run(c.n, c.p || '', c.m || 0, c.b || 0);
   });
   tx(SEED.coops);
+  // Listing-fee market multipliers proven from the letter archive, where they
+  // differ from the raw central-market count (`mains`). A new-item listing DN
+  // is Σ(carton price) × these markets, not × mains. Confirmed by repetition
+  // across ≥2 real letters each (e.g. Rawda P9 has 8 markets but every listing
+  // DN bills ×3; Jaber Al-Ahmad P498 has 4 but bills ×2). Only overrides that
+  // contradict `mains` are seeded; every other co-op falls back to `mains`, and
+  // the value stays editable per letter for partial roll-outs.
+  const LM = { P9: 3, P498: 2, P33: 1, P4: 1 };
+  const updLM = db.prepare('UPDATE coops SET listing_markets = ? WHERE code = ? AND listing_markets IS NULL');
+  const txLM = db.transaction(() => { for (const [code, n] of Object.entries(LM)) updLM.run(n, code); });
+  txLM();
   // Fill Arabic co-op names (idempotent — only where missing).
   let arMap;
   try { arMap = require('./coop_ar.json'); } catch (e) { arMap = null; }

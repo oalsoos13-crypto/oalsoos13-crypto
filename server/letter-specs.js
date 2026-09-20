@@ -131,6 +131,12 @@ const LETTER_SPECS = [
       ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل اعتماد أصناف جديدة.',
       en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the listing of new items.',
     },
+    // Number of central markets the listing fee is billed against. Leave blank
+    // to use the co-op's stored listing_markets (or its main-outlet count);
+    // set it for a partial roll-out (e.g. listing on 2 of the co-op's markets).
+    fields: [
+      { key: 'markets', ar: 'عدد أسواق الإدراج (اتركه فارغًا للافتراضي)', en: 'Listing markets (blank = default)', type: 'number' },
+    ],
     table: {
       title: { ar: 'الأصناف', en: 'Items' },
       cols: [
