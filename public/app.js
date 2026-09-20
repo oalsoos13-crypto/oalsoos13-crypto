@@ -484,6 +484,7 @@ const T = {
   bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
   bt_polypack: { ar: "بولي باك", en: "Poly pack" },
   bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
+  bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
   mon_byBudget: { ar: "حسب الباجت", en: "By budget" },
   setBt: { ar: "تصنيف الباجت", en: "Classify budget" },
@@ -1559,7 +1560,7 @@ function vLettersHistory() {
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
 }
 /* ---------- budget-type classification ---------- */
-const BUDGET_TYPE_KEYS = ["rental", "pricediff", "polypack", "foc"];
+const BUDGET_TYPE_KEYS = ["rental", "pricediff", "polypack", "foc", "offinv"];
 function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
 // A <select> to classify a letter's budget type (used by sales manager + admin).
 function budgetTypeSelect(L) {

@@ -875,7 +875,7 @@ const DEFAULT_USERS = [
   // Approval-chain managers. Username = English handle, password 12345678, no
   // forced change. (Rename via the Users screen if needed.)
   { u: "saed", pw: "12345678", name: "سائد الرمحي", role: "sales_manager", mc: 0 },
-  { u: "marketingmgr", pw: "12345678", name: "مدير التسويق", role: "marketing_manager", mc: 0 },
+  { u: "munir", pw: "12345678", name: "منير", role: "marketing_manager", mc: 0 },
   { u: "ahmad", pw: "12345678", name: "أحمد شوقي", role: "sales_ops", mc: 0 },
 
   // Real salesmen & supervisors keyed by PF (username = password = PF code).

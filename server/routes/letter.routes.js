@@ -57,8 +57,10 @@ const BUNDLED_TYPES = new Set([
 ]);
 // Types that themselves ARE the contract percentage being drawn down.
 const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
-// The four budget classifications a letter can be tagged with.
-const BUDGET_TYPES = new Set(['rental', 'pricediff', 'polypack', 'foc']);
+// The budget classifications a letter can be tagged with. 'offinv' (خارج
+// الاستثمار) is uncapped and covers the Union letters (supplementary/new items,
+// price increase, data update).
+const BUDGET_TYPES = new Set(['rental', 'pricediff', 'polypack', 'foc', 'offinv']);
 // Auto-classification: the budget type previously chosen for this letter type.
 function autoBudgetType(letterType) {
   try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); return r ? r.budget_type : null; } catch (e) { return null; }

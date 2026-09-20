@@ -520,6 +520,12 @@ function migrate() {
   // existing account on them is deactivated (reversible) so it can neither log in
   // nor break the role-keyed UI; an admin can reassign it from the Users screen.
   db.exec("UPDATE users SET active = 0 WHERE role IN ('marketing','division','doc')");
+  // The marketing manager is Munir: rename the earlier placeholder account if the
+  // final username isn't taken yet.
+  try {
+    const hasMunir = db.prepare("SELECT 1 FROM users WHERE username='munir'").get();
+    if (!hasMunir) db.exec("UPDATE users SET username='munir', name='منير' WHERE username='marketingmgr'");
+  } catch (e) { /* non-fatal */ }
   // Salesmen & supervisors can no longer self-change their password (admin-only),
   // so clear any pending forced-change flag that would otherwise deadlock them.
   db.exec("UPDATE users SET must_change_password = 0 WHERE role IN ('salesman','supervisor') AND must_change_password = 1");
