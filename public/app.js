@@ -21,12 +21,15 @@ const KD = (n) =>
   });
 // Arabic amount-in-words (تفقيط) for Kuwaiti dinars + fils.
 function _below1000(n) {
-  const ones = ["", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة"];
-  const teens = ["عشرة", "أحد عشر", "اثنا عشر", "ثلاثة عشر", "أربعة عشر", "خمسة عشر", "ستة عشر", "سبعة عشر", "ثمانية عشر", "تسعة عشر"];
-  const tens = ["", "", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"];
-  // The company always spells the hundreds "مائة"/"مائتان" (1120 letters in the
-  // archive) — never "مئة"/"مئتان" (2). Keep this consistent with the rest.
-  const hund = ["", "مائة", "مائتان", "ثلاثمائة", "أربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة"];
+  // House style, measured over the 1166 spelled-out amounts in the letter
+  // archive: hundreds are "مائة"/"مائتان" (680 vs 1), and the initial alif
+  // carries no hamza — "اربعة" (250 vs 3), "احد عشر" (55 vs 0).
+  const ones = ["", "واحد", "اثنان", "ثلاثة", "اربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة"];
+  // "اثني عشر", not "اثنا عشر" — the archive only ever uses the genitive here
+  // (it always follows the preposition in "بقيمة …").
+  const teens = ["عشرة", "احد عشر", "اثني عشر", "ثلاثة عشر", "اربعة عشر", "خمسة عشر", "ستة عشر", "سبعة عشر", "ثمانية عشر", "تسعة عشر"];
+  const tens = ["", "", "عشرون", "ثلاثون", "اربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"];
+  const hund = ["", "مائة", "مائتان", "ثلاثمائة", "اربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة"];
   const parts = []; const h = Math.floor(n / 100), r = n % 100;
   if (h) parts.push(hund[h]);
   if (r) {
@@ -42,7 +45,7 @@ function _intWords(n) {
   const mil = Math.floor(n / 1000000); n %= 1000000;
   const th = Math.floor(n / 1000); const rest = n % 1000;
   if (mil) parts.push(mil === 1 ? "مليون" : mil === 2 ? "مليونان" : (mil <= 10 ? _below1000(mil) + " ملايين" : _below1000(mil) + " مليون"));
-  if (th) parts.push(th === 1 ? "ألف" : th === 2 ? "ألفان" : (th <= 10 ? _below1000(th) + " آلاف" : _below1000(th) + " ألف"));
+  if (th) parts.push(th === 1 ? "الف" : th === 2 ? "الفان" : (th <= 10 ? _below1000(th) + " الاف" : _below1000(th) + " الف"));
   if (rest) parts.push(_below1000(rest));
   return parts.join(" و");
 }
