@@ -983,12 +983,41 @@ function pickSection(k) {
   if (!s || !s.live) { toast(t("comingSoon")); return; }
   loginSection = k; render();
 }
+// Custom two-tone SVG logo for each section (inherits the app's navy palette).
+function sectionLogo(k) {
+  if (k === "coop") return `<svg viewBox="0 0 72 72" class="sec-logo" aria-hidden="true">
+    <path d="M9 31 L16 17 H56 L63 31 Z" fill="var(--gold)"/>
+    <path d="M22 17 L21 31 M32 17 L31.5 31 M42 17 L42 31 M52 17 L52.5 31" stroke="#fff" stroke-width="2" opacity=".55"/>
+    <rect x="14" y="31" width="44" height="30" rx="3" fill="var(--ink)"/>
+    <rect x="24" y="43" width="11" height="18" rx="1.5" fill="#fff"/>
+    <rect x="40" y="43" width="11" height="11" rx="1.5" fill="#cfe0f2"/>
+    <path d="M31 27 a4 4 0 0 1 5 -1 a4 4 0 0 1 5 1" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
+  </svg>`;
+  if (k === "ka_online") return `<svg viewBox="0 0 72 72" class="sec-logo" aria-hidden="true">
+    <path d="M49 11 a11 11 0 0 1 11 11 M51.5 14 a7.5 7.5 0 0 1 7.5 7.5" fill="none" stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="12" y="17" width="48" height="33" rx="5" fill="var(--ink)"/>
+    <rect x="17" y="26" width="38" height="19" rx="2" fill="#fff"/>
+    <circle cx="19" cy="21" r="1.5" fill="#fff" opacity=".8"/><circle cx="24" cy="21" r="1.5" fill="#fff" opacity=".8"/>
+    <path d="M23 31 h4 l2.4 9 h9 l2.2 -6 h-13.5" fill="none" stroke="var(--gold)" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="31" cy="43" r="1.7" fill="var(--gold)"/><circle cx="39" cy="43" r="1.7" fill="var(--gold)"/>
+    <rect x="30" y="50" width="12" height="4" fill="var(--ink2)"/>
+    <rect x="25" y="54" width="22" height="3.4" rx="1.7" fill="var(--ink)"/>
+  </svg>`;
+  return `<svg viewBox="0 0 72 72" class="sec-logo" aria-hidden="true">
+    <path d="M25 29 a11 11 0 0 1 22 0" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+    <rect x="31" y="18" width="4.4" height="13" rx="2.2" fill="var(--gold)"/>
+    <circle cx="43" cy="26" r="4.2" fill="var(--ink2)"/>
+    <path d="M17 30 H55 L50.5 55 a4.5 4.5 0 0 1 -4.4 3.6 H25.9 a4.5 4.5 0 0 1 -4.4 -3.6 Z" fill="var(--ink)"/>
+    <rect x="17" y="30" width="38" height="6.2" rx="2.2" fill="var(--gold)"/>
+    <path d="M29 39 l1.4 15 M39 39 l0 15 M49 39 l-1.4 15" stroke="#fff" stroke-width="2" opacity=".5"/>
+  </svg>`;
+}
 function renderLanding() {
   const cards = LOGIN_SECTIONS.map((s) =>
-    `<div class="role-card${s.live ? "" : " soon"}" onclick="pickSection('${s.k}')"><div class="ic">${s.ic}</div><h3>${t("sec_" + s.k)}</h3><p>${s.live ? t("sec_enter") : t("comingSoon")}</p><div class="enter">${s.live ? t("enter") + " →" : "🔒"}</div></div>`
+    `<div class="role-card sec-card${s.live ? "" : " soon"}" onclick="pickSection('${s.k}')"><div class="sec-ic">${sectionLogo(s.k)}</div><h3>${t("sec_" + s.k)}</h3><p>${s.live ? t("sec_enter") : t("comingSoon")}</p><div class="enter">${s.live ? t("enter") + " →" : "🔒"}</div></div>`
   ).join("");
   document.getElementById("app").innerHTML =
-    `<div class="wrap"><div class="home-hero"><h2>${t("landingTitle")}</h2><p>${t("landingSub")}</p></div><div class="roles">${cards}</div></div>`;
+    `<div class="wrap"><div class="home-hero"><h2>${t("landingTitle")}</h2><p>${t("landingSub")}</p></div><div class="roles sec-roles">${cards}</div></div>`;
 }
 function renderLogin() {
   document.getElementById("app").innerHTML =
