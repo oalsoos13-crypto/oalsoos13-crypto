@@ -74,6 +74,7 @@ const T = {
   },
   barSub: { ar: "", en: "" },
   langBtn: { ar: "EN", en: "ع" },
+  menu: { ar: "القائمة", en: "Menu" },
   roles: { ar: "الأدوار", en: "Roles" },
   back: { ar: "الأدوار", en: "Roles" },
   homeTitle: { ar: "اختر جهتك للدخول", en: "Choose your role" },
@@ -916,12 +917,9 @@ function go(r) {
   role = r;
   render();
 }
-// Bilingual sidebar label: English on the left, Arabic on the right.
-function navLabel(k) {
-  const e = T["r_" + k];
-  const ar = e ? e.ar : k, en = e ? e.en : k;
-  return `<span class="nav-en">${esc(en)}</span><span class="nav-ar">${esc(ar)}</span>`;
-}
+// Sidebar label follows the system language.
+function navLabel(k) { return esc(t("r_" + k)); }
+function toggleNav() { const s = document.querySelector(".shell"); if (s) s.classList.toggle("nav-collapsed"); }
 function render() {
   applyDir();
   if (!currentUser) {
@@ -963,9 +961,9 @@ function render() {
   const sub = T[subKey] ? t(subKey) : "";
   document.getElementById("app").innerHTML =
     `<div class="shell">
-      <nav class="sidenav">${items}</nav>
+      <nav class="sidenav" dir="${LANG}">${items}</nav>
       <main class="content" dir="${LANG}">
-        <div class="rolebar-lite"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>
+        <div class="rolebar-lite"><button class="nav-toggle" onclick="toggleNav()" title="${t("menu")}">☰</button><div class="rb-txt"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div></div>
         <div class="wrap" id="rv"></div>
       </main>
     </div>`;
