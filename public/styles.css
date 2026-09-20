@@ -502,3 +502,7 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 .mon-node>summary::before{content:"▸ ";color:var(--gold)}
 .mon-node[open]>summary::before{content:"▾ "}
 .mon-sup>summary{background:var(--soft,#f6f8fb);font-weight:700}
+
+/* Pre-login section chooser */
+.role-card.soon{opacity:.6;filter:grayscale(.4)}
+.role-card.soon .enter{color:#98a2b3}

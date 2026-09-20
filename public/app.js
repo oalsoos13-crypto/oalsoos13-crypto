@@ -82,6 +82,13 @@ const T = {
     en: "Each party has its own page — budget cascades top-down",
   },
   enter: { ar: "دخول", en: "Enter" },
+  landingTitle: { ar: "نظام الشركة المتحدة المتميزة", en: "United Distinctive System" },
+  landingSub: { ar: "اختر القسم للمتابعة", en: "Choose a section to continue" },
+  sec_coop: { ar: "الجمعيات التعاونية", en: "Co-operatives" },
+  sec_ka_online: { ar: "KA + أونلاين", en: "KA + Online" },
+  sec_baqalat: { ar: "البقالات", en: "Groceries" },
+  sec_enter: { ar: "دخول القسم", en: "Enter section" },
+  comingSoon: { ar: "قريبًا", en: "Coming soon" },
   r_sales_manager: { ar: "مدير المبيعات", en: "Sales Manager" },
   r_sales_manager_d: {
     ar: "اعتماد الكتب والتوقيع الإلكتروني على كتبه، واعتماد إشعارات الخصم.",
@@ -873,8 +880,9 @@ const ROLES = [
   { k: "supervisor", ic: "⋔" },
   { k: "salesman", ic: "✎" },
 ];
-// Sections hidden from the home tiles and the navigation bar (per request).
-const HIDDEN_ROUTES = new Set(["outlets", "products", "sales", "salesMonthly"]);
+// Sections hidden from the home tiles and the navigation bar. Co-op-only scope:
+// everything that isn't letters/debit-notes is hidden (screens still exist).
+const HIDDEN_ROUTES = new Set(["outlets", "products", "sales", "salesMonthly", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "budgetHistory"]);
 let role = null;
 function go(r) {
   role = r;
@@ -885,7 +893,9 @@ function render() {
   if (!currentUser) {
     document.getElementById("roleChip").innerHTML = "";
     document.getElementById("userBox").innerHTML = "";
-    renderLogin();
+    // Landing: pick a section first; only the co-op section is live for now.
+    if (loginSection === "coop") renderLogin();
+    else renderLanding();
     return;
   }
   document.getElementById("userBox").innerHTML =
@@ -903,12 +913,14 @@ function render() {
     return;
   }
   // Read-only reference/report views each role may open beyond its own home.
+  // Letters/notes-only scope: managers see the letters history (and sales ops the
+  // audit log); everything else is hidden.
   const EXTRA = {
-    sales_manager: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
-    marketing_manager: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
-    sales_ops: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory", "audit"],
-    supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "contracts", "lettersHistory"],
-    salesman: ["outlets", "products", "priceTrack", "approveItems", "contracts"],
+    sales_manager: ["lettersHistory"],
+    marketing_manager: ["lettersHistory"],
+    sales_ops: ["lettersHistory", "audit"],
+    supervisor: ["lettersHistory"],
+    salesman: [],
   };
   let rk;
   if (isAdmin) rk = role;
@@ -934,8 +946,8 @@ function render() {
     `<div class="rolebar"><div class="wrap"><div><h2>${t("r_" + rk)}</h2><div class="sub">${t("r_" + rk + "_d")}</div></div><div class="navbtns">${nav}</div></div></div><div class="page"><div class="wrap" id="rv"></div></div>`;
   const view = {
     sales_manager: vSalesManager,
-    marketing_manager: vMarketing,
-    sales_ops: vDivision,
+    marketing_manager: vMarketingMgr,
+    sales_ops: vSalesOps,
     supervisor: vSupervisor,
     salesman: vSalesman,
     audit: vAudit,
@@ -958,14 +970,35 @@ function render() {
   if (view) view();
   else renderHome();
 }
+// Pre-login section chooser. Only the co-op section is active; the others are
+// placeholders for future systems (KA + Online, groceries).
+let loginSection = null;
+const LOGIN_SECTIONS = [
+  { k: "coop", ic: "🏬", live: true },
+  { k: "ka_online", ic: "🛒", live: false },
+  { k: "baqalat", ic: "🏪", live: false },
+];
+function pickSection(k) {
+  const s = LOGIN_SECTIONS.find((x) => x.k === k);
+  if (!s || !s.live) { toast(t("comingSoon")); return; }
+  loginSection = k; render();
+}
+function renderLanding() {
+  const cards = LOGIN_SECTIONS.map((s) =>
+    `<div class="role-card${s.live ? "" : " soon"}" onclick="pickSection('${s.k}')"><div class="ic">${s.ic}</div><h3>${t("sec_" + s.k)}</h3><p>${s.live ? t("sec_enter") : t("comingSoon")}</p><div class="enter">${s.live ? t("enter") + " →" : "🔒"}</div></div>`
+  ).join("");
+  document.getElementById("app").innerHTML =
+    `<div class="wrap"><div class="home-hero"><h2>${t("landingTitle")}</h2><p>${t("landingSub")}</p></div><div class="roles">${cards}</div></div>`;
+}
 function renderLogin() {
   document.getElementById("app").innerHTML =
     `<div class="login-wrap"><div class="login-card">
-   <h2>${t("loginTitle")}</h2><p>${t("loginSub")}</p>
+   <h2>${t("loginTitle")} — ${t("sec_coop")}</h2><p>${t("loginSub")}</p>
    <div class="field"><label>${t("username")}</label><input id="lgU" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
    <div class="field" style="margin-top:12px"><label>${t("password")}</label><input id="lgP" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
    <div class="login-err" id="lgErr"></div>
    <div class="actions" style="margin-top:6px"><button class="btn primary" style="width:100%;justify-content:center" onclick="doLogin()">${t("loginBtn")}</button></div>
+   <div class="actions" style="margin-top:8px"><button class="btn ghost" style="width:100%;justify-content:center" onclick="loginSection=null;render()">← ${t("back")}</button></div>
    <p style="margin-top:14px;font-size:12px">${t("passHint")}</p>
  </div></div>`;
 }
@@ -992,6 +1025,7 @@ async function logout() {
   TOKEN = null;
   currentUser = null;
   role = null;
+  loginSection = null;
   try { localStorage.removeItem("udc_token"); } catch (e) {}
   render();
 }
@@ -1032,20 +1066,13 @@ async function doChangePw() {
     err.textContent = e.message;
   }
 }
+// Trimmed to letters/debit-notes only. The other management/report screens
+// (budget, distribution, contracts, products, price tracker, sales reports …)
+// still exist in code but are hidden from the UI per the co-op-only scope.
 const ADMIN_ROLES = [
   { k: "monitor", ic: "📡" },
   { k: "printQueue", ic: "🖨" },
-  { k: "outlets", ic: "🏪" },
-  { k: "products", ic: "📦" },
-  { k: "sales", ic: "📈" },
-  { k: "salesMonthly", ic: "🗓" },
-  { k: "priceUpdates", ic: "🏷" },
-  { k: "priceTrack", ic: "📊" },
-  { k: "approveItems", ic: "🆕" },
-  { k: "coopTerms", ic: "⚙" },
-  { k: "contracts", ic: "📝" },
   { k: "lettersHistory", ic: "📜" },
-  { k: "budgetHistory", ic: "💰" },
   { k: "audit", ic: "🛡" },
   { k: "users", ic: "👥" },
   { k: "backup", ic: "💾" },
@@ -1357,10 +1384,16 @@ function clearAmt(i) {
 }
 let distOutlets = [];
 // Sales-manager home: letters awaiting his approval (+ e-sign when the letter is
-// his to sign) and the manager stage of debit-note approvals.
+// his to sign, + budget classification).
 function vSalesManager() {
-  document.getElementById("rv").innerHTML =
-    `${stageLettersPanel("sales_manager")}`;
+  document.getElementById("rv").innerHTML = stageLettersPanel("sales_manager");
+}
+// Marketing-manager & sales-ops homes: just their approval queues.
+function vMarketingMgr() {
+  document.getElementById("rv").innerHTML = stageLettersPanel("marketing_manager");
+}
+function vSalesOps() {
+  document.getElementById("rv").innerHTML = stageLettersPanel("sales_ops");
 }
 async function vDivision() {
   const pool = distPool(),
