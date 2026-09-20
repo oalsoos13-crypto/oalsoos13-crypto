@@ -27,7 +27,7 @@ router.get('/outlets', asyncH((req, res) => {
 
 // GET /api/sales — annual sales & targets per parent co-op.
 // Management + documentation only (financial data).
-router.get('/sales', requireRole('marketing', 'division', 'doc'), asyncH((req, res) => {
+router.get('/sales', requireRole('sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
   const rows = db.prepare('SELECT * FROM sales_history ORDER BY parent').all()
     .map((r) => ({ ...r, years: fromJson(r.years, {}) }));
   res.json({ total: rows.length, sales: rows });

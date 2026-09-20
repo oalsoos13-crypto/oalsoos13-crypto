@@ -60,6 +60,11 @@ router.get('/me', requireAuth, asyncH((req, res) => {
 
 // POST /api/change-password  { currentPassword, newPassword }
 router.post('/change-password', requireAuth, asyncH((req, res) => {
+  // Salesmen & supervisors don't manage their own password — only an admin resets
+  // it (their username/password is the PF number). Everyone else may self-change.
+  if (req.user.role === 'salesman' || req.user.role === 'supervisor') {
+    throw badRequest('لا يمكنك تغيير كلمة المرور — يقوم بها المدير فقط', 'CHANGE_PW_FORBIDDEN');
+  }
   const cur = String(req.body.currentPassword || '');
   const next = String(req.body.newPassword || '');
   if (next.length < 8) throw badRequest('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل', 'WEAK');

@@ -83,7 +83,7 @@ router.post('/notes/:id/approve-sup', requireRole('supervisor'), asyncH((req, re
 }));
 
 // POST /api/notes/:id/approve-mgr  (division)
-router.post('/notes/:id/approve-mgr', requireRole('division'), asyncH((req, res) => {
+router.post('/notes/:id/approve-mgr', requireRole('sales_manager'), asyncH((req, res) => {
   const n = getNote.get(req.params.id);
   if (!n) throw notFound('الإشعار غير موجود');
   if (n.status !== 'pending_mgr') throw badRequest('الإشعار ليس بانتظار اعتماد المدير', 'BAD_STATE');
@@ -99,7 +99,7 @@ router.post('/notes/:id/approve-mgr', requireRole('division'), asyncH((req, res)
 
 // POST /api/notes/:id/reject  (supervisor at sup stage, division at mgr stage, or admin)
 // Body: { reason }
-router.post('/notes/:id/reject', requireRole('supervisor', 'division'), asyncH((req, res) => {
+router.post('/notes/:id/reject', requireRole('supervisor', 'sales_manager'), asyncH((req, res) => {
   const n = getNote.get(req.params.id);
   if (!n) throw notFound('الإشعار غير موجود');
   if (n.status !== 'pending_sup' && n.status !== 'pending_mgr') {
@@ -112,7 +112,7 @@ router.post('/notes/:id/reject', requireRole('supervisor', 'division'), asyncH((
       if (req.user.role !== 'supervisor') throw forbidden('اعتماد/رفض المشرف فقط');
       const mine = salesmenUnder(req.user.name);
       if (!mine.has(n.sales)) throw forbidden('خارج نطاق مناديبك');
-    } else if (stage === 'mgr' && req.user.role !== 'division') {
+    } else if (stage === 'mgr' && req.user.role !== 'sales_manager') {
       throw forbidden('اعتماد/رفض المدير فقط');
     }
   }

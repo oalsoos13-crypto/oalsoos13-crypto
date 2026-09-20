@@ -10,7 +10,7 @@ router.use(requireAuth);
 
 // PUT /api/dist  (division) — replace the whole distribution table.
 // Body: { rows: [{ sup, sales, coop, outlet, wob, amt, manual }] }
-router.put('/dist', requireRole('division'), asyncH((req, res) => {
+router.put('/dist', requireRole('sales_ops'), asyncH((req, res) => {
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   const clean = rows
     .filter((r) => (r.sup || r.sales || r.coop))

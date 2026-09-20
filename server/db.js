@@ -506,6 +506,13 @@ function migrate() {
     "ELSE appr_stage END " +
     "WHERE appr_stage IS NULL AND approval IN ('approved','pending')"
   );
+  // Role model change: the old marketing/division/doc roles are retired. Any
+  // existing account on them is deactivated (reversible) so it can neither log in
+  // nor break the role-keyed UI; an admin can reassign it from the Users screen.
+  db.exec("UPDATE users SET active = 0 WHERE role IN ('marketing','division','doc')");
+  // Salesmen & supervisors can no longer self-change their password (admin-only),
+  // so clear any pending forced-change flag that would otherwise deadlock them.
+  db.exec("UPDATE users SET must_change_password = 0 WHERE role IN ('salesman','supervisor') AND must_change_password = 1");
   // coop_terms redesign: per (coop + letter_type). Recreate the table if it
   // predates the letter_type column (config-only, safe to rebuild).
   const ctInfo = db.prepare("PRAGMA table_info(coop_terms)").all();

@@ -82,16 +82,26 @@ const T = {
     en: "Each party has its own page — budget cascades top-down",
   },
   enter: { ar: "دخول", en: "Enter" },
+  r_sales_manager: { ar: "مدير المبيعات", en: "Sales Manager" },
+  r_sales_manager_d: {
+    ar: "اعتماد الكتب والتوقيع الإلكتروني على كتبه، واعتماد إشعارات الخصم.",
+    en: "Approve letters, e-sign his own, and approve debit notes.",
+  },
+  r_marketing_manager: { ar: "مدير التسويق", en: "Marketing Manager" },
+  r_marketing_manager_d: {
+    ar: "اعتماد الكتب وإدارة الميزانية وتوزيعها على القنوات.",
+    en: "Approve letters and manage the budget across channels.",
+  },
+  r_sales_ops: { ar: "مدير عمليات البيع والتسويق", en: "Sales & Marketing Ops" },
+  r_sales_ops_d: {
+    ar: "اعتماد الكتب والتوقيع عند الحاجة، وتوزيع الميزانية والتقارير.",
+    en: "Approve letters (sign when required), distribute budget, and reports.",
+  },
+  // Retired roles (kept only so any stale label lookup resolves).
   r_marketing: { ar: "الماركتينج", en: "Marketing" },
-  r_marketing_d: {
-    ar: "إنشاء الميزانية وتوزيعها على القنوات.",
-    en: "Create the budget and distribute it across channels.",
-  },
+  r_marketing_d: { ar: "—", en: "—" },
   r_division: { ar: "مدير القسم", en: "Division Manager" },
-  r_division_d: {
-    ar: "استلام ميزانية الجمعيات وتوزيعها على المشرفين.",
-    en: "Receive the co-ops budget and split it among supervisors.",
-  },
+  r_division_d: { ar: "—", en: "—" },
   r_supervisor: { ar: "السوبر فايزر", en: "Supervisor" },
   r_supervisor_d: {
     ar: "توزيع الحصة على المناديب ومتابعة الجمعيات.",
@@ -476,6 +486,28 @@ const T = {
   approveLetterQ: { ar: "اعتماد هذا الكتاب؟", en: "Approve this letter?" },
   rejectReasonPrompt: { ar: "سبب الرفض:", en: "Rejection reason:" },
   needApproval: { ar: "بانتظار اعتماد المشرف للطباعة", en: "Awaiting supervisor approval to print" },
+  // Approval-chain stages + statuses.
+  stg_supervisor: { ar: "بانتظار المشرف", en: "Awaiting supervisor" },
+  stg_sales_manager: { ar: "بانتظار مدير المبيعات", en: "Awaiting sales manager" },
+  stg_marketing_manager: { ar: "بانتظار مدير التسويق", en: "Awaiting marketing manager" },
+  stg_sales_ops: { ar: "بانتظار مدير العمليات", en: "Awaiting sales ops" },
+  stg_print: { ar: "جاهز للطباعة", en: "Ready to print" },
+  needsSign: { ar: "يتطلب توقيعك", en: "Needs your signature" },
+  lt_readyPrint: { ar: "جاهز للطباعة", en: "Ready to print" },
+  lt_printed: { ar: "تمت الطباعة", en: "Printed" },
+  adminOnlyPrint: { ar: "الطباعة للأدمن فقط", en: "Admin prints only" },
+  awaitStage: { ar: "قيد الاعتماد — {s}", en: "In approval — {s}" },
+  // E-signature pad.
+  signTitle: { ar: "التوقيع الإلكتروني", en: "E-signature" },
+  signHint: { ar: "وقّع بإصبعك أو الماوس داخل الإطار ثم اعتمد.", en: "Sign with finger or mouse inside the box, then approve." },
+  approveAndSign: { ar: "اعتماد وتوقيع", en: "Approve & sign" },
+  clearSign: { ar: "مسح", en: "Clear" },
+  signRequired: { ar: "الرجاء التوقيع أولًا", en: "Please sign first" },
+  // Admin print queue.
+  r_printQueue: { ar: "قائمة الطباعة", en: "Print queue" },
+  r_printQueue_d: { ar: "الكتب المكتملة الاعتماد الجاهزة للطباعة.", en: "Fully-approved letters ready to print." },
+  printQueueTitle: { ar: "جاهزة للطباعة", en: "Ready to print" },
+  printedTitle: { ar: "تمت طباعتها", en: "Printed" },
   r_lettersHistory: { ar: "سجل الكتب", en: "Letters history" },
   r_lettersHistory_d: { ar: "كل الكتب الصادرة وحالتها.", en: "All issued letters and their status." },
   r_budgetHistory: { ar: "سجل الميزانية", en: "Budget history" },
@@ -811,14 +843,14 @@ function onCoopChange(prefix) {
 }
 /* ---------- roles ---------- */
 const ROLES = [
-  { k: "marketing", ic: "◵" },
-  { k: "division", ic: "⇲" },
+  { k: "sales_manager", ic: "✍" },
+  { k: "marketing_manager", ic: "◵" },
+  { k: "sales_ops", ic: "⇲" },
   { k: "supervisor", ic: "⋔" },
   { k: "salesman", ic: "✎" },
-  { k: "doc", ic: "❏" },
 ];
 // Sections hidden from the home tiles and the navigation bar (per request).
-const HIDDEN_ROUTES = new Set(["doc", "outlets", "products", "sales", "salesMonthly"]);
+const HIDDEN_ROUTES = new Set(["outlets", "products", "sales", "salesMonthly"]);
 let role = null;
 function go(r) {
   role = r;
@@ -848,10 +880,10 @@ function render() {
   }
   // Read-only reference/report views each role may open beyond its own home.
   const EXTRA = {
-    marketing: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
-    division: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
+    sales_manager: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
+    marketing_manager: ["sales", "salesMonthly", "outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory"],
+    sales_ops: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "lettersHistory", "budgetHistory", "audit"],
     supervisor: ["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "contracts", "lettersHistory"],
-    doc: ["outlets", "sales", "salesMonthly", "products", "priceUpdates", "priceTrack", "approveItems", "contracts", "lettersHistory", "budgetHistory"],
     salesman: ["outlets", "products", "priceTrack", "approveItems", "contracts"],
   };
   let rk;
@@ -877,11 +909,11 @@ function render() {
   document.getElementById("app").innerHTML =
     `<div class="rolebar"><div class="wrap"><div><h2>${t("r_" + rk)}</h2><div class="sub">${t("r_" + rk + "_d")}</div></div><div class="navbtns">${nav}</div></div></div><div class="page"><div class="wrap" id="rv"></div></div>`;
   const view = {
-    marketing: vMarketing,
-    division: vDivision,
+    sales_manager: vSalesManager,
+    marketing_manager: vMarketing,
+    sales_ops: vDivision,
     supervisor: vSupervisor,
     salesman: vSalesman,
-    doc: vDoc,
     audit: vAudit,
     users: vUsers,
     backup: vBackup,
@@ -896,6 +928,7 @@ function render() {
     coopTerms: vCoopTerms,
     salesMonthly: vSalesMonthly,
     contracts: vContracts,
+    printQueue: vPrintQueue,
   }[rk];
   if (view) view();
   else renderHome();
@@ -975,6 +1008,7 @@ async function doChangePw() {
   }
 }
 const ADMIN_ROLES = [
+  { k: "printQueue", ic: "🖨" },
   { k: "outlets", ic: "🏪" },
   { k: "products", ic: "📦" },
   { k: "sales", ic: "📈" },
@@ -1004,6 +1038,7 @@ function vMarketing() {
     sp = spent(),
     alloc = sum(Object.values(DB.budget.channels || {}));
   document.getElementById("rv").innerHTML = `
+  ${stageLettersPanel("marketing_manager")}
   <div class="cards">${card("accent", t("c_total"), KD(total), 1)}${card("warn", t("c_spentAll"), KD(sp), 1)}${card("ok", t("c_rem"), KD(total - sp), 1)}</div>
   <div class="panel"><header><h3>${t("addBudget")}</h3></header><div class="body"><div class="grid g3">
     <div class="field"><label>${t("period")}</label><input readonly style="cursor:pointer;background:#fff" value="${esc(periodLabel())}" onclick="openPeriod()"></div>
@@ -1295,13 +1330,19 @@ function clearAmt(i) {
   renderDistRows();
 }
 let distOutlets = [];
+// Sales-manager home: letters awaiting his approval (+ e-sign when the letter is
+// his to sign) and the manager stage of debit-note approvals.
+function vSalesManager() {
+  document.getElementById("rv").innerHTML =
+    `${stageLettersPanel("sales_manager")}${mgrApprovalsPanel()}`;
+}
 async function vDivision() {
   const pool = distPool(),
     tw = totalWob(),
     alloc = sum(DB.dist.map(rowAmt));
   document.getElementById("rv").innerHTML =
-    `<div class="cards">${card("accent", t("c_coopBudget"), KD(pool), 1)}${card("", t("totalWob"), tw.toLocaleString("en-US"), 0)}${card("warn", t("c_distSup"), KD(alloc), 1)}</div>
-  ${mgrApprovalsPanel()}
+    `${stageLettersPanel("sales_ops")}
+  <div class="cards">${card("accent", t("c_coopBudget"), KD(pool), 1)}${card("", t("totalWob"), tw.toLocaleString("en-US"), 0)}${card("warn", t("c_distSup"), KD(alloc), 1)}</div>
   <div class="panel"><header><h3>${t("distTable")}</h3><div style="display:flex;gap:8px;align-items:center"><span class="pill-info">${t("outletLinkHint")}</span><button class="btn gold sm" onclick="addDist()">＋ ${t("add")}</button></div></header>
    <datalist id="outletDL"></datalist>
    <div class="tbl-wrap"><table><thead><tr><th>${t("supervisor")}</th><th>${t("salesman")}</th><th>${t("mainCoop")}</th><th>${t("outlet")}</th><th>${t("wob")}</th><th>${t("amount")} (${t("kd")})</th><th></th></tr></thead><tbody id="distRows"></tbody></table></div>
@@ -1405,7 +1446,7 @@ function vSupervisor() {
   const recv = sum(myRows.map(rowAmt));
   document.getElementById("rv").innerHTML =
     `<div class="cards">${card("accent", t("c_recv"), KD(recv), 1)}${card("", t("c_rowsN"), myRows.length, 0)}</div>
-  ${supLettersPanels()}
+  ${stageLettersPanel("supervisor")}
   ${supApprovalsPanel(me)}
   <div class="panel"><header><h3>${t("myAssignments")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("salesman")}</th><th>${t("mainCoop")}</th><th>${t("outlet")}</th><th>${t("wob")}</th><th>${t("amount")} (${t("kd")})</th></tr></thead><tbody>${myRows.length ? myRows.map((r) => `<tr><td>${esc(r.sales)}</td><td>${esc(r.coop)}</td><td>${esc(r.outlet)}</td><td class="mono">${+r.wob || 0}</td><td class="mono">${KD(rowAmt(r))}</td></tr>`).join("") : `<tr><td colspan="5"><div class="empty">${t("noAssign")}</div></td></tr>`}</tbody></table></div></div>
   <div class="panel"><header><h3>${t("coopsRef")}</h3><span class="pill-info">${DB.ref.coops.length} ${t("coopsN")}</span></header><div class="tbl-wrap" style="max-height:300px"><table><thead><tr><th>${t("coop")}</th><th>${t("mainOut")}</th><th>${t("branches")}</th></tr></thead><tbody>${DB.ref.coops.map((c) => `<tr><td>${esc(c.n)}</td><td class="mono">${c.m}</td><td>${c.b}</td></tr>`).join("")}</tbody></table></div></div>`;
@@ -1417,6 +1458,19 @@ function vLettersHistory() {
   const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></td></tr>`).join("");
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
 }
+// Admin-only: letters that cleared the whole chain and are ready to print.
+function vPrintQueue() {
+  const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
+  const ready = DB.letters.filter((l) => l.apprStage === "print");
+  const pendingPrint = ready.filter((l) => !l.printedAt);
+  const rowsHtml = (list) => list.length
+    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">${t("noLetters")}</div>`;
+  const printed = ready.filter((l) => l.printedAt);
+  document.getElementById("rv").innerHTML =
+    `<div class="panel"><header><h3>${t("printQueueTitle")} (${pendingPrint.length})</h3></header><div class="tbl-wrap">${rowsHtml(pendingPrint)}</div></div>
+     <div class="panel"><header><h3>${t("printedTitle")} (${printed.length})</h3></header><div class="tbl-wrap">${rowsHtml(printed)}</div></div>`;
+}
 function vBudgetHistory() {
   const b = DB.budgets.slice().reverse();
   const ch = DB.budget.channels || {};
@@ -1425,38 +1479,93 @@ function vBudgetHistory() {
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_budgetHistory")} (${b.length})</h3></header><div class="tbl-wrap">${b.length ? `<table><thead><tr><th>${t("period")}</th><th>${t("preset")}</th><th>${t("amount")}</th><th>${t("createdOn")}</th><th>${t("createdBy")}</th></tr></thead><tbody>${brows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>
   <div class="panel"><header><h3>${t("channelsTitle")}</h3></header><div class="tbl-wrap">${crows ? `<table><thead><tr><th>${t("channel")}</th><th>${t("amount")}</th></tr></thead><tbody>${crows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>`;
 }
-/* ---------- letter approval (salesman -> supervisor) ---------- */
-function supLettersPanels() {
+/* ---------- letter approval chain ---------- */
+// The stage owned by each role, and the signer who e-signs at each stage.
+const CHAIN_STAGES = ["supervisor", "sales_manager", "marketing_manager", "sales_ops", "print"];
+const STAGE_SIGNER = { sales_manager: "سائد الرمحي", sales_ops: "أحمد شوقي" };
+function letterSignerName(L) {
+  if (L && L.meta && L.meta.sign && L.meta.sign.name) return String(L.meta.sign.name).trim();
+  const s = specOf(L && L.type);
+  return s && s.signatory ? String(s.signatory.name || "").trim() : "";
+}
+function stageNeedsSig(stage, L) { return !!STAGE_SIGNER[stage] && letterSignerName(L) === STAGE_SIGNER[stage]; }
+function stageLabel(st) { return t("stg_" + st) || st; }
+// One approval queue for a given chain stage (the current role's inbox).
+function stageLettersPanel(stage) {
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
+  const pend = DB.letters.filter((l) => l.apprStage === stage && l.approval !== "rejected");
   const head = `<tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr>`;
-  const row = (L, acts) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${acts}</td></tr>`;
-  const pend = DB.letters.filter((l) => (l.approval || "pending") === "pending");
-  const appr = DB.letters.filter((l) => l.approval === "approved");
-  const pendTbl = pend.length
-    ? `<table><thead>${head}</thead><tbody>${pend.slice().reverse().map((L) => row(L, `<div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div>`)).join("")}</tbody></table>`
+  const body = pend.length
+    ? `<table><thead>${head}</thead><tbody>${pend.slice().reverse().map((L) => {
+        const sig = stageNeedsSig(stage, L) ? ` <span class="pill-info" style="padding:1px 7px">✍ ${t("needsSign")}</span>` : "";
+        return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}${sig}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}','${stage}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div></td></tr>`;
+      }).join("")}</tbody></table>`
     : `<div class="empty">${t("noLetters")}</div>`;
-  const apprTbl = appr.length
-    ? `<table><thead>${head}</thead><tbody>${appr.slice().reverse().map((L) => row(L, `<button class="btn primary sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button>`)).join("")}</tbody></table>`
-    : `<div class="empty">${t("noLetters")}</div>`;
-  return `<div class="panel"><header><h3>${t("lettersToApprove")} (${pend.length})</h3></header><div class="tbl-wrap">${pendTbl}</div></div>
-  <div class="panel"><header><h3>${t("approvedLetters")} (${appr.length})</h3></header><div class="tbl-wrap">${apprTbl}</div></div>`;
+  return `<div class="panel"><header><h3>${t("lettersToApprove")} (${pend.length})</h3></header><div class="tbl-wrap">${body}</div></div>`;
 }
 function letterApprovalTag(L) {
   const a = (L && L.approval) || "pending";
-  if (a === "approved") return `<span class="tag done">${t("lt_approved")}</span>`;
   if (a === "rejected") return `<span class="tag" style="background:#fde8e8;color:#b42318" title="${esc(L.rejectReason || "")}">${t("lt_rejected")}</span>`;
-  return `<span class="tag draft">${t("lt_pending")}</span>`;
+  if (a === "approved" || L.apprStage === "print") {
+    return L.printedAt ? `<span class="tag done">${t("lt_printed")}</span>` : `<span class="tag done">${t("lt_readyPrint")}</span>`;
+  }
+  // Pending: show which stage it's waiting on.
+  return `<span class="tag draft">${stageLabel(L.apprStage || "supervisor")}</span>`;
 }
-async function approveLetter(id) {
+async function approveLetter(id, stage) {
+  const L = DB.letters.find((x) => x.id === id);
+  if (L && stage && stageNeedsSig(stage, L)) { openSignPad(id, stage); return; }
   if (!confirm(t("approveLetterQ"))) return;
-  try { await api("/letters/" + id + "/approve", { method: "POST" }); await loadState(); render(); toast(t("lt_approved")); }
+  try { const r = await api("/letters/" + id + "/approve", { method: "POST" }); await loadState(); render(); toast(r.done ? t("lt_readyPrint") : t("apprd")); }
   catch (e) { toast(e.message); }
 }
 async function rejectLetter(id) {
   const reason = prompt(t("rejectReasonPrompt"));
   if (reason === null) return;
-  try { await api("/letters/" + id + "/reject", { method: "POST", body: { reason: reason || "" } }); await loadState(); render(); toast(t("lt_rejected")); }
+  if (!reason.trim()) { toast(t("rejectReasonPrompt")); return; }
+  try { await api("/letters/" + id + "/reject", { method: "POST", body: { reason: reason.trim() } }); await loadState(); render(); toast(t("lt_rejected")); }
   catch (e) { toast(e.message); }
+}
+/* ---------- e-signature pad (draw with mouse/finger) ---------- */
+let _sigCanvas = null, _sigCtx = null, _sigDrawing = false, _sigDirty = false;
+function openSignPad(id, stage) {
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("signTitle")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  <div style="padding:20px 24px">
+    <p class="hint">${t("signHint")}</p>
+    <canvas id="sigPad" width="520" height="200" style="width:100%;max-width:520px;height:200px;border:2px dashed var(--line);border-radius:10px;background:#fff;touch-action:none;cursor:crosshair"></canvas>
+    <div class="actions" style="margin-top:14px;gap:8px">
+      <button class="btn primary" onclick="saveSignPad('${id}','${stage}')">${t("approveAndSign")}</button>
+      <button class="btn ghost" onclick="clearSignPad()">${t("clearSign")}</button>
+      <button class="btn ghost" onclick="closeModal()">${t("cancel")}</button>
+    </div>
+  </div>`);
+  setTimeout(initSignPad, 30);
+}
+function initSignPad() {
+  _sigCanvas = document.getElementById("sigPad");
+  if (!_sigCanvas) return;
+  _sigCtx = _sigCanvas.getContext("2d");
+  _sigCtx.lineWidth = 2.2; _sigCtx.lineCap = "round"; _sigCtx.strokeStyle = "#0b1f3a";
+  _sigDirty = false;
+  const pos = (e) => {
+    const r = _sigCanvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: (p.clientX - r.left) * (_sigCanvas.width / r.width), y: (p.clientY - r.top) * (_sigCanvas.height / r.height) };
+  };
+  const start = (e) => { e.preventDefault(); _sigDrawing = true; const q = pos(e); _sigCtx.beginPath(); _sigCtx.moveTo(q.x, q.y); };
+  const move = (e) => { if (!_sigDrawing) return; e.preventDefault(); const q = pos(e); _sigCtx.lineTo(q.x, q.y); _sigCtx.stroke(); _sigDirty = true; };
+  const end = () => { _sigDrawing = false; };
+  _sigCanvas.onmousedown = start; _sigCanvas.onmousemove = move; window.onmouseup = end;
+  _sigCanvas.ontouchstart = start; _sigCanvas.ontouchmove = move; _sigCanvas.ontouchend = end;
+}
+function clearSignPad() { if (_sigCtx && _sigCanvas) { _sigCtx.clearRect(0, 0, _sigCanvas.width, _sigCanvas.height); _sigDirty = false; } }
+async function saveSignPad(id, stage) {
+  if (!_sigCanvas || !_sigDirty) { toast(t("signRequired")); return; }
+  const dataUrl = _sigCanvas.toDataURL("image/png");
+  try {
+    const r = await api("/letters/" + id + "/approve", { method: "POST", body: { signature: dataUrl } });
+    await loadState(); closeModal(); render(); toast(r.done ? t("lt_readyPrint") : t("apprd"));
+  } catch (e) { toast(e.message); }
 }
 /* ---------- salesman ---------- */
 let draftItems = [{ name: "", price: "" }];
@@ -2103,8 +2212,17 @@ function setLhMode(m, rec, isLetter) {
   openDoc(rec, isLetter);
 }
 
-function signBlock() {
-  return `<div class="sign"><div class="role">${esc(SIGNATORY.role)}</div><div class="who">${esc(SIGNATORY.name)}</div></div>`;
+// The captured e-signature image (data URL), if the designated signatory e-signed.
+function sigImgOf(rec) {
+  const s = rec && rec.meta && rec.meta.signatures;
+  return s ? (s.sales_manager || s.sales_ops || "") : "";
+}
+// Signature block: the chosen signatory's role+name, with the drawn e-signature
+// stamped above it when present.
+function signBlock(rec, sg) {
+  sg = sg || (rec && rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role) ? rec.meta.sign : SIGNATORY);
+  const img = sigImgOf(rec);
+  return `<div class="sign">${img ? `<img class="sig-img" src="${img}" alt="">` : ""}<div class="role">${esc(sg.role)}</div><div class="who">${esc(sg.name)}</div></div>`;
 }
 function metaBlock(rec, isLetter) {
   // Date, then the LYSAL reference directly beneath it, both flush to the left.
@@ -2139,7 +2257,7 @@ function priceLetterInner(rec) {
   ${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
   <div class="close">شاكريـن لكـم حسـن تعاونكـم،،،،</div>
   <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام،،،</div>
-  ${signBlock()}`;
+  ${signBlock(rec)}`;
 }
 
 // Debit-note letter body (Listing/Stand/Pallet/Price Off/CDA).
@@ -2161,7 +2279,7 @@ function debitLetterInner(rec, isLetter) {
   <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامه للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة، مقابل ${reason}</div>
   ${items}${rec.note ? `<div class="body">ملاحظات: ${esc(rec.note)}</div>` : ""}
   <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>
-  ${signBlock()}`;
+  ${signBlock(rec)}`;
 }
 
 // Substitute {placeholders} in spec subject/intro from the record.
@@ -2200,9 +2318,7 @@ function specDocHTML(rec, spec) {
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
   const closing = (spec.closing || []).map((l) => `<div class="close">${esc(l)}</div>`).join("");
   const sg = (rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role)) ? rec.meta.sign : spec.signatory;
-  const sign = sg && (sg.name || sg.role)
-    ? `<div class="sign"><div class="role">${esc(sg.role)}</div><div class="who">${esc(sg.name)}</div></div>`
-    : "";
+  const sign = sg && (sg.name || sg.role) ? signBlock(rec, sg) : "";
   const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
@@ -2220,14 +2336,14 @@ function listingDnHTML(rec, spec) {
   const p1 = `${meta}${to}
     <div class="subj">الموضـوع : عمل إشعار خصم</div>
     <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على عمل إشعار خصم من حساب الشركة المتحدة المتميزة للتجارة العامه للمواد الغذائية لديكم بقيمة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))} وذلك القيمة مقابل اعتماد أصناف جديدة.</div>
-    <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock()}`;
+    <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock(rec)}`;
   // Page 2 — items table (تحديث بيانات)
   const tbl = specTablePrint(spec.table, rec.items);
   const p2 = `${meta}${to}
     <div class="subj">الموضـوع : تحديـث بيانـات</div>
     <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على اعتماد الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :</div>
     ${tbl}
-    <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock()}`;
+    <div class="close">وتفضلـوا بقبـول فائـق الاحتـرام والتقديـر،،،</div>${signBlock(rec)}`;
   return wrap(p1) + wrap(p2, ' style="page-break-before:always"');
 }
 function docHTML(rec, isLetter) {
@@ -2281,9 +2397,14 @@ function printWithName(name) {
   setTimeout(restore, 60000); // safety net if afterprint never fires
   window.print();
 }
-function printCur() {
-  if (curDoc && curDoc.rec) printWithName(docFileName(curDoc.rec, curDoc.isLetter));
-  else window.print();
+async function printCur() {
+  if (curDoc && curDoc.rec) {
+    // Printing a fully-approved letter is an admin action that is recorded.
+    if (curDoc.isLetter && currentUser.role === "admin" && curDoc.rec.apprStage === "print") {
+      try { await api("/letters/" + curDoc.rec.id + "/print", { method: "POST" }); curDoc.rec.printedAt = new Date().toISOString(); } catch (e) { toast(e.message); return; }
+    }
+    printWithName(docFileName(curDoc.rec, curDoc.isLetter));
+  } else window.print();
 }
 function openDoc(rec, isLetter) {
   curDoc = { rec, isLetter };
@@ -2293,15 +2414,17 @@ function openDoc(rec, isLetter) {
       : "";
   const trail = !isLetter ? `<div style="padding:0 24px 18px">${approvalTrail(rec)}</div>` : "";
   const lhBtn = `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
-  // A salesman can never print; a letter prints only once the supervisor has
-  // approved it. Debit notes keep their own print behaviour.
+  // Only the ADMIN prints, and only after a letter clears the whole approval
+  // chain (apprStage === 'print'). Everyone else sees the current status.
+  // Debit notes keep their own print behaviour.
   const canPrint = isLetter
-    ? (currentUser.role !== "salesman" && rec.approval === "approved")
+    ? (currentUser.role === "admin" && rec.apprStage === "print")
     : true;
   const printBtn = canPrint
     ? `<button class="btn gold sm" onclick="printCur()">${t("print")}</button>`
-    : (isLetter && currentUser.role === "salesman" && rec.approval !== "approved"
-      ? `<span class="pill-info" style="padding:3px 10px">${t("needApproval")}</span>` : "");
+    : (isLetter
+      ? `<span class="pill-info" style="padding:3px 10px">${rec.apprStage === "print" ? t("adminOnlyPrint") : (rec.approval === "rejected" ? t("lt_rejected") : t("awaitStage").replace("{s}", stageLabel(rec.apprStage || "supervisor")))}</span>`
+      : "");
   modal(
     `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
   );
@@ -2388,7 +2511,7 @@ async function loadAudit() {
 }
 
 /* ---------- user management (admin) ---------- */
-const USER_ROLES = ["admin", "marketing", "division", "supervisor", "salesman", "doc"];
+const USER_ROLES = ["admin", "sales_manager", "marketing_manager", "sales_ops", "supervisor", "salesman"];
 let usersCache = [];
 async function vUsers() {
   document.getElementById("rv").innerHTML =
@@ -2668,7 +2791,7 @@ function doImportProducts(input) {
 
 /* ---------- price-increase module (tracker + price updates + approvals) ---------- */
 let ptCache = { products: [], outlets: [], cells: {} };
-const canEditMgmt = () => ["admin", "marketing", "division"].includes(currentUser.role);
+const canEditMgmt = () => ["admin", "sales_manager", "marketing_manager", "sales_ops"].includes(currentUser.role);
 function fileToApi(input, url, cb) {
   const f = input.files[0]; if (!f) return;
   const rd = new FileReader();

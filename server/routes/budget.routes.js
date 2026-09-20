@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 // POST /api/budgets  (marketing) — add a budget period
-router.post('/budgets', requireRole('marketing'), asyncH((req, res) => {
+router.post('/budgets', requireRole('marketing_manager'), asyncH((req, res) => {
   const amount = num(req.body.amount);
   const from = req.body.from || '';
   if (!from) throw badRequest('اختر الفترة أولاً', 'NO_PERIOD');
@@ -28,7 +28,7 @@ router.post('/budgets', requireRole('marketing'), asyncH((req, res) => {
 }));
 
 // DELETE /api/budgets/:id  (marketing)
-router.delete('/budgets/:id', requireRole('marketing'), asyncH((req, res) => {
+router.delete('/budgets/:id', requireRole('marketing_manager'), asyncH((req, res) => {
   const row = db.prepare('SELECT * FROM budgets WHERE id = ?').get(req.params.id);
   if (!row) throw notFound('الميزانية غير موجودة');
   db.prepare('DELETE FROM budgets WHERE id = ?').run(req.params.id);
@@ -41,7 +41,7 @@ router.delete('/budgets/:id', requireRole('marketing'), asyncH((req, res) => {
 }));
 
 // PUT /api/channels  (marketing) — replace channel allocation { channels: {name: amount} }
-router.put('/channels', requireRole('marketing'), asyncH((req, res) => {
+router.put('/channels', requireRole('marketing_manager'), asyncH((req, res) => {
   const incoming = req.body.channels || {};
   const now = nowIso();
   const valid = new Set(SEED.channels);

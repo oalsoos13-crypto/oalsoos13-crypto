@@ -193,8 +193,10 @@ function seedUsers() {
       if (exists.get(u.u)) continue;
       // Explicit per-user password (u.pw) wins; otherwise fall back to the role default.
       const pw = u.pw || (u.role === 'admin' ? config.adminPassword : config.defaultPassword);
-      // must_change_password: 1 (force change on first login) unless the row opts out (mc: 0).
-      const mc = u.mc === 0 ? 0 : 1;
+      // must_change_password: 1 (force change on first login) unless the row opts
+      // out (mc: 0). Salesmen & supervisors never self-change (admin-only), so they
+      // default to 0 to avoid a first-login deadlock.
+      const mc = u.mc === 0 ? 0 : (u.role === 'salesman' || u.role === 'supervisor' ? 0 : 1);
       insert.run({ username: u.u, hash: hashPassword(pw), name: u.name, role: u.role, mc, now });
       created++;
     }

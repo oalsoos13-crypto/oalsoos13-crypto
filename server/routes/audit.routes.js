@@ -9,7 +9,7 @@ const router = express.Router();
 // NOTE: do NOT use a pass-through `router.use(requireRole(...))` here — this
 // router shares the '/api' mount, so a blanket gate would reject requests for
 // routes defined in other routers mounted after this one.
-const guard = [requireAuth, requireRole('doc')];
+const guard = [requireAuth, requireRole('sales_ops')];
 
 // Build a WHERE clause + params from query filters.
 function buildFilter(q) {

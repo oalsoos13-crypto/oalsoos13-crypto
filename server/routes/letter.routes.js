@@ -211,7 +211,7 @@ function computeValue(type, body, coopName, recipient) {
 
 // POST /api/letters — create a letter (auto-assigns LYSAL number).
 // Salesmen create co-op letters; management may also create the spec letters.
-router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH((req, res) => {
+router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
   const type = String(req.body.type || '');
   const mode = modeOf(type);
   if (!mode) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
@@ -266,13 +266,13 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
     num_ = nextCounter(); lysal = refNo(num_);
   }
 
-  // Salesmen's letters need supervisor approval before printing; letters made
-  // by management are approved on creation.
-  const approval = req.user.role === 'salesman' ? 'pending' : 'approved';
+  // Every letter enters the approval chain at the supervisor stage and is not
+  // printable until it clears all stages (supervisor -> sales_manager ->
+  // marketing_manager -> sales_ops -> print).
   const custId = String(req.body.custId || '').trim() || null;
   db.prepare(`INSERT INTO letters
-      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, approved_by, approved_at, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending',@approval,@appBy,@appAt,@by,@now)`)
+      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, approved_by, approved_at, created_by, created_at)
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,@principal,@note,@value,@base,@pct,@items,@recipient,@meta,@custId,'pending','pending','supervisor',NULL,NULL,@by,@now)`)
     .run({
       id, num: num_, lysal, type, coop,
       brand: req.body.brand || '', sales,
@@ -281,7 +281,6 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
       value: calc.value, base: calc.base ?? null, pct: calc.pct ?? null,
       items: calc.items ? toJson(calc.items) : null,
       recipient, meta: metaJson, custId,
-      approval, appBy: approval === 'approved' ? req.user.id : null, appAt: approval === 'approved' ? now : null,
       by: req.user.id, now,
     });
 
@@ -307,7 +306,7 @@ router.post('/letters', requireRole('salesman', 'marketing', 'division'), asyncH
 }));
 
 // DELETE /api/letters/:id  (own draft, or admin)
-router.delete('/letters/:id', requireRole('salesman', 'marketing', 'division'), asyncH((req, res) => {
+router.delete('/letters/:id', requireRole('salesman', 'sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
   if (req.user.role !== 'admin' && L.sales !== req.user.name) throw forbidden('لا يمكنك حذف كتاب مندوب آخر');
@@ -397,7 +396,7 @@ router.get('/letters/suggestions', asyncH((req, res) => {
 // A supervisor may only moderate letters whose co-op is within their scope;
 // management may moderate any.
 function assertCanModerate(req, L) {
-  if (['marketing', 'division', 'admin'].includes(req.user.role)) return;
+  if (['sales_manager', 'marketing_manager', 'sales_ops', 'admin'].includes(req.user.role)) return;
   if (req.user.role === 'supervisor') {
     const allowed = scopeCoopSet(req.user);
     const c = cleanCoop(L.coop);
@@ -407,29 +406,88 @@ function assertCanModerate(req, L) {
   throw forbidden('غير مصرح', 'ROLE');
 }
 
-// POST /api/letters/:id/approve — supervisor/management approve; enables print.
-router.post('/letters/:id/approve', requireRole('supervisor', 'marketing', 'division'), asyncH((req, res) => {
+// The linear approval chain. Each stage is owned by the role of the same name;
+// 'print' is the terminal ready-for-admin state.
+const CHAIN = ['supervisor', 'sales_manager', 'marketing_manager', 'sales_ops', 'print'];
+function nextStage(stage) { const i = CHAIN.indexOf(stage); return i < 0 ? null : CHAIN[i + 1] || null; }
+// The signatory who e-signs at a given stage, if the letter is his to sign.
+// سائد الرمحي signs at the sales_manager stage; أحمد شوقي at the sales_ops stage.
+// Letters signed by others (راشد/عماد, Union) are approved only — signed on paper.
+const STAGE_SIGNER = { sales_manager: 'سائد الرمحي', sales_ops: 'أحمد شوقي' };
+function letterSignerName(L) {
+  try { const m = L.meta ? JSON.parse(L.meta) : null; if (m && m.sign && m.sign.name) return String(m.sign.name).trim(); } catch (e) { /* */ }
+  const spec = SPEC_BY_KEY[L.type];
+  return spec && spec.signatory ? String(spec.signatory.name || '').trim() : '';
+}
+
+// POST /api/letters/:id/approve — the current-stage owner (or admin) approves,
+// advancing the letter one stage. When the stage is the letter's signatory's,
+// a drawn e-signature (data URL) must accompany the approval and is stored.
+router.post('/letters/:id/approve', requireRole('supervisor', 'sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
-  assertCanModerate(req, L);
+  const stage = L.appr_stage;
+  if (!stage || stage === 'print' || L.approval === 'rejected') throw badRequest('الكتاب ليس بانتظار اعتماد', 'BAD_STAGE');
+  // Only the stage owner (or admin) may act, and supervisors are scope-limited.
+  if (req.user.role !== 'admin' && req.user.role !== stage) throw forbidden('هذه المرحلة ليست من صلاحيتك', 'WRONG_STAGE');
+  if (stage === 'supervisor') assertCanModerate(req, L);
+
+  let meta = {};
+  try { meta = L.meta ? JSON.parse(L.meta) : {}; } catch (e) { meta = {}; }
+  // Capture the e-signature when this stage is the designated signatory's.
+  const needSig = STAGE_SIGNER[stage] && letterSignerName(L) === STAGE_SIGNER[stage];
+  if (needSig) {
+    const sig = String(req.body.signature || '');
+    if (!/^data:image\//.test(sig)) throw badRequest('التوقيع الإلكتروني مطلوب لهذا الكتاب', 'SIGNATURE_REQUIRED');
+    if (sig.length > 400000) throw badRequest('حجم التوقيع كبير جدًا', 'SIGNATURE_TOO_BIG');
+    meta.signatures = meta.signatures || {};
+    meta.signatures[stage] = sig;
+  }
+  meta.approvals = meta.approvals || {};
   const now = nowIso();
-  db.prepare("UPDATE letters SET approval='approved', approved_by=?, approved_at=?, rejected_by=NULL, rejected_at=NULL, reject_reason=NULL, updated_at=? WHERE id=?")
-    .run(req.user.id, now, now, L.id);
-  audit.fromReq(req, 'letter.approve', { entityType: 'letter', entityId: L.id, summary: `Approved letter ${L.lysal}` });
+  meta.approvals[stage] = { by: req.user.name || req.user.username, at: now };
+
+  const next = nextStage(stage);
+  const done = next === 'print';
+  db.prepare(
+    "UPDATE letters SET appr_stage=?, approval=?, meta=?, approved_by=?, approved_at=?, rejected_by=NULL, rejected_at=NULL, reject_reason=NULL, updated_at=? WHERE id=?"
+  ).run(next, done ? 'approved' : 'pending', toJson(meta), done ? req.user.id : null, done ? now : null, now, L.id);
+  audit.fromReq(req, 'letter.approve', {
+    entityType: 'letter', entityId: L.id,
+    summary: `Approved letter ${L.lysal} at ${stage}${needSig ? ' (e-signed)' : ''} -> ${next}`,
+    details: { stage, next, signed: !!needSig },
+  });
+  res.json({ ok: true, stage: next, done });
+}));
+
+// POST /api/letters/:id/reject — the current-stage owner (or admin) rejects with
+// a reason; the letter drops out of the chain back to the salesman.
+router.post('/letters/:id/reject', requireRole('supervisor', 'sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
+  const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
+  if (!L) throw notFound('الكتاب غير موجود');
+  const stage = L.appr_stage;
+  if (!stage || stage === 'print' || L.approval === 'rejected') throw badRequest('الكتاب ليس بانتظار اعتماد', 'BAD_STAGE');
+  if (req.user.role !== 'admin' && req.user.role !== stage) throw forbidden('هذه المرحلة ليست من صلاحيتك', 'WRONG_STAGE');
+  if (stage === 'supervisor') assertCanModerate(req, L);
+  const reason = String(req.body.reason || '').trim();
+  if (!reason) throw badRequest('أدخل سبب الرفض', 'NO_REASON');
+  const now = nowIso();
+  db.prepare("UPDATE letters SET approval='rejected', appr_stage=NULL, rejected_by=?, rejected_at=?, reject_reason=?, updated_at=? WHERE id=?")
+    .run(req.user.id, now, reason, now, L.id);
+  audit.fromReq(req, 'letter.reject', { entityType: 'letter', entityId: L.id, summary: `Rejected letter ${L.lysal} at ${stage}`, details: { reason, stage } });
   res.json({ ok: true });
 }));
 
-// POST /api/letters/:id/reject — supervisor/management reject with a reason.
-router.post('/letters/:id/reject', requireRole('supervisor', 'marketing', 'division'), asyncH((req, res) => {
+// POST /api/letters/:id/print — ADMIN ONLY. A letter can be printed only after it
+// has cleared the whole chain (appr_stage='print'). Records the print.
+router.post('/letters/:id/print', requireRole(), asyncH((req, res) => {
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
-  assertCanModerate(req, L);
-  const reason = String(req.body.reason || '').trim();
+  if (L.appr_stage !== 'print' || L.approval !== 'approved') throw badRequest('الكتاب لم يكتمل اعتماده بعد', 'NOT_READY');
   const now = nowIso();
-  db.prepare("UPDATE letters SET approval='rejected', rejected_by=?, rejected_at=?, reject_reason=?, updated_at=? WHERE id=?")
-    .run(req.user.id, now, reason, now, L.id);
-  audit.fromReq(req, 'letter.reject', { entityType: 'letter', entityId: L.id, summary: `Rejected letter ${L.lysal}`, details: { reason } });
-  res.json({ ok: true });
+  db.prepare('UPDATE letters SET printed_at=?, printed_by=?, updated_at=? WHERE id=?').run(now, req.user.id, now, L.id);
+  audit.fromReq(req, 'letter.print', { entityType: 'letter', entityId: L.id, summary: `Printed letter ${L.lysal}` });
+  res.json({ ok: true, printed_at: now });
 }));
 
 module.exports = router;

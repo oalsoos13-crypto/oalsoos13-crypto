@@ -11,7 +11,7 @@ const { asyncH, nowIso, badRequest } = require('../util');
 const router = express.Router();
 router.use(requireAuth);
 
-const MGMT = ['marketing', 'division']; // (+admin always, via requireRole)
+const MGMT = ['sales_manager', 'marketing_manager', 'sales_ops']; // (+admin always, via requireRole)
 
 // Outlet display order taken verbatim from the Price Increase Progress sheet.
 let OUTLET_ORDER = [];
@@ -375,7 +375,7 @@ router.delete('/approve-products/:barcode', requireRole('salesman', 'supervisor'
 }));
 
 // ================= MONTHLY SALES (reference) =================
-router.get('/sales-monthly', requireRole('marketing', 'division', 'doc'), asyncH((req, res) => {
+router.get('/sales-monthly', requireRole('sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
   const q = clean(req.query.q).toLowerCase();
   const limit = Math.min(300, parseInt(req.query.limit || '60', 10) || 60);
   const offset = parseInt(req.query.offset || '0', 10) || 0;
@@ -385,7 +385,7 @@ router.get('/sales-monthly', requireRole('marketing', 'division', 'doc'), asyncH
   const rows = db.prepare('SELECT id,customer,sub_channel,route,item_code,item_desc,g2024,g2025,g2026,v2024,v2025,v2026 FROM sales_monthly ' + where + ' ORDER BY v2026 DESC, id LIMIT ? OFFSET ?').all(...args, limit, offset);
   res.json({ total, rows, limit, offset });
 }));
-router.get('/sales-monthly/:id', requireRole('marketing', 'division', 'doc'), asyncH((req, res) => {
+router.get('/sales-monthly/:id', requireRole('sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
   const r = db.prepare('SELECT * FROM sales_monthly WHERE id = ?').get(req.params.id);
   if (!r) throw badRequest('غير موجود', 'NF');
   let gross = {}, value = {};

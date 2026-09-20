@@ -16,7 +16,7 @@ const { asyncH, nowIso, badRequest } = require('../util');
 const router = express.Router();
 router.use(requireAuth);
 
-const MGMT = ['marketing', 'division']; // (+admin always, via requireRole)
+const MGMT = ['sales_manager', 'marketing_manager', 'sales_ops']; // (+admin always, via requireRole)
 const clean = (v) => String(v == null ? '' : v).trim();
 const num = (v, d = 0) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
 const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim();

@@ -12,7 +12,10 @@ const router = express.Router();
 // unmatched requests (turning 404s into 403s) and anything routed through it.
 const guard = [requireAuth, requireRole()]; // requireRole() with no args => admin only
 
-const ROLES = ['admin', 'marketing', 'division', 'doc', 'supervisor', 'salesman'];
+// Approval-chain roles: salesman creates -> supervisor -> sales_manager ->
+// marketing_manager -> sales_ops -> admin prints. (Old marketing/division/doc
+// roles are retired; existing accounts on them are deactivated by a migration.)
+const ROLES = ['admin', 'sales_ops', 'marketing_manager', 'sales_manager', 'supervisor', 'salesman'];
 
 // GET /api/admin/users
 router.get('/admin/users', guard, asyncH((req, res) => {

@@ -871,14 +871,12 @@ const DEFAULT_USERS = [
   { u: "admin", p: "admin", name: "System Admin", role: "admin" },
   // Owner admin (Omar Zain). Fixed password, not forced to change on first login.
   { u: "omar zain", pw: "12345678", name: "Omar Zain", role: "admin", mc: 0 },
-  {
-    u: "marketing",
-    p: "1234",
-    name: "مدير التسويق — Marketing",
-    role: "marketing",
-  },
-  { u: "division", p: "1234", name: "مدير القسم — Division", role: "division" },
-  { u: "doc", p: "1234", name: "التوثيق — Documentation", role: "doc" },
+
+  // Approval-chain managers. Username = English handle, password 12345678, no
+  // forced change. (Rename via the Users screen if needed.)
+  { u: "saed", pw: "12345678", name: "سائد الرمحي", role: "sales_manager", mc: 0 },
+  { u: "marketingmgr", pw: "12345678", name: "مدير التسويق", role: "marketing_manager", mc: 0 },
+  { u: "ahmad", pw: "12345678", name: "أحمد شوقي", role: "sales_ops", mc: 0 },
 
   // Real salesmen & supervisors keyed by PF (username = password = PF code).
   // Scope: letters show only the coops/outlets assigned to this PF in `outlets`.
