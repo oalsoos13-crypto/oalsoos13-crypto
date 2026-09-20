@@ -88,23 +88,13 @@ const SEED = {
   ],
   principals: ["SSFL", "IEC", "MGF", "CLT", "ORT"],
   channels: ["الجمعيات", "الأسواق", "البقالات", "الأونلاين"],
+  // Classic letter types. The old ad-hoc types (listing/stand/pallet/priceoff/
+  // cda_pct/cda_fix) were removed once the archive-accurate spec templates
+  // replaced them one-for-one (pricediff, pctrebate, listing_dn, rentstand,
+  // rentdebit …); cda_fix had no real letter at all. Only `changeprice` stays —
+  // its old→new price table is the format the real price-increase letters use,
+  // and it feeds the price-update tracker.
   letterTypes: [
-    {
-      k: "listing",
-      ar: "اعتماد أصناف (Listing)",
-      mode: "items",
-      en: "Listing (item approval)",
-    },
-    { k: "stand", ar: "ستاند (Stand)", mode: "value", en: "Stand" },
-    { k: "pallet", ar: "طبالي (Pallet)", mode: "value", en: "Pallet" },
-    {
-      k: "priceoff",
-      ar: "فروق أسعار",
-      mode: "value",
-      en: "Price Off",
-    },
-    { k: "cda_pct", ar: "CDA نسبة %", mode: "pct", en: "CDA (%)" },
-    { k: "cda_fix", ar: "CDA ثابت (Fixed)", mode: "value", en: "CDA (Fixed)" },
     { k: "changeprice", ar: "تحديث بيانات / تغيير سعر", mode: "pricetable", en: "Price Update" },
   ],
   supervisors: [
