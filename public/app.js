@@ -992,7 +992,7 @@ function render() {
   }).join("");
   // Current-screen title shown as a normal heading at the top of the sidebar.
   const navTitle = `<div class="sidenav-title">${esc(rk ? t("r_" + rk) : t("menu"))}</div>`;
-  const bodyHtml = rk ? `<div class="wrap" id="rv"></div>` : `<div class="empty-screen">${t("pickSection")}</div>`;
+  const bodyHtml = rk ? `<div class="wrap" id="rv"></div>` : "";
   document.getElementById("app").innerHTML =
     `<div class="shell">
       <nav class="sidenav" dir="${LANG}">${navTitle}${items}</nav>
