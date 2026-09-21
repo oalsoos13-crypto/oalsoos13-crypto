@@ -561,3 +561,13 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 
 /* Hide the video on work screens (perf) */
 body.app-in .bg-video{display:none}
+
+/* Two-level sidebar: sections (accordion) → screens */
+.nav-group{border-radius:10px;margin-bottom:2px}
+.nav-sec{cursor:pointer;list-style:none;padding:11px 13px;font-weight:800;color:var(--ink);font-size:14px;border-radius:10px;user-select:none;display:flex;align-items:center;gap:8px}
+.nav-sec::-webkit-details-marker{display:none}
+.nav-sec::before{content:"▸";color:var(--gold);font-size:12px;transition:transform .12s}
+.nav-group[open]>.nav-sec::before{transform:rotate(90deg)}
+.nav-sec:hover{background:var(--bg)}
+.nav-sub{display:flex;flex-direction:column;gap:3px;padding:2px 0 6px}
+.nav-sub .nav-item{padding-inline-start:26px;font-weight:600;font-size:13.5px}

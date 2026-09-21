@@ -75,6 +75,18 @@ const T = {
   barSub: { ar: "", en: "" },
   langBtn: { ar: "EN", en: "ع" },
   menu: { ar: "القائمة", en: "Menu" },
+  // Top-level sections.
+  sec_debitnote: { ar: "الدبت نوت", en: "Debit Notes" },
+  sec_settings: { ar: "الإعدادات", en: "Settings" },
+  sec_contracts: { ar: "العقود", en: "Contracts" },
+  sec_sales: { ar: "المبيعات", en: "Sales" },
+  sec_dailyreports: { ar: "التقارير اليومية", en: "Daily Reports" },
+  sec_orders: { ar: "الطلبات", en: "Orders" },
+  r_dailyReports: { ar: "التقارير اليومية", en: "Daily Reports" },
+  r_dailyReports_d: { ar: "التقارير اليومية للمناديب والفروع.", en: "Daily reports for reps and branches." },
+  r_orders: { ar: "الطلبات", en: "Orders" },
+  r_orders_d: { ar: "طلبات الجمعيات والفروع.", en: "Co-op and branch orders." },
+  comingSoonBody: { ar: "هذا القسم قيد التجهيز — قريبًا.", en: "This section is under construction — coming soon." },
   roles: { ar: "الأدوار", en: "Roles" },
   back: { ar: "الأدوار", en: "Roles" },
   homeTitle: { ar: "اختر جهتك للدخول", en: "Choose your role" },
@@ -911,7 +923,16 @@ const ROLES = [
 ];
 // Sections hidden from the home tiles and the navigation bar. Co-op-only scope:
 // everything that isn't letters/debit-notes is hidden (screens still exist).
-const HIDDEN_ROUTES = new Set(["outlets", "products", "sales", "salesMonthly", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "contracts", "budgetHistory"]);
+const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "budgetHistory"]);
+// Top-level sections (two-level sidebar): each groups a set of screens.
+const SECTIONS = [
+  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "printQueue", "lettersHistory"] },
+  { k: "settings", screens: ["users", "backup", "audit"] },
+  { k: "contracts", screens: ["contracts"] },
+  { k: "sales", screens: ["sales", "salesMonthly"] },
+  { k: "dailyreports", screens: ["dailyReports"] },
+  { k: "orders", screens: ["orders"] },
+];
 let role = null;
 function go(r) {
   role = r;
@@ -950,16 +971,23 @@ function render() {
     supervisor: ["lettersHistory"],
     salesman: [],
   };
-  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "lettersHistory", "audit", "users", "backup"];
+  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "lettersHistory", "users", "backup", "audit", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
   const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
     .filter((k) => !HIDDEN_ROUTES.has(k));
   let rk = (role && navKeys.includes(role)) ? role : navKeys[0];
   role = rk;
   document.getElementById("roleChip").innerHTML = "";
-  // Bilingual side navigation (English left, Arabic right within each item).
-  const items = navKeys.map((k) =>
-    `<button class="nav-item ${k === rk ? "active" : ""}" onclick="go('${k}')">${navLabel(k)}</button>`
-  ).join("");
+  // Two-level side navigation: sections (accordion) → their screens.
+  const groups = SECTIONS
+    .map((sec) => ({ k: sec.k, keys: sec.screens.filter((s) => navKeys.includes(s)) }))
+    .filter((g) => g.keys.length);
+  const items = groups.map((g) => {
+    const open = g.keys.includes(rk);
+    const links = g.keys.map((k) =>
+      `<button class="nav-item ${k === rk ? "active" : ""}" onclick="go('${k}')">${navLabel(k)}</button>`
+    ).join("");
+    return `<details class="nav-group" ${open ? "open" : ""}><summary class="nav-sec">${esc(t("sec_" + g.k))}</summary><div class="nav-sub">${links}</div></details>`;
+  }).join("");
   const subKey = "r_" + rk + "_d";
   const sub = T[subKey] ? t(subKey) : "";
   document.getElementById("app").innerHTML =
@@ -994,6 +1022,8 @@ function render() {
     monitor: vMonitor,
     budgetPlan: vBudgetPlan,
     union: vUnion,
+    dailyReports: vDailyReports,
+    orders: vOrders,
   }[rk];
   if (view) view();
   else renderHome();
@@ -1732,6 +1762,13 @@ async function bpCloseMonth(close) {
 async function bpSaveAlloc(bt, sup, amount) {
   try { await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } }); toast(t("saved")); vBudgetPlan(); }
   catch (e) { toast(e.message); }
+}
+// Placeholder sections (content to be defined later).
+function vDailyReports() {
+  document.getElementById("rv").innerHTML = `<div class="panel"><div class="empty">📅 ${t("comingSoonBody")}</div></div>`;
+}
+function vOrders() {
+  document.getElementById("rv").innerHTML = `<div class="panel"><div class="empty">🧾 ${t("comingSoonBody")}</div></div>`;
 }
 /* ---------- Cooperatives Union section (admin) ---------- */
 function vUnion() {
