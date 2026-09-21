@@ -430,6 +430,9 @@ function migrate() {
     db.prepare("DELETE FROM coops WHERE name IN ('Hawally (?)', 'Nugra (?)')").run();
     // Normalise lower-case P-codes so joins are case-consistent (p655 -> P655).
     db.prepare("UPDATE coops SET code = UPPER(code) WHERE code GLOB '*[a-z]*'").run();
+    // Rawda's co-op is officially "الروضة وحولي" (it covers Hawally); older DBs
+    // seeded just "الروضة". Force-correct it (the generic seed only fills blanks).
+    db.prepare("UPDATE coops SET name_ar = 'الروضة وحولي' WHERE code = 'P9' AND (name_ar = 'الروضة' OR name_ar IS NULL OR name_ar = '')").run();
   } catch (e) { /* corrections are best-effort */ }
   // Link every contract to its co-op by P-code, so a letter (which knows its
   // co-op) can find the governing contract. contract_hdr.coop uses the long
