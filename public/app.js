@@ -946,11 +946,17 @@ function coopArOf(coopName) {
   const e = scopeCoopEntry(coopName);
   return e && e.coopAr ? e.coopAr : coopName;
 }
+// The co-op's full Arabic name "جمعية … التعاونية" — but coopArOf may already
+// return that full form, so don't wrap it twice.
+function coopFull(coopName) {
+  let a = String(coopArOf(coopName) || coopName).trim();
+  if (/جمعي/.test(a)) return a;           // already "جمعية … التعاونية"
+  return `جمعية ${a} التعاونية`;
+}
 // Recipient line for a chosen outlet: "جمعية {coop} التعاونية - {market}", with
 // the market wording normalized (سوبر ماركت / السوق المركزي → السوق) so the
 // letter reads e.g. "… - السوق الجديد" instead of "… - السوبر ماركت الجديد".
 function outletRecipient(coopName, outletText) {
-  const coopAr = coopArOf(coopName) || coopName;
   let market = String(outletText || "").trim();
   const dash = market.indexOf(" - ");
   if (dash >= 0) market = market.slice(dash + 3).trim(); // drop the coop prefix
@@ -959,7 +965,7 @@ function outletRecipient(coopName, outletText) {
     .replace(/(?:ال)?سوق\s*المركزي/g, "السوق")
     .replace(/المركزي/g, "")
     .replace(/\s+/g, " ").trim();
-  return market ? `جمعية ${coopAr} التعاونية - ${market}` : `جمعية ${coopAr} التعاونية`;
+  return market ? `${coopFull(coopName)} - ${market}` : coopFull(coopName);
 }
 function outletsForCoop(coopName) {
   const e = scopeCoopEntry(coopName);
@@ -2809,7 +2815,7 @@ async function saveSpecLetter(spec) {
       if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
       // Outlet is optional; fall back to the co-op's Arabic name for the letter.
       if (o && o.value) { body.custId = o.value; body.recipient = outletRecipient(body.coop, o.options[o.selectedIndex].text); }
-      else body.recipient = `جمعية ${coopArOf(body.coop)} التعاونية`;
+      else body.recipient = coopFull(body.coop);
     } else if (o && o.value) { body.custId = o.value; body.recipient = outletRecipient(body.coop, o.options[o.selectedIndex].text); }
   } else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
   if (spec.fields) {
@@ -2867,7 +2873,7 @@ async function saveLetter() {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
     // Outlet is optional; fall back to the co-op's Arabic name for the letter.
     if (fo && fo.value) { body.custId = fo.value; body.recipient = outletRecipient(body.coop, fo.options[fo.selectedIndex].text); }
-    else body.recipient = `جمعية ${coopArOf(body.coop)} التعاونية`;
+    else body.recipient = coopFull(body.coop);
   } else if (fo && fo.value) { body.custId = fo.value; body.recipient = outletRecipient(body.coop, fo.options[fo.selectedIndex].text); }
   if (mode === "items")
     body.items = draftItems
