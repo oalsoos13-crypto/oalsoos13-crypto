@@ -953,19 +953,21 @@ function coopFull(coopName) {
   if (/جمعي/.test(a)) return a;           // already "جمعية … التعاونية"
   return `جمعية ${a} التعاونية`;
 }
-// Recipient line for a chosen outlet: "جمعية {coop} التعاونية - {market}", with
-// the market wording normalized (سوبر ماركت / السوق المركزي → السوق) so the
-// letter reads e.g. "… - السوق الجديد" instead of "… - السوبر ماركت الجديد".
-function outletRecipient(coopName, outletText) {
-  let market = String(outletText || "").trim();
-  const dash = market.indexOf(" - ");
-  if (dash >= 0) market = market.slice(dash + 3).trim(); // drop the coop prefix
-  market = market
-    .replace(/(?:ال)?سوبر\s*ماركت/g, "السوق")
-    .replace(/(?:ال)?سوق\s*المركزي/g, "السوق")
+// The market label for a chosen outlet: always "السوق <qualifier>" (الرئيسي /
+// الجديد / القديم / رقم). This is placed at the END of the letter body, not in
+// the recipient line (the recipient stays the co-op only).
+function marketLabel(outletText) {
+  let m = String(outletText || "").trim();
+  const dash = m.indexOf(" - ");
+  if (dash >= 0) m = m.slice(dash + 3).trim(); // drop the coop prefix
+  m = m
+    .replace(/(?:ال)?سوبر\s*ماركت/g, "")
+    .replace(/(?:ال)?سوق\s*المركزي/g, "")
     .replace(/المركزي/g, "")
+    .replace(/كو[- ]?اوب|co[- ]?op/gi, "")
     .replace(/\s+/g, " ").trim();
-  return market ? `${coopFull(coopName)} - ${market}` : coopFull(coopName);
+  if (!m) m = "الرئيسي";
+  return "السوق " + m;
 }
 function outletsForCoop(coopName) {
   const e = scopeCoopEntry(coopName);
@@ -2814,9 +2816,9 @@ async function saveSpecLetter(spec) {
     if (scopeCoops()) {
       if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
       // Outlet is optional; fall back to the co-op's Arabic name for the letter.
-      if (o && o.value) { body.custId = o.value; body.recipient = outletRecipient(body.coop, o.options[o.selectedIndex].text); }
+      if (o && o.value) { body.custId = o.value; body.recipient = coopFull(body.coop); body.market = marketLabel(o.options[o.selectedIndex].text); }
       else body.recipient = coopFull(body.coop);
-    } else if (o && o.value) { body.custId = o.value; body.recipient = outletRecipient(body.coop, o.options[o.selectedIndex].text); }
+    } else if (o && o.value) { body.custId = o.value; body.recipient = coopFull(body.coop); body.market = marketLabel(o.options[o.selectedIndex].text); }
   } else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
   if (spec.fields) {
     body.fields = {};
@@ -2872,9 +2874,9 @@ async function saveLetter() {
   if (scopeCoops()) {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
     // Outlet is optional; fall back to the co-op's Arabic name for the letter.
-    if (fo && fo.value) { body.custId = fo.value; body.recipient = outletRecipient(body.coop, fo.options[fo.selectedIndex].text); }
+    if (fo && fo.value) { body.custId = fo.value; body.recipient = coopFull(body.coop); body.market = marketLabel(fo.options[fo.selectedIndex].text); }
     else body.recipient = coopFull(body.coop);
-  } else if (fo && fo.value) { body.custId = fo.value; body.recipient = outletRecipient(body.coop, fo.options[fo.selectedIndex].text); }
+  } else if (fo && fo.value) { body.custId = fo.value; body.recipient = coopFull(body.coop); body.market = marketLabel(fo.options[fo.selectedIndex].text); }
   if (mode === "items")
     body.items = draftItems
       .filter((it) => it.name || it.price)
@@ -3154,7 +3156,11 @@ function specDocHTML(rec, spec) {
   const en = spec.lang === "en";
   const lg = en ? "en" : "ar";
   const subject = specSubst(spec.subject[lg], rec);
-  const intro = specSubst(spec.intro[lg], rec);
+  let intro = specSubst(spec.intro[lg], rec);
+  // The chosen market (السوق الرئيسي/الجديد/…) goes at the end of the body
+  // sentence, not in the recipient line.
+  const market = rec.meta && rec.meta.market ? String(rec.meta.market).trim() : "";
+  if (market && !en) intro = intro.replace(/\s*\.?\s*$/, "") + " - " + market + ".";
   const who = rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopAr(rec.coop) : (spec.recipientFixed || ""));
   const to = en
     ? `<div class="to">${esc(who)}</div>`

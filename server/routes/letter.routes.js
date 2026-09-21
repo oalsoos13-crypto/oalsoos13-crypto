@@ -154,6 +154,9 @@ function computeSpec(spec, body, coopName, recipient) {
   const items = spec.table ? sanitizeSpecRows(spec.table.cols, body.rows || body.items) : null;
   const meta = {};
   for (const f of spec.fields || []) meta[f.key] = f.type === 'number' ? num(body.fields && body.fields[f.key]) : String((body.fields && body.fields[f.key]) || '');
+  // The chosen outlet's market label (السوق الرئيسي/الجديد/…), printed at the
+  // end of the body — not in the recipient line.
+  if (body.market) meta.market = String(body.market).slice(0, 60);
   if (spec.table2) meta.rows2 = sanitizeSpecRows(spec.table2.cols, body.rows2);
   // Selectable signatory (e.g. which general manager signs the Union letter).
   if (Array.isArray(spec.signChoices) && spec.signChoices.length) {
