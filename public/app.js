@@ -946,6 +946,21 @@ function coopArOf(coopName) {
   const e = scopeCoopEntry(coopName);
   return e && e.coopAr ? e.coopAr : coopName;
 }
+// Recipient line for a chosen outlet: "جمعية {coop} التعاونية - {market}", with
+// the market wording normalized (سوبر ماركت / السوق المركزي → السوق) so the
+// letter reads e.g. "… - السوق الجديد" instead of "… - السوبر ماركت الجديد".
+function outletRecipient(coopName, outletText) {
+  const coopAr = coopArOf(coopName) || coopName;
+  let market = String(outletText || "").trim();
+  const dash = market.indexOf(" - ");
+  if (dash >= 0) market = market.slice(dash + 3).trim(); // drop the coop prefix
+  market = market
+    .replace(/(?:ال)?سوبر\s*ماركت/g, "السوق")
+    .replace(/(?:ال)?سوق\s*المركزي/g, "السوق")
+    .replace(/المركزي/g, "")
+    .replace(/\s+/g, " ").trim();
+  return market ? `جمعية ${coopAr} التعاونية - ${market}` : `جمعية ${coopAr} التعاونية`;
+}
 function outletsForCoop(coopName) {
   const e = scopeCoopEntry(coopName);
   if (!scopeCoops()) return null; // unrestricted role -> no outlet step
@@ -2793,9 +2808,9 @@ async function saveSpecLetter(spec) {
     if (scopeCoops()) {
       if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
       // Outlet is optional; fall back to the co-op's Arabic name for the letter.
-      if (o && o.value) { body.custId = o.value; body.recipient = o.options[o.selectedIndex].text; }
-      else body.recipient = coopArOf(body.coop);
-    } else if (o && o.value) { body.custId = o.value; body.recipient = o.options[o.selectedIndex].text; }
+      if (o && o.value) { body.custId = o.value; body.recipient = outletRecipient(body.coop, o.options[o.selectedIndex].text); }
+      else body.recipient = `جمعية ${coopArOf(body.coop)} التعاونية`;
+    } else if (o && o.value) { body.custId = o.value; body.recipient = outletRecipient(body.coop, o.options[o.selectedIndex].text); }
   } else if (spec.recipient === "free") body.recipient = g("spRecipient").value;
   if (spec.fields) {
     body.fields = {};
@@ -2851,9 +2866,9 @@ async function saveLetter() {
   if (scopeCoops()) {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
     // Outlet is optional; fall back to the co-op's Arabic name for the letter.
-    if (fo && fo.value) { body.custId = fo.value; body.recipient = fo.options[fo.selectedIndex].text; }
-    else body.recipient = coopArOf(body.coop);
-  } else if (fo && fo.value) { body.custId = fo.value; body.recipient = fo.options[fo.selectedIndex].text; }
+    if (fo && fo.value) { body.custId = fo.value; body.recipient = outletRecipient(body.coop, fo.options[fo.selectedIndex].text); }
+    else body.recipient = `جمعية ${coopArOf(body.coop)} التعاونية`;
+  } else if (fo && fo.value) { body.custId = fo.value; body.recipient = outletRecipient(body.coop, fo.options[fo.selectedIndex].text); }
   if (mode === "items")
     body.items = draftItems
       .filter((it) => it.name || it.price)
