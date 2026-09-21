@@ -966,6 +966,9 @@ function marketLabel(outletText) {
     .replace(/المركزي/g, "")
     .replace(/كو[- ]?اوب|co[- ]?op/gi, "")
     .replace(/\s+/g, " ").trim();
+  // Drop a leading "سوق"/"السوق" so we don't print "السوق سوق ٣" — the label
+  // itself already supplies "السوق". "سوق ٣" -> "٣" -> "السوق ٣".
+  m = m.replace(/^(?:ال)?سوق\s*/, "").trim();
   if (!m) m = "الرئيسي";
   return "السوق " + m;
 }
