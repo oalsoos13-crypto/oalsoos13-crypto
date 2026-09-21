@@ -2195,11 +2195,16 @@ function specFormHTML(spec) {
         return `<div class="field"><label>${lbl}</label><select id="spf_${f.key}">${(f.opts || []).map((o) => `<option value="${esc(o.v)}">${esc(LANG === "en" ? o.en : o.ar)}</option>`).join("")}</select></div>`;
       }
       const def = f.def != null ? ` value="${esc(f.def)}"` : "";
-      // Text fields become history-fed comboboxes: pick a past value or type a new
-      // one. A missing/empty datalist just behaves like a plain input, and the
-      // browser resolves the list by id once buildSugDatalists() injects it.
-      const listAttr = f.type === "text" ? ` list="sugf_${f.key}"` : "";
-      return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${listAttr}${def}></div>`;
+      // Text fields become comboboxes: pick a value or type a new one. A field
+      // may declare curated `presets` (e.g. the debit-note reason list built
+      // from past letters); otherwise it's fed by history via sugf_<key>.
+      const hasPresets = Array.isArray(f.presets) && f.presets.length;
+      const listId = hasPresets ? `pf_${f.key}` : `sugf_${f.key}`;
+      const listAttr = f.type === "text" ? ` list="${listId}"` : "";
+      const inlineDL = hasPresets
+        ? `<datalist id="pf_${f.key}">${f.presets.map((p) => `<option value="${esc(p)}"></option>`).join("")}</datalist>`
+        : "";
+      return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${listAttr}${def}>${inlineDL}</div>`;
     }).join("")}</div>`;
   // Optional manual reference number + selectable signatory (e.g. GM name).
   let extra = `<div class="field"><label>${t("letterNoOpt")}</label><input id="spLysalNo" type="number" inputmode="numeric" placeholder="${t("letterNoAuto")}"></div>`;

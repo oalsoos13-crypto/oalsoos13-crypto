@@ -177,7 +177,23 @@ const LETTER_SPECS = [
       en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
     },
     fields: [
-      { key: 'reason', ar: 'السبب (مثال: 1 طبلية بالسوق المركزي القديم)', en: 'Reason (e.g. 1 pallet at the old central market)', type: 'text' },
+      {
+        key: 'reason', ar: 'السبب (اختر أو اكتب)', en: 'Reason (pick or type)', type: 'text',
+        // Curated from past debit-note letters; the rep can still type anything.
+        presets: [
+          '1 طبلية بالسوق المركزي القديم',
+          'طبلية بالسوق المركزي',
+          'إيجار طبلية',
+          'بدل توالف',
+          'دعم سعر لمنتجات الشركة',
+          'فرق دعم سعر',
+          'توريد الفواتير',
+          'اعتماد أصناف',
+          'مساحة عرض',
+          'مهرجان',
+          'دعم للجمعية',
+        ],
+      },
       { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
     ],
     closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
