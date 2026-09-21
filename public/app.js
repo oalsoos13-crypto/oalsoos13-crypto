@@ -593,6 +593,12 @@ const T = {
   archiveLibFail: { ar: "تعذّر تحميل أدوات الـ PDF (تحقق من الاتصال)", en: "Could not load the PDF tools (check the connection)" },
   archiveHistory: { ar: "أرشيف الأشهر السابقة", en: "Previous months' archive" },
   archiveConfirm: { ar: "سيتم توليد ملف ZIP وأرشفة الإشعارات (تختفي من النظام). متابعة؟", en: "A ZIP will be generated and the debit notes archived (removed from the active screens). Continue?" },
+  archivePickMonth: { ar: "اختر شهرًا محددًا للأرشفة.", en: "Select a specific month to archive." },
+  archiveNotClosed: { ar: "لا يمكن الأرشفة قبل تسكيرة الشهر. سكّر الشهر أولًا.", en: "Archiving needs the month closed first. Close the month." },
+  archiveCloseBtn: { ar: "🔒 تسكير الشهر", en: "🔒 Close the month" },
+  archiveClosedTag: { ar: "الشهر مسكّر ✓", en: "Month closed ✓" },
+  archiveCloseConfirm: { ar: "سيتم تسكير الشهر (تسكيرة). متابعة؟", en: "The month will be closed. Continue?" },
+  archiveClosedDone: { ar: "تم تسكير الشهر", en: "Month closed" },
   r_printQueue: { ar: "قائمة الطباعة", en: "Print queue" },
   r_printQueue_d: { ar: "الكتب المكتملة الاعتماد الجاهزة للطباعة.", en: "Fully-approved letters ready to print." },
   printQueueTitle: { ar: "جاهزة للطباعة", en: "Ready to print" },
@@ -1010,6 +1016,15 @@ function notifItems() {
   }
   return out;
 }
+// Settings menu (admin) opened from the ⚙️ gear in the top bar — holds all the
+// settings screens (users, backup, audit) so they live in one place.
+function openSettings() {
+  const sec = SECTIONS.find((s) => s.k === "settings");
+  const keys = (sec ? sec.screens : ["users", "backup", "audit"]);
+  const rows = keys.map((k) => `<div class="notif-row"><span>${esc(t("r_" + k))}</span><button class="btn ghost sm" onclick="closeModal();go('${k}')">${t("notifGo")} ←</button></div>`).join("");
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">⚙️ ${t("settingsBtn")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+    <div style="padding:16px 22px">${rows}</div>`);
+}
 function openNotifs() {
   const items = notifItems();
   const body = items.length
@@ -1042,7 +1057,7 @@ function render() {
   }
   const nCount = notifItems().length;
   const bell = `<button class="lang notif-btn" title="${t("notifTitle")}" onclick="openNotifs()">🔔${nCount ? `<span class="notif-badge">${nCount > 99 ? "99+" : nCount}</span>` : ""}</button>`;
-  const gear = currentUser.role === "admin" ? `<button class="lang" title="${t("settingsBtn")}" onclick="go('users')">⚙️</button>` : "";
+  const gear = currentUser.role === "admin" ? `<button class="lang" title="${t("settingsBtn")}" onclick="openSettings()">⚙️</button>` : "";
   document.getElementById("userBox").innerHTML =
     `<span class="userN">${esc(currentUser.name)}</span>${bell}<button class="lang" title="${t("changePw")}" onclick="openChangePw()">🔑</button>${gear}<button class="lang" onclick="logout()">${t("logout")}</button>`;
   // Force a password change on first login.
@@ -1069,6 +1084,8 @@ function render() {
   document.getElementById("roleChip").innerHTML = "";
   // Two-level side navigation: sections (accordion) → their screens.
   const groups = SECTIONS
+    // The admin's settings live in the ⚙️ gear (top bar), not the sidebar.
+    .filter((sec) => !(isAdmin && sec.k === "settings"))
     .map((sec) => ({ k: sec.k, keys: sec.screens.filter((s) => navKeys.includes(s)) }))
     .filter((g) => g.keys.length);
   const items = groups.map((g) => {
@@ -1924,20 +1941,31 @@ async function vArchive() {
   catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   try { hist = await api("/archive/list"); } catch (e) { hist = { notes: [], months: [] }; }
   const months = data.months || [];
+  // Default to the most recent month with pending D.N so a specific month is chosen.
+  if (!ARCHIVE_MONTH && months.length) { ARCHIVE_MONTH = months[0]; return vArchive(); }
   const monthSel = months.length
     ? `<label class="hint" style="display:flex;align-items:center;gap:6px">${t("archiveMonth")}
         <select id="arcMonth" onchange="ARCHIVE_MONTH=this.value||null;vArchive()">
           <option value="">${LANG === "en" ? "All" : "الكل"}</option>
-          ${months.map((m) => `<option value="${m}" ${m === ARCHIVE_MONTH ? "selected" : ""}>${m}</option>`).join("")}
+          ${months.map((m) => `<option value="${m}" ${m === ARCHIVE_MONTH ? "selected" : ""}>${m}${data.closedMap && data.closedMap[m] ? " 🔒" : ""}</option>`).join("")}
         </select></label>`
     : "";
+  const monthChosen = !!ARCHIVE_MONTH;
+  const isClosed = monthChosen && !!data.closed;
+  // Gate: archiving needs a specific, closed month.
+  let gate = "";
+  if (!monthChosen) gate = `<span class="pill-info" style="padding:6px 12px;background:#fff3cd;color:#8a5a12">${t("archivePickMonth")}</span>`;
+  else if (!isClosed) gate = `<span class="pill-info" style="padding:6px 12px;background:#fdecec;color:#9b1c1c">${t("archiveNotClosed")}</span><button class="btn ghost" onclick="closeArchiveMonth()">${t("archiveCloseBtn")}</button>`;
+  else gate = `<span class="pill-info" style="padding:6px 12px;background:#e7f6ec;color:#1f7a44">${t("archiveClosedTag")}</span>`;
+  const canRun = monthChosen && isClosed && data.count > 0;
   box.innerHTML = `
     <div class="panel"><header><h3>${t("r_archive")}</h3><div class="actions">${monthSel}</div></header>
       <div class="body">
         <p class="hint">${t("archiveCond")}</p>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 6px">
           <span class="pill-info" style="padding:6px 12px;font-size:15px"><b>${data.count}</b> — ${t("archiveReady")}</span>
-          <button class="btn primary" ${data.count ? "" : "disabled"} onclick="archiveRun()">${t("archiveBtn")}</button>
+          ${gate}
+          <button class="btn primary" ${canRun ? "" : "disabled"} onclick="archiveRun()">${t("archiveBtn")}</button>
         </div>
         <div id="arcProg" class="hint" style="min-height:18px;color:var(--navy3);font-weight:700"></div>
         ${data.count ? tblArchivePending(data.notes) : `<div class="empty">${t("archiveNone")}</div>`}
@@ -1993,7 +2021,17 @@ function archiveSummaryHTML(meta, note) {
       ${row(t("attachments"), (note.attachments || []).length)}
     </table></div>`;
 }
+async function closeArchiveMonth() {
+  if (!ARCHIVE_MONTH) return;
+  if (!confirm(t("archiveCloseConfirm"))) return;
+  try {
+    await api("/budget-month/close", { method: "POST", body: { month: ARCHIVE_MONTH, closed: true } });
+    toast(t("archiveClosedDone"));
+    vArchive();
+  } catch (e) { toast(e.message); }
+}
 async function archiveRun() {
+  if (!ARCHIVE_MONTH) { toast(t("archivePickMonth")); return; }
   if (!confirm(t("archiveConfirm"))) return;
   const prog = document.getElementById("arcProg");
   const setP = (m) => { if (prog) prog.textContent = m; };

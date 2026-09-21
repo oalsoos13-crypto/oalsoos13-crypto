@@ -51,13 +51,24 @@ function eligibleNotes(month) {
     .filter(Boolean);
 }
 
+// Is a given month closed (تسكيرة)? Archiving is allowed only after close.
+function monthClosed(month) {
+  try {
+    const r = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month);
+    return !!(r && r.closed);
+  } catch (e) { return false; }
+}
+
 // GET /api/archive/pending?month=YYYY-MM — eligible D.N (metadata only).
 router.get('/archive/pending', requireRole(), asyncH((req, res) => {
   const month = String(req.query.month || '').trim() || null;
   const list = eligibleNotes(month);
   // Distinct months present (so the UI can offer a month picker).
   const months = [...new Set(eligibleNotes(null).map((x) => x.month))].sort().reverse();
-  res.json({ ok: true, month, months, count: list.length, notes: list });
+  // Which of those months are already closed (archiving requires a closed month).
+  const closedMap = {};
+  months.forEach((m) => { closedMap[m] = monthClosed(m); });
+  res.json({ ok: true, month, closed: month ? monthClosed(month) : false, months, closedMap, count: list.length, notes: list });
 }));
 
 // POST /api/archive/commit — mark the given notes (and their letters) archived.
@@ -66,7 +77,12 @@ router.get('/archive/pending', requireRole(), asyncH((req, res) => {
 router.post('/archive/commit', requireRole(), asyncH((req, res) => {
   const ids = Array.isArray(req.body.ids) ? req.body.ids.filter((x) => typeof x === 'string') : [];
   if (!ids.length) throw badRequest('لا توجد إشعارات للأرشفة', 'NO_IDS');
-  const month = String(req.body.month || '').trim() || nowIso().slice(0, 7);
+  const month = String(req.body.month || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month)) throw badRequest('اختر شهرًا محددًا للأرشفة', 'NO_MONTH');
+  // Archiving is only allowed after the month has been closed (تسكيرة الشهر).
+  if (!monthClosed(month)) throw badRequest('لا يمكن الأرشفة قبل تسكيرة الشهر', 'MONTH_NOT_CLOSED');
+  // Only archive notes whose entry month matches the (closed) month being archived.
+  const eligibleIds = new Set(eligibleNotes(month).map((n) => n.id));
   const now = nowIso();
   const getN = db.prepare('SELECT id, letter_id FROM notes WHERE id = ? AND archived_at IS NULL');
   const markN = db.prepare('UPDATE notes SET archived_at=?, archived_month=?, updated_at=? WHERE id=?');
@@ -74,6 +90,7 @@ router.post('/archive/commit', requireRole(), asyncH((req, res) => {
   let done = 0;
   const tx = db.transaction(() => {
     for (const id of ids) {
+      if (!eligibleIds.has(id)) continue; // only this closed month's eligible notes
       const n = getN.get(id);
       if (!n) continue;
       markN.run(now, month, now, id);
