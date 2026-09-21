@@ -648,6 +648,18 @@ const T = {
   pwPending: { ar: "بانتظار تغيير كلمة المرور", en: "password change pending" },
   lastLogin: { ar: "آخر دخول", en: "Last login" },
   edit: { ar: "تعديل", en: "Edit" },
+  returnTo: { ar: "إرجاع إلى", en: "Return to" },
+  returnTitle: { ar: "إرجاع الكتاب لمرحلة", en: "Return letter to a stage" },
+  returnReason: { ar: "السبب / الملاحظة (اختياري)", en: "Reason / note (optional)" },
+  returnBtn: { ar: "إرجاع", en: "Return" },
+  returnedOk: { ar: "تم إرجاع الكتاب", en: "Letter returned" },
+  editLetterTitle: { ar: "تعديل الكتاب", en: "Edit letter" },
+  editedOk: { ar: "تم حفظ التعديل", en: "Changes saved" },
+  ret_salesman: { ar: "المندوب", en: "Salesman" },
+  ret_supervisor: { ar: "المشرف", en: "Supervisor" },
+  ret_sales_manager: { ar: "مدير المبيعات", en: "Sales manager" },
+  ret_marketing_manager: { ar: "مدير التسويق", en: "Marketing manager" },
+  ret_sales_ops: { ar: "مدير العمليات", en: "Sales ops" },
   resetPw: { ar: "إعادة تعيين", en: "Reset pw" },
   initialPw: { ar: "كلمة المرور المبدئية", en: "Initial password" },
   defaultPwNote: { ar: "اتركه فارغًا لاستخدام الافتراضي", en: "Leave blank for default" },
@@ -1872,8 +1884,70 @@ async function rejectLetter(id) {
   const reason = prompt(t("rejectReasonPrompt"));
   if (reason === null) return;
   if (!reason.trim()) { toast(t("rejectReasonPrompt")); return; }
-  try { await api("/letters/" + id + "/reject", { method: "POST", body: { reason: reason.trim() } }); await loadState(); render(); toast(t("lt_rejected")); }
+  try { await api("/letters/" + id + "/reject", { method: "POST", body: { reason: reason.trim() } }); try { closeModal(); } catch (e) {} await loadState(); render(); toast(t("lt_rejected")); }
   catch (e) { toast(e.message); }
+}
+// Admin: return a letter to an earlier stage (or back to the salesman).
+const RETURN_STAGES = ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops"];
+function openReturnPicker(id) {
+  const btns = RETURN_STAGES
+    .map((s) => `<button class="btn ghost" style="justify-content:flex-start" onclick="doReturn('${id}','${s}')">↩ ${t("ret_" + s)}</button>`)
+    .join("");
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("returnTitle")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  <div style="padding:20px 24px">
+    <div class="field"><label>${t("returnReason")}</label><textarea id="retReason" rows="2"></textarea></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">${btns}</div>
+  </div>`);
+}
+async function doReturn(id, stage) {
+  const reason = (document.getElementById("retReason") || {}).value || "";
+  try {
+    await api("/letters/" + id + "/return", { method: "POST", body: { stage, reason: reason.trim() } });
+    try { closeModal(); } catch (e) {}
+    await loadState(); render(); toast(t("returnedOk"));
+  } catch (e) { toast(e.message); }
+}
+// Admin: edit a letter's content in place — reopens the create form prefilled
+// and saves via POST /letters/:id/edit.
+let editingLetterId = null;
+function openLetterEdit(id) {
+  const L = DB.letters.find((x) => x.id === id);
+  if (!L) return;
+  editingLetterId = id;
+  try { closeModal(); } catch (e) {}
+  openLetterForm({ edit: L });
+}
+function prefillLetterForm(L) {
+  const g = (id) => document.getElementById(id);
+  const sel = g("fType");
+  if (sel) { sel.value = L.type; sel.disabled = true; }
+  typeChanged(); // rebuild the type-specific area for L.type
+  if (g("fDate")) g("fDate").value = L.date || "";
+  if (g("fNote")) g("fNote").value = L.note || "";
+  const spec = specOf(L.type);
+  const meta = L.meta || {};
+  if (spec) {
+    if (spec.recipient === "coop" && g("spCoop")) { g("spCoop").value = L.coop || ""; onCoopChange("sp"); setTimeout(() => { if (g("spOutlet") && L.custId) g("spOutlet").value = L.custId; }, 60); }
+    if (spec.recipient === "free" && g("spRecipient")) g("spRecipient").value = L.recipient || "";
+    (spec.fields || []).forEach((f) => { const el = g("spf_" + f.key); if (el && meta[f.key] != null && meta[f.key] !== "") el.value = meta[f.key]; });
+    if (g("spSignIdx") && meta.sign && Array.isArray(spec.signChoices)) {
+      const i = spec.signChoices.findIndex((s) => s.name === meta.sign.name);
+      if (i >= 0) g("spSignIdx").value = String(i);
+    }
+    if (spec.table && Array.isArray(L.items) && L.items.length) { draftSpecRows = L.items.map((r) => Object.assign({}, r)); renderSpecRows(1); }
+    if (spec.table2 && Array.isArray(meta.rows2) && meta.rows2.length) { draftSpecRows2 = meta.rows2.map((r) => Object.assign({}, r)); renderSpecRows(2); }
+  } else {
+    if (g("fCoop")) { g("fCoop").value = L.coop || ""; onCoopChange("f"); setTimeout(() => { if (g("fOutlet") && L.custId) g("fOutlet").value = L.custId; }, 60); }
+    if (g("fBrand")) g("fBrand").value = L.brand || "";
+    if (g("fPrin")) g("fPrin").value = L.principal || "";
+    if (g("fSales") && !g("fSales").readOnly) g("fSales").value = L.sales || "";
+    const mode = (DB.ref.letterTypes.find((x) => x.k === L.type) || {}).mode;
+    if (mode === "items" && Array.isArray(L.items)) { draftItems = L.items.map((it) => ({ name: it.name, price: it.price })); if (typeof renderItems === "function") renderItems(); }
+    if (mode === "pct") { if (g("fBase")) g("fBase").value = L.base || 0; if (g("fPct")) g("fPct").value = L.pct || 0; }
+    if (mode === "value" && g("fValDirect")) g("fValDirect").value = L.value || 0;
+    if (mode === "pricetable" && Array.isArray(L.items)) { draftPrice = L.items.map((r) => Object.assign({}, r)); if (typeof renderPriceRows === "function") renderPriceRows(); }
+    if (typeof calcVal === "function") try { calcVal(); } catch (e) {}
+  }
 }
 /* ---------- e-signature pad (draw with mouse/finger) ---------- */
 let _sigCanvas = null, _sigCtx = null, _sigDrawing = false, _sigDirty = false;
@@ -2141,6 +2215,8 @@ function isUnionType(k) { return UNION_TYPES_FE.includes(k); }
 // otherwise the normal form excludes Union types.
 function openLetterForm(opts) {
   const unionOnly = !!(opts && opts.union);
+  const editL = opts && opts.edit;
+  if (!editL) editingLetterId = null;
   draftItems = [{ name: "", price: "" }];
   draftPrice = [emptyPriceRow()];
   draftSpecRows = [];
@@ -2150,7 +2226,8 @@ function openLetterForm(opts) {
     .map((x) => `<option value="${x.k}">${esc(typeLabel(x))}</option>`)
     .join("");
   const today = new Date().toISOString().slice(0, 10);
-  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("newLetter")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  const title = editL ? t("editLetterTitle") + " — " + esc(editL.lysal || "") : t("newLetter");
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${title}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
   <div style="padding:22px 24px;max-height:74vh;overflow:auto">
    <div class="grid g3">
      <div class="field"><label>${t("fType")}</label><select id="fType" onchange="typeChanged()">${topts}</select></div>
@@ -2165,10 +2242,11 @@ function openLetterForm(opts) {
    </div>
    <div id="typeArea" style="margin-top:16px"></div>
    <div class="field" style="margin-top:14px"><label>${t("fNote")}</label><textarea id="fNote"></textarea></div>
-   <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveLetter()">${t("saveLetter")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
+   <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveLetter()">${editL ? t("edit") : t("saveLetter")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
   typeChanged();
   ensureProducts();
   ensureSuggestions();
+  if (editL) prefillLetterForm(editL);
 }
 /* ---- spec-driven letter form ---- */
 let draftSpecRows = [], draftSpecRows2 = [];
@@ -2361,14 +2439,22 @@ async function saveSpecLetter(spec) {
   if (spec.table) body.rows = nonEmpty(draftSpecRows, spec.table.cols);
   if (spec.table2) body.rows2 = nonEmpty(draftSpecRows2, spec.table2.cols);
   if (spec.table && (!body.rows || !body.rows.length)) { toast(t("addRowFirst")); return; }
+  return submitLetterBody(body);
+}
+// Submit a built letter body — create, or (admin) edit in place when editing.
+async function submitLetterBody(body) {
+  const wasEdit = !!editingLetterId;
   try {
-    const r = await api("/letters", { method: "POST", body });
+    const r = wasEdit
+      ? await api("/letters/" + editingLetterId + "/edit", { method: "POST", body })
+      : await api("/letters", { method: "POST", body });
+    editingLetterId = null;
     await loadState();
     closeModal();
-    toast(t("savedLetter"));
-    flashWarnings(r.warnings);
+    toast(wasEdit ? t("editedOk") : t("savedLetter"));
+    if (!wasEdit) flashWarnings(r.warnings);
     render();
-    const L = DB.letters.find((x) => x.id === r.id);
+    const L = DB.letters.find((x) => x.id === (r.id || (r.letter && r.letter.id)));
     if (L) openDoc(L, true);
   } catch (e) { toast(e.message); }
 }
@@ -2425,16 +2511,7 @@ async function saveLetter() {
     toast(t("enterVal"));
     return;
   }
-  try {
-    const r = await api("/letters", { method: "POST", body });
-    await loadState();
-    closeModal();
-    toast(t("savedLetter"));
-    flashWarnings(r.warnings);
-    render();
-    const L = DB.letters.find((x) => x.id === r.id);
-    if (L) openDoc(L, true);
-  } catch (e) { toast(e.message); }
+  return submitLetterBody(body);
 }
 async function delLetter(id) {
   const L = (DB.letters || []).find((x) => x.id === id);
@@ -2814,8 +2891,15 @@ function openDoc(rec, isLetter) {
     : (isLetter
       ? `<span class="pill-info" style="padding:3px 10px">${rec.apprStage === "print" ? t("adminOnlyPrint") : (rec.approval === "rejected" ? t("lt_rejected") : t("awaitStage").replace("{s}", stageLabel(rec.apprStage || "supervisor")))}</span>`
       : "");
+  // Admin controls on a letter still in the workflow (not printed, not rejected):
+  // edit the text, reject, or return it to any earlier stage.
+  const adminCtrls = (isLetter && currentUser.role === "admin" && !rec.printedAt && rec.approval !== "rejected")
+    ? `<button class="btn ghost sm no-print" onclick="openLetterEdit('${rec.id}')">✎ ${t("edit")}</button>`
+      + `<button class="btn ghost sm no-print" onclick="openReturnPicker('${rec.id}')">↩ ${t("returnTo")}</button>`
+      + `<button class="btn danger sm no-print" onclick="rejectLetter('${rec.id}')">${t("reject")}</button>`
+    : "";
   modal(
-    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
+    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
   );
 }
 async function openDocById(id) {

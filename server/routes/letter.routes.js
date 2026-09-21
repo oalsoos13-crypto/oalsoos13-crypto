@@ -480,9 +480,13 @@ router.post('/letters/:id/reject', requireRole('supervisor', 'sales_manager', 'm
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
   const stage = L.appr_stage;
-  if (!stage || stage === 'print' || L.approval === 'rejected') throw badRequest('الكتاب ليس بانتظار اعتماد', 'BAD_STAGE');
-  if (req.user.role !== 'admin' && req.user.role !== stage) throw forbidden('هذه المرحلة ليست من صلاحيتك', 'WRONG_STAGE');
-  if (stage === 'supervisor') assertCanModerate(req, L);
+  if (!stage || L.approval === 'rejected') throw badRequest('الكتاب ليس بانتظار اعتماد', 'BAD_STAGE');
+  // At the final (print) stage only the admin may reject.
+  if (stage === 'print') { if (req.user.role !== 'admin') throw forbidden('الطباعة والرفض النهائي للمدير فقط', 'ADMIN_ONLY'); }
+  else {
+    if (req.user.role !== 'admin' && req.user.role !== stage) throw forbidden('هذه المرحلة ليست من صلاحيتك', 'WRONG_STAGE');
+    if (stage === 'supervisor') assertCanModerate(req, L);
+  }
   const reason = String(req.body.reason || '').trim();
   if (!reason) throw badRequest('أدخل سبب الرفض', 'NO_REASON');
   const now = nowIso();
@@ -525,6 +529,103 @@ router.post('/letters/:id/print', requireRole(), asyncH((req, res) => {
   db.prepare('UPDATE letters SET printed_at=?, printed_by=?, updated_at=? WHERE id=?').run(now, req.user.id, now, L.id);
   audit.fromReq(req, 'letter.print', { entityType: 'letter', entityId: L.id, summary: `Printed letter ${L.lysal}` });
   res.json({ ok: true, printed_at: now });
+}));
+
+// POST /api/letters/:id/return — ADMIN ONLY. Send a letter back to an earlier
+// point for correction: to the salesman (as a returned letter to redo), or
+// re-queue it at the supervisor / sales_manager / marketing_manager / sales_ops
+// stage. Approvals & e-signatures at or after the target stage are cleared so
+// they are re-done. Works from any stage, including the final print stage.
+// Body: { stage: 'salesman'|'supervisor'|'sales_manager'|'marketing_manager'|'sales_ops', reason? }
+const RETURN_DEST = {
+  salesman: null,
+  supervisor: 'supervisor',
+  sales_manager: 'sales_manager',
+  marketing_manager: 'marketing_manager',
+  sales_ops: 'sales_ops',
+};
+router.post('/letters/:id/return', requireRole(), asyncH((req, res) => {
+  const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
+  if (!L) throw notFound('الكتاب غير موجود');
+  const target = String(req.body.stage || '');
+  if (!(target in RETURN_DEST)) throw badRequest('مرحلة غير صحيحة', 'BAD_STAGE');
+  const reason = String(req.body.reason || '').trim();
+  const now = nowIso();
+  let meta = {}; try { meta = L.meta ? JSON.parse(L.meta) : {}; } catch (e) { meta = {}; }
+  const dest = RETURN_DEST[target];
+  if (dest) {
+    // Invalidate approvals/signatures from the target stage onward.
+    const from = CHAIN.indexOf(dest);
+    if (meta.approvals) for (const st of Object.keys(meta.approvals)) if (CHAIN.indexOf(st) >= from) delete meta.approvals[st];
+    if (meta.signatures) for (const st of Object.keys(meta.signatures)) if (CHAIN.indexOf(st) >= from) delete meta.signatures[st];
+  } else {
+    delete meta.approvals; delete meta.signatures;
+  }
+  meta.returns = meta.returns || [];
+  meta.returns.push({ by: req.user.name || req.user.username, at: now, to: target, reason });
+  if (dest) {
+    db.prepare("UPDATE letters SET appr_stage=?, approval='pending', meta=?, approved_by=NULL, approved_at=NULL, rejected_by=NULL, rejected_at=NULL, reject_reason=NULL, printed_at=NULL, printed_by=NULL, updated_at=? WHERE id=?")
+      .run(dest, toJson(meta), now, L.id);
+  } else {
+    db.prepare("UPDATE letters SET appr_stage=NULL, approval='rejected', meta=?, approved_by=NULL, approved_at=NULL, rejected_by=?, rejected_at=?, reject_reason=?, printed_at=NULL, printed_by=NULL, updated_at=? WHERE id=?")
+      .run(toJson(meta), req.user.id, now, reason || 'أُعيد للمندوب للتعديل', now, L.id);
+  }
+  audit.fromReq(req, 'letter.return', { entityType: 'letter', entityId: L.id, summary: `Returned letter ${L.lysal} to ${target}`, details: { to: target, reason } });
+  res.json({ ok: true, stage: dest, to: target });
+}));
+
+// POST /api/letters/:id/edit — ADMIN ONLY. Edit a letter's content in place
+// (same type & reference). Recomputes value/items from the submitted fields and
+// preserves the approval trail/signatures already captured. Body: same shape as
+// letter creation (minus type).
+router.post('/letters/:id/edit', requireRole(), asyncH((req, res) => {
+  const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
+  if (!L) throw notFound('الكتاب غير موجود');
+  const type = L.type;
+  const mode = modeOf(type);
+  if (!mode) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
+  let coop = req.body.coop != null ? String(req.body.coop) : L.coop;
+  let recipient = L.recipient;
+  let calc;
+  let baseMeta = {}; try { baseMeta = L.meta ? JSON.parse(L.meta) : {}; } catch (e) { baseMeta = {}; }
+  let metaJson = L.meta;
+  if (mode === 'spec') {
+    const spec = SPEC_BY_KEY[type];
+    if (spec.recipient === 'coop') recipient = req.body.recipient ? String(req.body.recipient).trim() : recipient;
+    else if (spec.recipient === 'fixed') { recipient = spec.recipientFixed; coop = ''; }
+    else recipient = String(req.body.recipient || recipient || '').trim();
+    const r = computeSpec(spec, req.body, coop, recipient);
+    if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
+    if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
+    calc = { value: r.value, items: r.items };
+    try { const lv = require('./tracking.routes').listingValue(coop, type, r.items); if (lv != null) calc.value = lv; } catch (e) { /* */ }
+    // Merge freshly computed spec meta (sign choice, tafqit) over the preserved
+    // trail (signatures/approvals/returns).
+    let sm = {}; try { sm = r.meta ? (typeof r.meta === 'string' ? JSON.parse(r.meta) : r.meta) : {}; } catch (e) { sm = {}; }
+    metaJson = toJson(Object.assign({}, baseMeta, sm));
+  } else {
+    recipient = req.body.recipient ? String(req.body.recipient).trim() : recipient;
+    calc = computeValue(type, req.body, coop, recipient);
+    try { const lv = require('./tracking.routes').listingValue(coop, type, calc.items); if (lv != null) calc.value = lv; } catch (e) { /* */ }
+    if (mode === 'pricetable') { if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS'); }
+    else if (!calc.value) throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+  }
+  const now = nowIso();
+  db.prepare(`UPDATE letters SET coop=@coop, recipient=@recipient, brand=@brand, principal=@principal,
+      note=@note, date=@date, value=@value, base=@base, pct=@pct, items=@items, meta=@meta, updated_at=@now WHERE id=@id`)
+    .run({
+      coop, recipient,
+      brand: req.body.brand != null ? req.body.brand : L.brand,
+      principal: req.body.principal != null ? req.body.principal : L.principal,
+      note: req.body.note != null ? req.body.note : L.note,
+      date: req.body.date || L.date,
+      value: calc.value, base: calc.base ?? L.base, pct: calc.pct ?? L.pct,
+      items: calc.items ? toJson(calc.items) : L.items,
+      meta: metaJson, now, id: L.id,
+    });
+  audit.fromReq(req, 'letter.edit', { entityType: 'letter', entityId: L.id, summary: `Admin edited letter ${L.lysal}`, details: { value: calc.value } });
+  const updated = db.prepare('SELECT * FROM letters WHERE id = ?').get(L.id);
+  res.json({ ok: true, id: L.id, letter: updated });
 }));
 
 module.exports = router;
