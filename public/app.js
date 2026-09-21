@@ -2555,7 +2555,7 @@ function sigImgOf(rec) {
 function signBlock(rec, sg) {
   sg = sg || (rec && rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role) ? rec.meta.sign : SIGNATORY);
   const img = sigImgOf(rec);
-  return `<div class="sign">${img ? `<img class="sig-img" src="${img}" alt="">` : ""}<div class="role">${esc(sg.role)}</div><div class="who">${esc(sg.name)}</div></div>`;
+  return `<div class="sign"><div class="role">${esc(sg.role)}</div><div class="who">${esc(sg.name)}</div>${img ? `<img class="sig-img" src="${img}" alt="">` : ""}</div>`;
 }
 function metaBlock(rec, isLetter) {
   // Date, then the LYSAL reference directly beneath it, both flush to the left.

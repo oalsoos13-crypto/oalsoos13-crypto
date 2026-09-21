@@ -107,7 +107,7 @@ tbody tr:hover{background:#f5f9fd}
 .doc .sign{margin-top:26px;font-weight:700;line-height:1.8;text-align:left}
 .doc.ltr .sign{text-align:left}
 .doc .sign .role,.doc .sign .who{font-weight:700}
-.doc .sign .sig-img{display:block;max-height:64px;max-width:220px;margin:2px auto 4px 0;object-fit:contain}
+.doc .sign .sig-img{display:block;max-height:64px;max-width:220px;margin:6px auto 0 0;object-fit:contain}
 .doc.ltr .sign .sig-img{margin-left:0;margin-right:auto}
 .doc.ltr{direction:ltr;text-align:left}
 .doc.ltr .subj{text-align:center}
