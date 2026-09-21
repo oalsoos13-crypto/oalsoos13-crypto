@@ -2785,7 +2785,7 @@ function openDoc(rec, isLetter) {
   const isImgAtt = (a) => (a.url || "").startsWith("data:image") || (a.image && a.url) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(a.name || "");
   const att =
     !isLetter && rec.attachments && rec.attachments.length
-      ? `<div class="att-view"><b class="att-view-h">${t("attachments")} (${rec.attachments.length})</b>${rec.attachments
+      ? `<div class="att-view no-print"><b class="att-view-h">${t("attachments")} (${rec.attachments.length})</b>${rec.attachments
           .map((a) =>
             !a.url
               ? `<figure class="att-fig"><figcaption>${esc(a.name)} — ${t("errSave")}</figcaption></figure>`
