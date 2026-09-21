@@ -68,7 +68,7 @@ router.put('/channels', requireRole('marketing_manager'), asyncH((req, res) => {
 }));
 
 /* ---------- Monthly budget plan (caps + supervisor allocation + spend) ---------- */
-const CAPPED_TYPES = ['rental', 'pricediff', 'polypack', 'foc'];
+const CAPPED_TYPES = ['pallets', 'stands', 'pricediff', 'polypack', 'foc'];
 const ALL_BUDGET_TYPES = CAPPED_TYPES.concat(['offinv']);
 function curMonth() { return nowIso().slice(0, 7); }
 function isMonth(m) { return /^\d{4}-\d{2}$/.test(String(m || '')); }
@@ -83,39 +83,38 @@ function salesSupMap() {
   } catch (e) { /* */ }
   return out;
 }
-// The distribution structure from the outlets master: supervisor -> salesmen,
-// salesman -> coops (coops keyed by their clean coops.name via the parent code).
+// The distribution structure from the outlets master: supervisor -> salesman ->
+// coop -> [outlets]. Coops keyed by their clean coops.name via the parent code;
+// each outlet carries its cust_id and display name.
+let AR = { outlets: {} };
+try { AR = require('../outlet_ar.json'); } catch (e) { /* optional */ }
 function distStructure() {
   const coopByCode = new Map(db.prepare('SELECT code, name FROM coops').all().map((c) => [String(c.code).toUpperCase(), c.name]));
   const codeOf = (p) => { const m = String(p || '').match(/^(P\d+)/i); return m ? m[1].toUpperCase() : null; };
   const sup = salesSupMap();
-  const supervisors = {}; // supName -> { salesman -> Set(coop) }
-  db.prepare('SELECT DISTINCT salesman, parent FROM outlets').all().forEach((r) => {
+  const out = {}; // supName -> salesman -> coop -> [{custId, name}]
+  db.prepare('SELECT cust_id, name, parent, salesman FROM outlets ORDER BY parent, name').all().forEach((r) => {
     if (!r.salesman) return;
     const s = sup[r.salesman] || '—';
     const coop = coopByCode.get(codeOf(r.parent)) || String(r.parent || '').replace(/\s+/g, ' ').replace(/\s*PARENT$/i, '').trim();
-    supervisors[s] = supervisors[s] || {};
-    (supervisors[s][r.salesman] = supervisors[s][r.salesman] || new Set()).add(coop);
+    out[s] = out[s] || {};
+    out[s][r.salesman] = out[s][r.salesman] || {};
+    (out[s][r.salesman][coop] = out[s][r.salesman][coop] || []).push({ custId: String(r.cust_id), name: AR.outlets[r.name] || r.name });
   });
-  // Serialize sets to arrays.
-  const out = {};
-  for (const s of Object.keys(supervisors)) {
-    out[s] = {};
-    for (const sm of Object.keys(supervisors[s])) out[s][sm] = [...supervisors[s][sm]].sort();
-  }
   return out;
 }
 // Spend for a month, from letters carrying a budget type, split into the letter
-// value and the debit-note value, aggregated by type, supervisor, salesman, coop.
+// value and the debit-note value, aggregated by type, supervisor, salesman,
+// coop and outlet (by cust_id).
 function monthSpend(month) {
   const letters = db.prepare(
-    "SELECT id, sales, coop, budget_type, value FROM letters WHERE budget_type IS NOT NULL AND TRIM(budget_type)<>'' AND substr(COALESCE(date,''),1,7)=?"
+    "SELECT id, sales, coop, cust_id, budget_type, value FROM letters WHERE budget_type IS NOT NULL AND TRIM(budget_type)<>'' AND substr(COALESCE(date,''),1,7)=?"
   ).all(month);
   const supMap = salesSupMap();
   const noteVal = {};
   db.prepare("SELECT letter_id, SUM(value) v FROM notes WHERE status!='rejected' GROUP BY letter_id").all()
     .forEach((r) => { noteVal[r.letter_id] = r.v; });
-  const byType = {}, bySup = {}, bySales = {}, byCoop = {};
+  const byType = {}, bySup = {}, bySales = {}, byCoop = {}, byOutlet = {};
   for (const L of letters) {
     const bt = L.budget_type, sup = supMap[L.sales] || '—', sm = L.sales || '—', coop = L.coop || '—';
     const lv = num(L.value), nv = num(noteVal[L.id] || 0);
@@ -126,8 +125,12 @@ function monthSpend(month) {
     (bySales[km] = bySales[km] || { salesman: sm, budgetType: bt, letter: 0, note: 0 }); bySales[km].letter += lv; bySales[km].note += nv;
     const kc = coop + '|' + bt;
     (byCoop[kc] = byCoop[kc] || { coop: coop, budgetType: bt, letter: 0, note: 0 }); byCoop[kc].letter += lv; byCoop[kc].note += nv;
+    if (L.cust_id) {
+      const ko = String(L.cust_id) + '|' + bt;
+      (byOutlet[ko] = byOutlet[ko] || { custId: String(L.cust_id), budgetType: bt, letter: 0, note: 0 }); byOutlet[ko].letter += lv; byOutlet[ko].note += nv;
+    }
   }
-  return { byType, bySup: Object.values(bySup), bySales: Object.values(bySales), byCoop: Object.values(byCoop) };
+  return { byType, bySup: Object.values(bySup), bySales: Object.values(bySales), byCoop: Object.values(byCoop), byOutlet: Object.values(byOutlet) };
 }
 
 // GET /api/budget-plan?month=YYYY-MM — the month's caps, allocations and spend.
@@ -145,12 +148,14 @@ router.get('/budget-plan', asyncH((req, res) => {
     .map((r) => ({ budgetType: r.budget_type, supervisor: r.supervisor, salesman: r.salesman, amount: r.amount }));
   const allocCoop = db.prepare('SELECT budget_type, salesman, coop, amount FROM budget_alloc_coop WHERE month=?').all(month)
     .map((r) => ({ budgetType: r.budget_type, salesman: r.salesman, coop: r.coop, amount: r.amount }));
+  const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, coop: r.coop, custId: r.cust_id, amount: r.amount }));
   // The full structure (supervisor -> salesmen -> coops); a supervisor only
   // needs their own branch but the payload is small, so send it whole.
   const structure = distStructure();
   res.json({
     month, closed: !!(m && m.closed), types: ALL_BUDGET_TYPES, capped: CAPPED_TYPES,
-    caps, alloc, allocSales, allocCoop, supervisors, structure,
+    caps, alloc, allocSales, allocCoop, allocOutlet, supervisors, structure,
     me: req.user ? { name: req.user.name, role: req.user.role } : null,
     spend: monthSpend(month),
     months: db.prepare('SELECT month, closed FROM budget_months ORDER BY month DESC').all(),
@@ -257,6 +262,33 @@ router.post('/budget-alloc-coop', requireRole('supervisor'), asyncH((req, res) =
     ON CONFLICT(month, budget_type, salesman, coop) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
     .run(month, bt, salesman, coop, amount, now);
   audit.fromReq(req, 'budget.alloc.coop', { entityType: 'budget_alloc_coop', summary: `Alloc ${bt} ${month} ${salesman}->${coop} = ${amount}`, details: { month, bt, salesman, coop, amount } });
+  res.json({ ok: true });
+}));
+
+// POST /api/budget-alloc-outlet (supervisor) — split a coop's share of a type
+// among its outlets. Body: { month, budgetType, coop, custId, amount }.
+router.post('/budget-alloc-outlet', requireRole('supervisor'), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  const bt = String(req.body.budgetType || '');
+  if (!ALL_BUDGET_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+  const coop = String(req.body.coop || '').trim();
+  const custId = String(req.body.custId || '').trim();
+  if (!coop || !custId) throw badRequest('اختر الجمعية والأوتلت', 'NO_TARGET');
+  const closed = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month);
+  if (closed && closed.closed) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  // Scope: the outlet must belong to one of the supervisor's coops.
+  if (req.user.role !== 'admin') {
+    const mine = distStructure()[req.user.name] || {};
+    const ok = Object.values(mine).some((coops) => (coops[coop] || []).some((o) => o.custId === custId));
+    if (!ok) throw forbidden('هذا الأوتلت ليس ضمن نطاقك', 'NOT_MINE');
+  }
+  const amount = num(req.body.amount);
+  const now = nowIso();
+  db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+  db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, coop, cust_id, amount, updated_at) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(month, budget_type, coop, cust_id) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
+    .run(month, bt, coop, custId, amount, now);
+  audit.fromReq(req, 'budget.alloc.outlet', { entityType: 'budget_alloc_outlet', summary: `Alloc ${bt} ${month} ${coop}/${custId} = ${amount}`, details: { month, bt, coop, custId, amount } });
   res.json({ ok: true });
 }));
 

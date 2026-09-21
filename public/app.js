@@ -505,7 +505,8 @@ const T = {
   r_monitor: { ar: "شاشة المراقبة", en: "Monitoring" },
   r_monitor_d: { ar: "اعتماد الإشعارات والملخّص التجميعي للكتب المالية.", en: "Approve debit notes and the aggregate summary." },
   budgetType: { ar: "نوع الباجت", en: "Budget type" },
-  bt_rental: { ar: "رنتل (إيجارات)", en: "Rental" },
+  bt_pallets: { ar: "الطبالي", en: "Pallets" },
+  bt_stands: { ar: "الستاندات", en: "Stands" },
   bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
   bt_polypack: { ar: "الكوباج", en: "Couponnage" },
   bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
@@ -1738,7 +1739,7 @@ function vLettersHistory() {
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
 }
 /* ---------- budget-type classification ---------- */
-const BUDGET_TYPE_KEYS = ["rental", "pricediff", "polypack", "foc", "offinv"];
+const BUDGET_TYPE_KEYS = ["pallets", "stands", "pricediff", "polypack", "foc", "offinv"];
 function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
 // A <select> to classify a letter's budget type (used by sales manager + admin).
 function budgetTypeSelect(L) {
@@ -1892,6 +1893,14 @@ function bdSalesAlloc(bt, sm) { const a = (bpData.allocSales || []).find((x) => 
 function bdCoopAlloc(bt, sm, c) { const a = (bpData.allocCoop || []).find((x) => x.budgetType === bt && x.salesman === sm && x.coop === c); return a ? a.amount : ""; }
 function bdSalesSpend(bt, sm) { const a = (bpData.spend.bySales || []).find((x) => x.budgetType === bt && x.salesman === sm); return a ? a.note : 0; }
 function bdCoopSpend(bt, c) { const a = (bpData.spend.byCoop || []).find((x) => x.budgetType === bt && x.coop === c); return a ? a.note : 0; }
+function bdOutletAlloc(bt, coop, cid) { const a = (bpData.allocOutlet || []).find((x) => x.budgetType === bt && x.coop === coop && x.custId === cid); return a ? a.amount : ""; }
+function bdOutletSpend(bt, cid) { const a = (bpData.spend.byOutlet || []).find((x) => x.budgetType === bt && x.custId === cid); return a ? a.note : 0; }
+function coopHasOutlet(bt, coop) { return (bpData.allocOutlet || []).some((x) => x.budgetType === bt && x.coop === coop && (+x.amount || 0) !== 0); }
+function coopOutletSum(bt, coop, outlets) { return (outlets || []).reduce((s, o) => s + (+bdOutletAlloc(bt, coop, o.custId) || 0), 0); }
+// A coop's effective allocation: the sum of its outlets when any is set,
+// otherwise the value entered directly at coop level.
+function coopEffective(bt, sm, coop, outlets) { return coopHasOutlet(bt, coop) ? coopOutletSum(bt, coop, outlets) : (+bdCoopAlloc(bt, sm, coop) || 0); }
+function bdMeStruct() { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.structure && bpData.structure[me]) || {}; }
 function renderBudgetDist() {
   const d = bpData, me = (d.me && d.me.name) || currentUser.name;
   const closed = d.closed, dis = closed ? "disabled" : "";
@@ -1903,36 +1912,51 @@ function renderBudgetDist() {
   if (!salesmen.length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
   const q = (s) => String(s).replace(/'/g, "\\'");
   const types = (d.capped || []).concat(["offinv"]);
-  // Sum of a salesman's coop allocations for a type (the salesman's rollup).
-  const smSumOf = (bt, sm) => (struct[sm] || []).reduce((a, c) => a + (+bdCoopAlloc(bt, sm, c) || 0), 0);
+  const smSumOf = (bt, sm) => { const coops = struct[sm] || {}; return Object.keys(coops).reduce((a, c) => a + coopEffective(bt, sm, c, coops[c]), 0); };
   const blocks = types.map((bt) => {
     const received = +bpAllocOf(bt, me) || 0;
     const distSum = salesmen.reduce((s, sm) => s + smSumOf(bt, sm), 0);
     const over = bt !== "offinv" && received > 0 && distSum > received;
-    // Distribution is entered per COOP; the salesman total is the sum of his coops.
-    const smRows = salesmen.map((sm, i) => {
-      const coops = struct[sm] || [];
-      const coopRows = coops.map((c) => `<tr><td style="padding-inline-start:28px">${esc(coopAr(c) || c)}</td>
-        <td><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, c)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(c)}',this.value)" style="width:110px" ${dis}></td>
-        <td class="mono">${KD(bdCoopSpend(bt, c))}</td></tr>`).join("");
+    const smRows = salesmen.map((sm, si) => {
+      const coops = struct[sm] || {};
+      const coopNames = Object.keys(coops).sort();
+      const coopBlocks = coopNames.map((coop, ci) => {
+        const outlets = coops[coop] || [];
+        const gid = `${bt}_${si}_${ci}`;
+        const has = coopHasOutlet(bt, coop);
+        const coopCell = has
+          ? `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`
+          : `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}',this.value,'${gid}')" style="width:100px" ${dis}>`;
+        const coopRow = `<tr><td style="padding-inline-start:24px"><button class="btn ghost sm out-toggle" style="padding:0 7px" onclick="bdToggleOut('${gid}',this)">▸</button> ${esc(coopAr(coop) || coop)}</td>
+          <td id="coopwrap_${gid}">${coopCell}</td><td class="mono">${KD(bdCoopSpend(bt, coop))}</td></tr>`;
+        const outRows = outlets.map((o) => `<tr class="outrow og_${gid}" style="display:none"><td style="padding-inline-start:52px;font-size:12.5px;color:var(--muted)">${esc(o.name)}</td>
+          <td><input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}',this.value,'${gid}')" style="width:100px" ${dis}></td>
+          <td class="mono">${KD(bdOutletSpend(bt, o.custId))}</td></tr>`).join("");
+        return coopRow + outRows;
+      }).join("");
       return `<tr style="background:var(--bg)"><td><b>${esc(sm)}</b></td>
-        <td class="mono" id="smroll_${bt}_${i}" style="font-weight:700">${KD(smSumOf(bt, sm))}</td>
-        <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopRows}`;
+        <td class="mono" id="smroll_${bt}_${si}" style="font-weight:700">${KD(smSumOf(bt, sm))}</td>
+        <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopBlocks}`;
     }).join("");
     return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${bt === "offinv" ? "—" : KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}</span></summary>
       <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("bd_target")}</th><th>${t("bp_allocated")}</th><th>${t("bp_noteSpend")}</th></tr></thead><tbody>${smRows}</tbody></table></div></details></div>`;
   }).join("");
   document.getElementById("rv").innerHTML = monthBar + `<div class="panel"><header><h3>${t("r_budgetDist")}</h3></header><div class="body">${blocks}</div></div>`;
 }
-// Update the in-DOM rollups for a type WITHOUT re-rendering, so the open tree
-// and the field the user just left stay put.
+function bdToggleOut(gid, btn) {
+  let shown = false;
+  document.querySelectorAll(".og_" + gid).forEach((r) => { const v = r.style.display === "none"; r.style.display = v ? "" : "none"; shown = v; });
+  if (btn) btn.textContent = shown ? "▾" : "▸";
+}
+// Recompute the salesman rollups and the block total for a type, in place.
 function bdUpdateTotals(bt) {
   const me = (bpData.me && bpData.me.name) || currentUser.name;
-  const struct = (bpData.structure && bpData.structure[me]) || {};
+  const struct = bdMeStruct();
   const salesmen = Object.keys(struct).sort();
   let total = 0;
   salesmen.forEach((sm, i) => {
-    const sum = (struct[sm] || []).reduce((a, c) => a + (+bdCoopAlloc(bt, sm, c) || 0), 0);
+    const coops = struct[sm] || {};
+    const sum = Object.keys(coops).reduce((a, c) => a + coopEffective(bt, sm, c, coops[c]), 0);
     total += sum;
     const cell = document.getElementById("smroll_" + bt + "_" + i);
     if (cell) cell.textContent = KD(sum);
@@ -1944,14 +1968,32 @@ function bdUpdateTotals(bt) {
     dcell.style.color = (bt !== "offinv" && received > 0 && total > received) ? "var(--danger)" : "";
   }
 }
-async function bdSaveCoop(bt, sm, coop, amount) {
+async function bdSaveCoop(bt, sm, coop, amount, gid) {
   try {
     await api("/budget-alloc-coop", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, coop, amount } });
-    // Update the local cache in place, then refresh only the totals (no re-render).
     const v = +amount || 0;
     const arr = bpData.allocCoop || (bpData.allocCoop = []);
     const ex = arr.find((x) => x.budgetType === bt && x.salesman === sm && x.coop === coop);
     if (ex) ex.amount = v; else arr.push({ budgetType: bt, salesman: sm, coop, amount: v });
+    bdUpdateTotals(bt);
+    toast(t("saved"));
+  } catch (e) { toast(e.message); }
+}
+async function bdSaveOutlet(bt, sm, coop, custId, amount, gid) {
+  try {
+    await api("/budget-alloc-outlet", { method: "POST", body: { month: bpMonth, budgetType: bt, coop, custId, amount } });
+    const v = +amount || 0;
+    const arr = bpData.allocOutlet || (bpData.allocOutlet = []);
+    const ex = arr.find((x) => x.budgetType === bt && x.coop === coop && x.custId === custId);
+    if (ex) ex.amount = v; else arr.push({ budgetType: bt, coop, custId, amount: v });
+    // The coop now rolls up from its outlets: replace its cell with the sum
+    // (or restore the direct input if all outlets were cleared).
+    const outlets = (bdMeStruct()[sm] || {})[coop] || [];
+    const wrap = document.getElementById("coopwrap_" + gid);
+    if (wrap) {
+      if (coopHasOutlet(bt, coop)) wrap.innerHTML = `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`;
+      else wrap.innerHTML = `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${String(sm).replace(/'/g, "\\'")}','${String(coop).replace(/'/g, "\\'")}',this.value,'${gid}')" style="width:100px">`;
+    }
     bdUpdateTotals(bt);
     toast(t("saved"));
   } catch (e) { toast(e.message); }

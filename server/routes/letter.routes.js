@@ -60,7 +60,7 @@ const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
 // The budget classifications a letter can be tagged with. 'offinv' (خارج
 // الاستثمار) is uncapped and covers the Union letters (supplementary/new items,
 // price increase, data update).
-const BUDGET_TYPES = new Set(['rental', 'pricediff', 'polypack', 'foc', 'offinv']);
+const BUDGET_TYPES = new Set(['pallets', 'stands', 'pricediff', 'polypack', 'foc', 'offinv']);
 // Letters addressed to the Cooperatives Union. Admin-only to create; they enter
 // the chain at the sales-manager stage (no salesman/supervisor step).
 const UNION_TYPES = new Set(['uoc_supp', 'uoc_union', 'uoc_newitems', 'uoc_dataupd']);

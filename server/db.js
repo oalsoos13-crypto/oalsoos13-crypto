@@ -559,6 +559,26 @@ function migrate() {
       updated_at  TEXT,
       PRIMARY KEY (month, budget_type, salesman, coop)
     )`);
+  // Optional deepest level: an allocation broken down to a specific outlet
+  // (keyed by its cust_id) under a coop. When present, the coop total is the
+  // sum of its outlet allocations.
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc_outlet (
+      month       TEXT NOT NULL,
+      budget_type TEXT NOT NULL,
+      coop        TEXT NOT NULL,
+      cust_id     TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, budget_type, coop, cust_id)
+    )`);
+  // The 'rental' budget type was split into 'pallets' and 'stands'. Migrate any
+  // legacy 'rental' data to 'pallets' so nothing is orphaned (idempotent).
+  try {
+    db.exec("UPDATE letters SET budget_type='pallets' WHERE budget_type='rental'");
+    db.exec("UPDATE budget_caps SET budget_type='pallets' WHERE budget_type='rental'");
+    db.exec("UPDATE budget_alloc SET budget_type='pallets' WHERE budget_type='rental'");
+    db.exec("UPDATE budget_type_map SET budget_type='pallets' WHERE budget_type='rental'");
+  } catch (e) { /* tables may not exist yet on a brand-new db */ }
   // Backfill for letters created before the chain existed: an already-approved
   // letter is treated as ready to print; a still-pending one enters the chain at
   // the first (supervisor) stage. Rejected letters keep a null stage.
