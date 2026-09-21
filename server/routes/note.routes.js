@@ -10,6 +10,21 @@ router.use(requireAuth);
 
 const getLetter = db.prepare('SELECT * FROM letters WHERE id = ?');
 const getNote = db.prepare('SELECT * FROM notes WHERE id = ?');
+const { fromJson } = require('../util');
+
+// GET /api/notes/:id — the full note INCLUDING its base64 attachments. These
+// are stripped from the bulk /api/state (they would bloat it to tens of MB),
+// so the note viewer fetches them here on demand.
+router.get('/notes/:id', asyncH((req, res) => {
+  const n = getNote.get(req.params.id);
+  if (!n) throw notFound('الإشعار غير موجود');
+  if (req.user.role === 'salesman' && n.sales !== req.user.name) throw forbidden('إشعار مندوب آخر');
+  res.json({
+    id: n.id, lysal: n.lysal, coopDN: n.coop_dn, coop: n.coop, sales: n.sales,
+    value: n.value, date: n.date, status: n.status,
+    attachments: fromJson(n.attachments, []),
+  });
+}));
 
 // Salesmen (by first name) supervised by a given supervisor full name.
 function salesmenUnder(supName) {

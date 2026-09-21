@@ -2782,14 +2782,16 @@ async function printCur() {
 }
 function openDoc(rec, isLetter) {
   curDoc = { rec, isLetter };
-  const isImgAtt = (a) => a.url.startsWith("data:image") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(a.name || "");
+  const isImgAtt = (a) => (a.url || "").startsWith("data:image") || (a.image && a.url) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(a.name || "");
   const att =
     !isLetter && rec.attachments && rec.attachments.length
       ? `<div class="att-view"><b class="att-view-h">${t("attachments")} (${rec.attachments.length})</b>${rec.attachments
           .map((a) =>
-            isImgAtt(a)
-              ? `<figure class="att-fig"><img src="${a.url}" alt="${esc(a.name)}" onclick="window.open('${a.url}','_blank')"><figcaption>${esc(a.name)}</figcaption></figure>`
-              : `<figure class="att-fig"><embed src="${a.url}" type="application/pdf" class="att-pdf"><figcaption><a href="${a.url}" target="_blank">${esc(a.name)} — ${t("view")}</a></figcaption></figure>`,
+            !a.url
+              ? `<figure class="att-fig"><figcaption>${esc(a.name)} — ${t("errSave")}</figcaption></figure>`
+              : isImgAtt(a)
+                ? `<figure class="att-fig"><img src="${a.url}" alt="${esc(a.name)}" onclick="window.open('${a.url}','_blank')"><figcaption>${esc(a.name)}</figcaption></figure>`
+                : `<figure class="att-fig"><embed src="${a.url}" type="application/pdf" class="att-pdf"><figcaption><a href="${a.url}" target="_blank">${esc(a.name)} — ${t("view")}</a></figcaption></figure>`,
           )
           .join("")}</div>`
       : "";
@@ -2810,11 +2812,19 @@ function openDoc(rec, isLetter) {
     `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
   );
 }
-function openDocById(id) {
-  openDoc(
-    DB.notes.find((n) => n.id === id),
-    false,
-  );
+async function openDocById(id) {
+  const rec = DB.notes.find((n) => n.id === id);
+  if (!rec) return;
+  // Attachments are not in the bulk state (kept light); fetch the full note's
+  // base64 attachments on demand, then cache them on the record.
+  const needFetch = !Array.isArray(rec.attachments) || rec.attachments.some((a) => !a.url);
+  if (needFetch) {
+    try {
+      const full = await api("/notes/" + id);
+      if (full && Array.isArray(full.attachments)) rec.attachments = full.attachments;
+    } catch (e) { toast(e.message || t("errSave")); }
+  }
+  openDoc(rec, false);
 }
 function printLetter(id) {
   openDoc(

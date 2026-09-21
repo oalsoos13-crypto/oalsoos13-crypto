@@ -37,7 +37,15 @@ function mapNote(r, nameOf) {
     id: r.id, num: r.num, lysal: r.lysal, letterId: r.letter_id, coopDN: r.coop_dn,
     type: r.type, coop: r.coop, brand: r.brand, sales: r.sales, value: r.value,
     date: r.date, items: fromJson(r.items, null), note: r.note,
-    attachments: fromJson(r.attachments, []), status: r.status,
+    // Lightweight metadata only — the base64 blobs are NOT shipped in the bulk
+    // state (they would bloat it to tens of MB). The full attachments are
+    // fetched on demand via GET /api/notes/:id when a note is opened.
+    attachments: fromJson(r.attachments, []).map((a) => ({
+      name: a && a.name ? a.name : 'file',
+      image: !!(a && typeof a.url === 'string' &&
+        (a.url.startsWith('data:image') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(a.name || ''))),
+    })),
+    status: r.status,
     createdBy: r.created_by, createdByName: nameOf(r.created_by), createdAt: r.created_at,
     supApprovedBy: r.sup_approved_by, supApprovedByName: nameOf(r.sup_approved_by), supApprovedAt: r.sup_approved_at,
     mgrApprovedBy: r.mgr_approved_by, mgrApprovedByName: nameOf(r.mgr_approved_by), mgrApprovedAt: r.mgr_approved_at,
