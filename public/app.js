@@ -1911,7 +1911,10 @@ function renderBudgetDist() {
     <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span></div></div>`;
   if (!salesmen.length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
   const q = (s) => String(s).replace(/'/g, "\\'");
-  const types = (d.capped || []).concat(["offinv"]);
+  // 'خارج الاستثمار' (offinv) is NOT distributed here — it is computed
+  // automatically from the letter type, and its per-coop spend shows in the
+  // monitoring screen. Only the capped types are distributed.
+  const types = (d.capped || []);
   const smSumOf = (bt, sm) => { const coops = struct[sm] || {}; return Object.keys(coops).reduce((a, c) => a + coopEffective(bt, sm, c, coops[c]), 0); };
   const blocks = types.map((bt) => {
     const received = +bpAllocOf(bt, me) || 0;
