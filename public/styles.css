@@ -134,6 +134,13 @@ tbody tr:hover{background:#f5f9fd}
 .att-strip{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;background:#f2f7fc;border-top:1px solid var(--line)}
 .att-item{border:1px solid var(--line2);border-radius:8px;padding:6px;background:#fff;font-size:11px;max-width:120px;text-align:center;word-break:break-all}
 .att-item img{max-width:104px;max-height:80px;border-radius:5px;display:block;margin-bottom:4px}
+/* Inline attachment viewer under the debit note: each attachment shown full */
+.att-view{padding:16px 24px 24px;background:#f2f7fc;border-top:1px solid var(--line)}
+.att-view-h{display:block;color:#123f70;font-size:14px;font-weight:800;margin-bottom:12px}
+.att-fig{margin:0 0 16px;background:#fff;border:1px solid var(--line2);border-radius:10px;padding:10px;box-shadow:var(--shadow)}
+.att-fig img{display:block;width:100%;height:auto;border-radius:6px;cursor:zoom-in}
+.att-fig .att-pdf{display:block;width:100%;height:70vh;border:none;border-radius:6px}
+.att-fig figcaption{margin-top:8px;font-size:12px;color:var(--muted);text-align:center;word-break:break-all}
 @media print{
   @page{size:A4;margin:0}
   body *{visibility:hidden}.overlay,.overlay *{visibility:visible}

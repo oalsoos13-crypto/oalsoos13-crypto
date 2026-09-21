@@ -2776,9 +2776,16 @@ async function printCur() {
 }
 function openDoc(rec, isLetter) {
   curDoc = { rec, isLetter };
+  const isImgAtt = (a) => a.url.startsWith("data:image") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(a.name || "");
   const att =
     !isLetter && rec.attachments && rec.attachments.length
-      ? `<div class="att-strip no-print"><b style="width:100%;color:#123f70;font-size:13px">${t("attachments")}</b>${rec.attachments.map((a) => (a.url.startsWith("data:image") ? `<a class="att-item" href="${a.url}" target="_blank"><img src="${a.url}"><div>${esc(a.name)}</div></a>` : `<a class="att-item" href="${a.url}" target="_blank"><div style="padding:14px;font-size:22px">📄</div><div>${esc(a.name)}</div></a>`)).join("")}</div>`
+      ? `<div class="att-view"><b class="att-view-h">${t("attachments")} (${rec.attachments.length})</b>${rec.attachments
+          .map((a) =>
+            isImgAtt(a)
+              ? `<figure class="att-fig"><img src="${a.url}" alt="${esc(a.name)}" onclick="window.open('${a.url}','_blank')"><figcaption>${esc(a.name)}</figcaption></figure>`
+              : `<figure class="att-fig"><embed src="${a.url}" type="application/pdf" class="att-pdf"><figcaption><a href="${a.url}" target="_blank">${esc(a.name)} — ${t("view")}</a></figcaption></figure>`,
+          )
+          .join("")}</div>`
       : "";
   const trail = !isLetter ? `<div style="padding:0 24px 18px">${approvalTrail(rec)}</div>` : "";
   const lhBtn = `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
