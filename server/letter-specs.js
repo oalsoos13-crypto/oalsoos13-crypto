@@ -166,7 +166,7 @@ const LETTER_SPECS = [
 
   /* ---------- 4d-2) General Debit Note — free "مقابل" reason ----------
    * Same debit-note body but the reason after "مقابل" is free text, e.g.
-   * "1 طلبية بالسوق المركزي القديم" (LYSAL/11579). Covers any debit note
+   * "1 طبلية بالسوق المركزي القديم" (LYSAL/11579). Covers any debit note
    * whose reason isn't one of the fixed types above. */
   {
     k: 'gendn', ar: 'إشعار خصم — سبب آخر', en: 'Debit Note — Other reason',
@@ -177,7 +177,7 @@ const LETTER_SPECS = [
       en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
     },
     fields: [
-      { key: 'reason', ar: 'السبب (مثال: 1 طلبية بالسوق المركزي القديم)', en: 'Reason (e.g. 1 order at the old central market)', type: 'text' },
+      { key: 'reason', ar: 'السبب (مثال: 1 طبلية بالسوق المركزي القديم)', en: 'Reason (e.g. 1 pallet at the old central market)', type: 'text' },
       { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
     ],
     closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
