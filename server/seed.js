@@ -38,19 +38,61 @@ function seedCoops() {
   }
 }
 
-function seedDist() {
-  const count = db.prepare('SELECT COUNT(*) n FROM dist').get().n;
-  if (count > 0) return; // only seed the distribution mapping once
+// Build the distribution (dist) rows from the authoritative outlets master:
+// one row per outlet keyed by the REAL supervisor/salesman/coop, using the
+// outlet's Lay's sales as its weight-of-business (wob). This replaces the old
+// hand-authored DEFAULT_DIST demo mapping (placeholder names).
+function distRowsFromOutlets() {
+  const coopByCode = new Map(
+    db.prepare('SELECT code, name FROM coops').all().map((c) => [String(c.code).toUpperCase(), c.name])
+  );
+  const userByPf = new Map(
+    db.prepare('SELECT username, name FROM users').all().map((u) => [String(u.username), u.name])
+  );
+  const codeOf = (p) => { const m = String(p || '').match(/^(P\d+)/i); return m ? m[1].toUpperCase() : null; };
+  const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  const rows = db.prepare(
+    'SELECT name, parent, fsm, fsm_pf, salesman, salesman_pf, lays_sales FROM outlets ORDER BY fsm_pf, salesman_pf, parent, name'
+  ).all();
+  return rows.map((o) => {
+    const code = codeOf(o.parent);
+    const coop = (code && coopByCode.get(code)) || clean(o.parent).replace(/\s*PARENT$/i, '');
+    const sup = userByPf.get(String(o.fsm_pf)) || clean(o.fsm);
+    return { sup, sales: clean(o.salesman), coop, outlet: clean(o.name), wob: o.lays_sales || 0 };
+  });
+}
+
+// Overwrite the whole dist table with the given rows (atomic).
+function writeDist(rows) {
   const now = nowIso();
   const stmt = db.prepare(
     'INSERT INTO dist (id, sup, sales, coop, outlet, wob, amt, manual, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 0, ?)'
   );
-  const tx = db.transaction((rows) => {
-    rows.forEach((r, i) =>
+  db.transaction((rs) => {
+    db.prepare('DELETE FROM dist').run();
+    rs.forEach((r, i) =>
       stmt.run('D' + String(i + 1).padStart(4, '0'), r.sup, r.sales, r.coop, r.outlet, r.wob || 0, now)
     );
-  });
-  tx(DEFAULT_DIST);
+  })(rows);
+}
+
+function seedDist() {
+  const count = db.prepare('SELECT COUNT(*) n FROM dist').get().n;
+  if (count > 0) return; // only seed the distribution mapping once
+  const hasOutlets = db.prepare('SELECT COUNT(*) n FROM outlets').get().n > 0;
+  writeDist(hasOutlets ? distRowsFromOutlets() : DEFAULT_DIST);
+}
+
+// One-time fix for existing databases whose dist still holds the old demo
+// mapping (placeholder salesman names, wrong supervisors). Rebuilds it from
+// the outlets master, unless the ops team has set manual allocations.
+function rebuildDistFromOutletsOnce() {
+  const FLAG = 'dist_from_outlets_v1';
+  if (db.prepare('SELECT value FROM meta WHERE key=?').get(FLAG)) return;
+  const hasOutlets = db.prepare('SELECT COUNT(*) n FROM outlets').get().n > 0;
+  const manual = db.prepare('SELECT COUNT(*) n FROM dist WHERE manual=1').get().n;
+  if (hasOutlets && manual === 0) writeDist(distRowsFromOutlets());
+  db.prepare('INSERT OR REPLACE INTO meta(key,value) VALUES(?, ?)').run(FLAG, nowIso());
 }
 
 function seedMaster() {
@@ -344,8 +386,9 @@ function seedContractSpaces() {
 
 function run() {
   seedCoops();
-  seedDist();
-  seedMaster();
+  seedMaster();               // outlets master first (dist is built from it)
+  seedDist();                 // fresh installs: build dist from outlets
+  rebuildDistFromOutletsOnce(); // existing installs: replace stale demo dist
   seedProducts();
   seedPriceProducts();
   seedSalesMonthly();
