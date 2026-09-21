@@ -398,6 +398,7 @@ function run() {
   seedCounter();
   const createdUsers = seedUsers();
   ensureDefaultPasswords();
+  pruneUnknownUsers();
   // Retire the legacy default 'admin' (System Admin) account — Omar Zain is the
   // only admin — but only once another admin exists (never leave zero admins).
   try {
@@ -405,6 +406,27 @@ function run() {
     if (otherAdmin) db.prepare("DELETE FROM users WHERE username='admin' AND role='admin'").run();
   } catch (e) { /* non-fatal */ }
   return { createdUsers };
+}
+
+// One-time prune: a persistent database from earlier versions accumulated demo
+// user accounts (e.g. many placeholder supervisors) that are not part of the
+// real structure. Delete every user not in DEFAULT_USERS, ONCE (meta flag), so
+// the account list is exactly the real 14 — while never leaving zero admins and
+// never re-pruning users the admin adds later.
+function pruneUnknownUsers() {
+  const FLAG = 'prune_users_v1';
+  try {
+    if (db.prepare('SELECT value FROM meta WHERE key=?').get(FLAG)) return;
+    const keep = new Set(DEFAULT_USERS.map((u) => u.u));
+    const rows = db.prepare('SELECT username, role FROM users').all();
+    const toDel = rows.filter((r) => !keep.has(r.username));
+    const adminsKept = rows.filter((r) => r.role === 'admin' && keep.has(r.username)).length;
+    if (adminsKept >= 1 && toDel.length) {
+      const del = db.prepare('DELETE FROM users WHERE username=?');
+      db.transaction(() => { for (const r of toDel) del.run(r.username); })();
+    }
+    db.prepare('INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)').run(FLAG, nowIso());
+  } catch (e) { /* non-fatal */ }
 }
 
 // One-time recovery: on a persistent database an earlier deploy may have created
