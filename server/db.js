@@ -538,6 +538,27 @@ function migrate() {
       updated_at  TEXT,
       PRIMARY KEY (month, budget_type, supervisor)
     )`);
+  // Second distribution level: each supervisor splits the share they received
+  // among their salesmen, and each salesman's share among their co-ops. Co-op
+  // letters then count directly against the co-op's allocation.
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc_sales (
+      month       TEXT NOT NULL,
+      budget_type TEXT NOT NULL,
+      supervisor  TEXT NOT NULL,
+      salesman    TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, budget_type, supervisor, salesman)
+    )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc_coop (
+      month       TEXT NOT NULL,
+      budget_type TEXT NOT NULL,
+      salesman    TEXT NOT NULL,
+      coop        TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, budget_type, salesman, coop)
+    )`);
   // Backfill for letters created before the chain existed: an already-approved
   // letter is treated as ready to print; a still-pending one enters the chain at
   // the first (supervisor) stage. Rejected letters keep a null stage.

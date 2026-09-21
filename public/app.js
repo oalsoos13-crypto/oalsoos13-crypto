@@ -514,6 +514,10 @@ const T = {
   // Monthly budget plan.
   r_budgetPlan: { ar: "البتجيت الشهري", en: "Monthly budget" },
   r_budgetPlan_d: { ar: "سقوف الشهر وتوزيعها على المشرفين والمصروف.", en: "Monthly caps, allocation and spend." },
+  r_budgetDist: { ar: "توزيع البتجيت", en: "Budget distribution" },
+  r_budgetDist_d: { ar: "توزيع المخصّص على المناديب والجمعيات.", en: "Distribute your allocation to salesmen and coops." },
+  bd_received: { ar: "المخصّص لك", en: "Your allocation" },
+  bd_target: { ar: "المندوب / الجمعية", en: "Salesman / Coop" },
   bp_month: { ar: "الشهر", en: "Month" },
   bp_closed: { ar: "مسكّر", en: "Closed" },
   bp_open_m: { ar: "مفتوح", en: "Open" },
@@ -972,7 +976,7 @@ const ROLES = [
 const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "budgetHistory"]);
 // Top-level sections (two-level sidebar): each groups a set of screens.
 const SECTIONS = [
-  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory"] },
+  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "budgetDist", "printQueue", "archive", "lettersHistory"] },
   { k: "settings", screens: ["users", "backup", "audit"] },
   { k: "contracts", screens: ["contracts"] },
   { k: "sales", screens: ["sales", "salesMonthly"] },
@@ -1072,7 +1076,7 @@ function render() {
     sales_manager: ["budgetPlan", "lettersHistory"],
     marketing_manager: ["lettersHistory"],
     sales_ops: ["lettersHistory", "audit"],
-    supervisor: ["lettersHistory"],
+    supervisor: ["budgetDist", "lettersHistory"],
     salesman: [],
   };
   const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "users", "backup", "audit", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
@@ -1128,6 +1132,7 @@ function render() {
     archive: vArchive,
     monitor: vMonitor,
     budgetPlan: vBudgetPlan,
+    budgetDist: vBudgetDist,
     union: vUnion,
     dailyReports: vDailyReports,
     orders: vOrders,
@@ -1873,6 +1878,55 @@ async function bpCloseMonth(close) {
 }
 async function bpSaveAlloc(bt, sup, amount) {
   try { await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } }); toast(t("saved")); vBudgetPlan(); }
+  catch (e) { toast(e.message); }
+}
+/* ---- Supervisor: distribute the allocation to salesmen and their coops ---- */
+async function vBudgetDist() {
+  const month = bpMonth || new Date().toISOString().slice(0, 7);
+  try { bpData = await api("/budget-plan?month=" + month); bpMonth = bpData.month; }
+  catch (e) { document.getElementById("rv").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  renderBudgetDist();
+}
+function bpSetMonth2(m) { bpMonth = m; vBudgetDist(); }
+function bdSalesAlloc(bt, sm) { const a = (bpData.allocSales || []).find((x) => x.budgetType === bt && x.salesman === sm); return a ? a.amount : ""; }
+function bdCoopAlloc(bt, sm, c) { const a = (bpData.allocCoop || []).find((x) => x.budgetType === bt && x.salesman === sm && x.coop === c); return a ? a.amount : ""; }
+function bdSalesSpend(bt, sm) { const a = (bpData.spend.bySales || []).find((x) => x.budgetType === bt && x.salesman === sm); return a ? a.note : 0; }
+function bdCoopSpend(bt, c) { const a = (bpData.spend.byCoop || []).find((x) => x.budgetType === bt && x.coop === c); return a ? a.note : 0; }
+function renderBudgetDist() {
+  const d = bpData, me = (d.me && d.me.name) || currentUser.name;
+  const closed = d.closed, dis = closed ? "disabled" : "";
+  const struct = (d.structure && d.structure[me]) || {};
+  const salesmen = Object.keys(struct).sort();
+  const monthBar = `<div class="panel"><div class="body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <label>${t("bp_month")}:</label><input type="month" value="${esc(d.month)}" onchange="bpSetMonth2(this.value)">
+    <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span></div></div>`;
+  if (!salesmen.length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
+  const q = (s) => String(s).replace(/'/g, "\\'");
+  const types = (d.capped || []).concat(["offinv"]);
+  const blocks = types.map((bt) => {
+    const received = +bpAllocOf(bt, me) || 0;
+    const distSum = salesmen.reduce((s, sm) => s + (+bdSalesAlloc(bt, sm) || 0), 0);
+    const over = bt !== "offinv" && received > 0 && distSum > received;
+    const smRows = salesmen.map((sm) => {
+      const coops = struct[sm] || [];
+      const coopRows = coops.map((c) => `<tr><td style="padding-inline-start:28px">${esc(coopAr(c) || c)}</td>
+        <td><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, c)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(c)}',this.value)" style="width:110px" ${dis}></td>
+        <td class="mono">${KD(bdCoopSpend(bt, c))}</td></tr>`).join("");
+      return `<tr style="background:var(--bg)"><td><b>${esc(sm)}</b></td>
+        <td><input type="number" step="0.001" value="${bdSalesAlloc(bt, sm)}" onchange="bdSaveSales('${bt}','${q(sm)}',this.value)" style="width:110px" ${dis}></td>
+        <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopRows}`;
+    }).join("");
+    return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${bt === "offinv" ? "—" : KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}${over ? " ⚠" : ""}</span></summary>
+      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("bd_target")}</th><th>${t("bp_allocated")}</th><th>${t("bp_noteSpend")}</th></tr></thead><tbody>${smRows}</tbody></table></div></details></div>`;
+  }).join("");
+  document.getElementById("rv").innerHTML = monthBar + `<div class="panel"><header><h3>${t("r_budgetDist")}</h3></header><div class="body">${blocks}</div></div>`;
+}
+async function bdSaveSales(bt, sm, amount) {
+  try { await api("/budget-alloc-sales", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, amount } }); toast(t("saved")); vBudgetDist(); }
+  catch (e) { toast(e.message); }
+}
+async function bdSaveCoop(bt, sm, coop, amount) {
+  try { await api("/budget-alloc-coop", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, coop, amount } }); toast(t("saved")); vBudgetDist(); }
   catch (e) { toast(e.message); }
 }
 // Placeholder sections (content to be defined later).
