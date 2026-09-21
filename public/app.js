@@ -1903,31 +1903,58 @@ function renderBudgetDist() {
   if (!salesmen.length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
   const q = (s) => String(s).replace(/'/g, "\\'");
   const types = (d.capped || []).concat(["offinv"]);
+  // Sum of a salesman's coop allocations for a type (the salesman's rollup).
+  const smSumOf = (bt, sm) => (struct[sm] || []).reduce((a, c) => a + (+bdCoopAlloc(bt, sm, c) || 0), 0);
   const blocks = types.map((bt) => {
     const received = +bpAllocOf(bt, me) || 0;
-    const distSum = salesmen.reduce((s, sm) => s + (+bdSalesAlloc(bt, sm) || 0), 0);
+    const distSum = salesmen.reduce((s, sm) => s + smSumOf(bt, sm), 0);
     const over = bt !== "offinv" && received > 0 && distSum > received;
-    const smRows = salesmen.map((sm) => {
+    // Distribution is entered per COOP; the salesman total is the sum of his coops.
+    const smRows = salesmen.map((sm, i) => {
       const coops = struct[sm] || [];
       const coopRows = coops.map((c) => `<tr><td style="padding-inline-start:28px">${esc(coopAr(c) || c)}</td>
         <td><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, c)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(c)}',this.value)" style="width:110px" ${dis}></td>
         <td class="mono">${KD(bdCoopSpend(bt, c))}</td></tr>`).join("");
       return `<tr style="background:var(--bg)"><td><b>${esc(sm)}</b></td>
-        <td><input type="number" step="0.001" value="${bdSalesAlloc(bt, sm)}" onchange="bdSaveSales('${bt}','${q(sm)}',this.value)" style="width:110px" ${dis}></td>
+        <td class="mono" id="smroll_${bt}_${i}" style="font-weight:700">${KD(smSumOf(bt, sm))}</td>
         <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopRows}`;
     }).join("");
-    return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${bt === "offinv" ? "—" : KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}${over ? " ⚠" : ""}</span></summary>
+    return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${bt === "offinv" ? "—" : KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}</span></summary>
       <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("bd_target")}</th><th>${t("bp_allocated")}</th><th>${t("bp_noteSpend")}</th></tr></thead><tbody>${smRows}</tbody></table></div></details></div>`;
   }).join("");
   document.getElementById("rv").innerHTML = monthBar + `<div class="panel"><header><h3>${t("r_budgetDist")}</h3></header><div class="body">${blocks}</div></div>`;
 }
-async function bdSaveSales(bt, sm, amount) {
-  try { await api("/budget-alloc-sales", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, amount } }); toast(t("saved")); vBudgetDist(); }
-  catch (e) { toast(e.message); }
+// Update the in-DOM rollups for a type WITHOUT re-rendering, so the open tree
+// and the field the user just left stay put.
+function bdUpdateTotals(bt) {
+  const me = (bpData.me && bpData.me.name) || currentUser.name;
+  const struct = (bpData.structure && bpData.structure[me]) || {};
+  const salesmen = Object.keys(struct).sort();
+  let total = 0;
+  salesmen.forEach((sm, i) => {
+    const sum = (struct[sm] || []).reduce((a, c) => a + (+bdCoopAlloc(bt, sm, c) || 0), 0);
+    total += sum;
+    const cell = document.getElementById("smroll_" + bt + "_" + i);
+    if (cell) cell.textContent = KD(sum);
+  });
+  const dcell = document.getElementById("bddist_" + bt);
+  if (dcell) {
+    dcell.textContent = KD(total);
+    const received = +bpAllocOf(bt, me) || 0;
+    dcell.style.color = (bt !== "offinv" && received > 0 && total > received) ? "var(--danger)" : "";
+  }
 }
 async function bdSaveCoop(bt, sm, coop, amount) {
-  try { await api("/budget-alloc-coop", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, coop, amount } }); toast(t("saved")); vBudgetDist(); }
-  catch (e) { toast(e.message); }
+  try {
+    await api("/budget-alloc-coop", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, coop, amount } });
+    // Update the local cache in place, then refresh only the totals (no re-render).
+    const v = +amount || 0;
+    const arr = bpData.allocCoop || (bpData.allocCoop = []);
+    const ex = arr.find((x) => x.budgetType === bt && x.salesman === sm && x.coop === coop);
+    if (ex) ex.amount = v; else arr.push({ budgetType: bt, salesman: sm, coop, amount: v });
+    bdUpdateTotals(bt);
+    toast(t("saved"));
+  } catch (e) { toast(e.message); }
 }
 // Placeholder sections (content to be defined later).
 function vDailyReports() {
