@@ -946,6 +946,15 @@ function go(r) {
 // Sidebar label follows the system language.
 function navLabel(k) { return esc(t("r_" + k)); }
 function toggleNav() { try { document.body.classList.toggle("nav-collapsed"); } catch (e) {} }
+// Mobile: the sidebar title acts as a menu button that opens/closes the menu.
+// When opening, expand all section groups so every screen is one tap away.
+function toggleMobileMenu(el) {
+  try {
+    const nav = el.closest(".sidenav");
+    const open = nav.classList.toggle("menu-open");
+    if (open) nav.querySelectorAll("details.nav-group").forEach((d) => { d.open = true; });
+  } catch (e) {}
+}
 function render() {
   applyDir();
   // The video background shows only pre-login; hide it on work screens so it
@@ -995,7 +1004,7 @@ function render() {
     return `<details class="nav-group" ${open ? "open" : ""}><summary class="nav-sec">${esc(t("sec_" + g.k))}</summary><div class="nav-sub">${links}</div></details>`;
   }).join("");
   // Current-screen title shown as a normal heading at the top of the sidebar.
-  const navTitle = `<div class="sidenav-title">${esc(rk ? t("r_" + rk) : t("menu"))}</div>`;
+  const navTitle = `<button type="button" class="sidenav-title" onclick="toggleMobileMenu(this)">${esc(rk ? t("r_" + rk) : t("menu"))}<span class="nt-chev">▾</span></button>`;
   const bodyHtml = rk ? `<div class="wrap" id="rv"></div>` : "";
   document.getElementById("app").innerHTML =
     `<div class="shell">

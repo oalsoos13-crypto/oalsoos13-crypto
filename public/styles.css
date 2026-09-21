@@ -545,9 +545,23 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 .nav-item.active .nav-en{opacity:1}
 @media (max-width:760px){
   .shell{flex-direction:column}
-  .sidenav{width:auto;flex-direction:row;overflow-x:auto;overflow-y:visible;border-inline-end:none;border-bottom:1px solid var(--line);gap:8px;position:sticky;top:46px;height:auto;align-self:stretch}
-  .nav-item{width:auto;flex-direction:column;gap:2px;white-space:nowrap;padding:8px 12px}
-  .nav-item .nav-en{font-size:11px}
+  /* Sidebar becomes a full-width dropdown menu, collapsed by default so the
+     content is visible; the title bar acts as the menu toggle. */
+  .sidenav{width:auto;flex-direction:column;overflow:visible;border-inline-end:none;
+    border-bottom:1px solid var(--line);gap:3px;position:sticky;top:46px;height:auto;
+    align-self:stretch;padding:4px 12px 6px;background:rgba(255,255,255,.98)}
+  .sidenav-title{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    width:100%;cursor:pointer;margin:0;border-bottom:none;padding:13px 4px;font-size:16px}
+  .sidenav .sidenav-title .nt-chev{display:inline-block;color:var(--gold);font-size:15px;transition:transform .18s}
+  .sidenav.menu-open .sidenav-title .nt-chev{transform:rotate(180deg)}
+  /* Menu body hidden until the title is tapped */
+  .sidenav .nav-group{display:none}
+  .sidenav.menu-open .nav-group{display:block}
+  .nav-item{width:100%;flex-direction:row;justify-content:flex-start;gap:10px;
+    white-space:normal;padding:12px 14px;font-size:15px}
+  .nav-item .nav-en{font-size:12px}
+  .nav-sub .nav-item{padding-inline-start:28px}
+  #navArrow{display:none!important}
 }
 
 /* Collapsible sidebar + single-language nav labels */
@@ -582,7 +596,8 @@ body.app-in .appbar-toggle{display:inline-flex}
 .empty-screen{display:flex;align-items:center;justify-content:center;min-height:50vh;color:var(--muted);font-size:15px}
 
 /* Section title at top of sidebar + edge collapse arrow */
-.sidenav-title{font-weight:800;color:var(--ink);font-size:15px;padding:6px 10px 8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.sidenav-title{font-weight:800;color:var(--ink);font-size:15px;padding:6px 10px 8px;border-bottom:1px solid var(--line);margin-bottom:6px;background:none;border-inline:none;border-top:none;text-align:start;font-family:inherit;width:100%}
+.sidenav-title .nt-chev{display:none}
 #navArrow{display:none;position:fixed;top:50%;transform:translateY(-50%);inset-inline-start:214px;z-index:45;width:22px;height:54px;border:none;background:var(--ink);color:#fff;cursor:pointer;border-radius:7px;box-shadow:var(--shadow);transition:inset-inline-start .18s;font-size:13px;align-items:center;justify-content:center}
 #navArrow:hover{background:var(--ink2)}
 #navArrow::before{content:"\276F"}
