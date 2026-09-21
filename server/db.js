@@ -542,9 +542,8 @@ function migrate() {
     "WHERE appr_stage IS NULL AND approval IN ('approved','pending')"
   );
   // Role model change: the old marketing/division/doc roles are retired. Any
-  // existing account on them is deactivated (reversible) so it can neither log in
-  // nor break the role-keyed UI; an admin can reassign it from the Users screen.
-  db.exec("UPDATE users SET active = 0 WHERE role IN ('marketing','division','doc')");
+  // existing account on them is deleted (they have no place in the new structure).
+  db.exec("DELETE FROM users WHERE role IN ('marketing','division','doc')");
   // The marketing manager is Munir: rename the earlier placeholder account if the
   // final username isn't taken yet.
   try {
