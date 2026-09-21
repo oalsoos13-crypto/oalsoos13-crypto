@@ -267,8 +267,8 @@ const T = {
   },
   logout: { ar: "خروج", en: "Logout" },
   passHint: {
-    ar: "كلمة المرور الافتراضية: 1234",
-    en: "Default password: 1234",
+    ar: "المندوب والمشرف: اسم المستخدم وكلمة المرور = الرقم الوظيفي · المدراء: 12345678",
+    en: "Salesman & supervisor: username & password = staff number · Managers: 12345678",
   },
   selPeriod: { ar: "اختر الفترة", en: "Select period" },
   p_today: { ar: "اليوم", en: "Today" },
