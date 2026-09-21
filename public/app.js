@@ -922,6 +922,9 @@ function navLabel(k) { return esc(t("r_" + k)); }
 function toggleNav() { const s = document.querySelector(".shell"); if (s) s.classList.toggle("nav-collapsed"); }
 function render() {
   applyDir();
+  // The video background shows only pre-login; hide it on work screens so it
+  // doesn't decode behind the content (keeps the app fast).
+  try { document.body.classList.toggle("app-in", !!currentUser); } catch (e) {}
   if (!currentUser) {
     document.getElementById("roleChip").innerHTML = "";
     document.getElementById("userBox").innerHTML = "";
