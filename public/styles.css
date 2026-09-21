@@ -551,7 +551,7 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 }
 
 /* Collapsible sidebar + single-language nav labels */
-.shell.nav-collapsed .sidenav{display:none}
+body.nav-collapsed .sidenav{display:none}
 .nav-toggle{background:var(--ink);color:#fff;border:none;border-radius:9px;width:38px;height:38px;font-size:18px;cursor:pointer;flex-shrink:0}
 .rolebar-lite{display:flex;align-items:center;gap:12px;padding:8px 16px!important;margin-bottom:12px}
 .rolebar-lite .rb-txt{flex:1;min-width:0}
@@ -580,3 +580,12 @@ body.app-in .appbar-toggle{display:inline-flex}
 /* Full-width appbar so the menu button sits at the screen corner */
 .appbar .wrap{max-width:none;padding:0 14px}
 .empty-screen{display:flex;align-items:center;justify-content:center;min-height:50vh;color:var(--muted);font-size:15px}
+
+/* Section title at top of sidebar + edge collapse arrow */
+.sidenav-title{font-weight:800;color:var(--ink);font-size:15px;padding:6px 10px 8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+#navArrow{display:none;position:fixed;top:50%;transform:translateY(-50%);inset-inline-start:214px;z-index:45;width:22px;height:54px;border:none;background:var(--ink);color:#fff;cursor:pointer;border-radius:7px;box-shadow:var(--shadow);transition:inset-inline-start .18s;font-size:13px;align-items:center;justify-content:center}
+#navArrow:hover{background:var(--ink2)}
+#navArrow::before{content:"\276F"}
+body.nav-collapsed #navArrow::before{content:"\276E"}
+body.app-in #navArrow{display:flex}
+body.app-in.nav-collapsed #navArrow{inset-inline-start:2px}

@@ -941,7 +941,7 @@ function go(r) {
 }
 // Sidebar label follows the system language.
 function navLabel(k) { return esc(t("r_" + k)); }
-function toggleNav() { const s = document.querySelector(".shell"); if (s) s.classList.toggle("nav-collapsed"); }
+function toggleNav() { try { document.body.classList.toggle("nav-collapsed"); } catch (e) {} }
 function render() {
   applyDir();
   // The video background shows only pre-login; hide it on work screens so it
@@ -990,16 +990,13 @@ function render() {
     ).join("");
     return `<details class="nav-group" ${open ? "open" : ""}><summary class="nav-sec">${esc(t("sec_" + g.k))}</summary><div class="nav-sub">${links}</div></details>`;
   }).join("");
-  const subKey = rk ? "r_" + rk + "_d" : "";
-  const sub = rk && T[subKey] ? t(subKey) : "";
-  const header = rk
-    ? `<div class="rolebar-lite"><div class="rb-txt"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div></div>`
-    : "";
+  // Current-screen title shown as a normal heading at the top of the sidebar.
+  const navTitle = `<div class="sidenav-title">${esc(rk ? t("r_" + rk) : t("menu"))}</div>`;
   const bodyHtml = rk ? `<div class="wrap" id="rv"></div>` : `<div class="empty-screen">${t("pickSection")}</div>`;
   document.getElementById("app").innerHTML =
     `<div class="shell">
-      <nav class="sidenav" dir="${LANG}">${items}</nav>
-      <main class="content" dir="${LANG}">${header}${bodyHtml}</main>
+      <nav class="sidenav" dir="${LANG}">${navTitle}${items}</nav>
+      <main class="content" dir="${LANG}">${bodyHtml}</main>
     </div>`;
   if (!rk) return; // empty screen until a section is chosen
   const view = {
