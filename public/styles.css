@@ -550,17 +550,12 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
   .nav-item .nav-en{font-size:11px}
 }
 
-/* Video background restored (brand watermark stays removed) */
-.bg-video{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;z-index:-1;opacity:.16;pointer-events:none}
-@media (prefers-color-scheme:dark){.bg-video{opacity:.10}}
 /* Collapsible sidebar + single-language nav labels */
 .shell.nav-collapsed .sidenav{display:none}
 .nav-toggle{background:var(--ink);color:#fff;border:none;border-radius:9px;width:38px;height:38px;font-size:18px;cursor:pointer;flex-shrink:0}
 .rolebar-lite{display:flex;align-items:center;gap:12px}
 .rolebar-lite .rb-txt{flex:1;min-width:0}
 
-/* Hide the video on work screens (perf) */
-body.app-in .bg-video{display:none}
 
 /* Two-level sidebar: sections (accordion) → screens */
 .nav-group{border-radius:10px;margin-bottom:2px}
@@ -571,3 +566,8 @@ body.app-in .bg-video{display:none}
 .nav-sec:hover{background:var(--bg)}
 .nav-sub{display:flex;flex-direction:column;gap:3px;padding:2px 0 6px}
 .nav-sub .nav-item{padding-inline-start:26px;font-weight:600;font-size:13.5px}
+
+/* Faint brand watermark background (light external image, cached) */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:url('assets/bg.png') center center / min(440px,66vw) auto no-repeat;opacity:.07}
+@media (prefers-color-scheme:dark){body::before{opacity:.05}}
