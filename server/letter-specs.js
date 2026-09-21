@@ -164,6 +164,47 @@ const LETTER_SPECS = [
     signatory: SIGN.coop, signChoices: COOP_CHOICES,
   },
 
+  /* ---------- 4c-2) Pallets Debit Note (إشعار خصم — طبالي) ----------
+   * Modeled on the archive's 90+ 'عمل إشعار خصم ... مقابل ايجار طبلية' letters. */
+  {
+    k: 'palletdn', ar: 'إشعار خصم — طبالي', en: 'Pallets Debit Note',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل {reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
+    },
+    fields: [
+      {
+        key: 'reason', ar: 'السبب (اختر أو اكتب)', en: 'Reason (pick or type)', type: 'text',
+        presets: ['إيجار طبلية', 'إيجار طبلية بالسوق المركزي', '1 طبلية بالسوق المركزي', '1 طبلية بالسوق المركزي القديم', 'عدد (1) طبلية', 'إيجار طبالي بالسوق المركزي الجديد'],
+      },
+      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
+    ],
+    closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
+  /* ---------- 4c-3) Stands Debit Note (إشعار خصم — استاند) ---------- */
+  {
+    k: 'standdn', ar: 'إشعار خصم — استاند', en: 'Stands Debit Note',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
+    subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
+    intro: {
+      ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل {reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
+    },
+    fields: [
+      {
+        key: 'reason', ar: 'السبب (اختر أو اكتب)', en: 'Reason (pick or type)', type: 'text',
+        presets: ['إيجار استاند', 'إيجار 2 استاند', 'استاند فريتولي', 'إيجار استاند أمريكي', 'إيجار استاند بالسوق المركزي'],
+      },
+      { key: 'value', ar: 'القيمة (د.ك)', en: 'Value (KD)', type: 'number' },
+    ],
+    closing: ['وتفضـلوا بقبـــول فائـــق الاحـــترام والتقـــدير،،،'],
+    signatory: SIGN.coop, signChoices: COOP_CHOICES,
+  },
+
   /* ---------- 4d-2) General Debit Note — free "مقابل" reason ----------
    * Same debit-note body but the reason after "مقابل" is free text, e.g.
    * "1 طبلية بالسوق المركزي القديم" (LYSAL/11579). Covers any debit note

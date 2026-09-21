@@ -2584,8 +2584,13 @@ function openLetterForm(opts) {
   draftPrice = [emptyPriceRow()];
   draftSpecRows = [];
   draftSpecRows2 = [];
+  // The salesman creates only these three letter types (pallets / stands /
+  // price-difference debit notes); everyone else sees the full coop set.
+  const SALESMAN_TYPES = ["palletdn", "standdn", "pricediff"];
+  const isSalesman = currentUser && currentUser.role === "salesman";
   const topts = DB.ref.letterTypes
     .filter((x) => unionOnly ? isUnionType(x.k) : !isUnionType(x.k))
+    .filter((x) => (isSalesman && !unionOnly) ? SALESMAN_TYPES.includes(x.k) : true)
     .map((x) => `<option value="${x.k}">${esc(typeLabel(x))}</option>`)
     .join("");
   const today = new Date().toISOString().slice(0, 10);

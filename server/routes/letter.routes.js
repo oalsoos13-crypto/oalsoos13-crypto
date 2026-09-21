@@ -65,8 +65,11 @@ const BUDGET_TYPES = new Set(['pallets', 'stands', 'pricediff', 'polypack', 'foc
 // the chain at the sales-manager stage (no salesman/supervisor step).
 const UNION_TYPES = new Set(['uoc_supp', 'uoc_union', 'uoc_newitems', 'uoc_dataupd']);
 // Auto-classification: the budget type previously chosen for this letter type.
+// Built-in letter-type -> budget-type defaults (a learned map row overrides).
+const DEFAULT_BUDGET_MAP = { palletdn: 'pallets', standdn: 'stands', pricediff: 'pricediff' };
 function autoBudgetType(letterType) {
-  try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); return r ? r.budget_type : null; } catch (e) { return null; }
+  try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); if (r) return r.budget_type; } catch (e) { /* */ }
+  return DEFAULT_BUDGET_MAP[letterType] || null;
 }
 
 // Non-blocking contract-compliance checks surfaced on the create response.
