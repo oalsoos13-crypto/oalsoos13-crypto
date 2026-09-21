@@ -507,7 +507,7 @@ const T = {
   budgetType: { ar: "نوع الباجت", en: "Budget type" },
   bt_rental: { ar: "رنتل (إيجارات)", en: "Rental" },
   bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
-  bt_polypack: { ar: "بولي باك", en: "Poly pack" },
+  bt_polypack: { ar: "الكوباج", en: "Couponnage" },
   bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
