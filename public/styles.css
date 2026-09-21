@@ -571,3 +571,8 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:url('assets/bg.png') center center / min(440px,66vw) auto no-repeat;opacity:.07}
 @media (prefers-color-scheme:dark){body::before{opacity:.05}}
+
+/* Menu toggle inside the top blue bar (only when logged in) */
+.appbar-toggle{display:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:9px;width:38px;height:38px;font-size:18px;cursor:pointer;align-items:center;justify-content:center}
+.appbar-toggle:hover{background:rgba(255,255,255,.28)}
+body.app-in .appbar-toggle{display:inline-flex}

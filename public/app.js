@@ -994,7 +994,7 @@ function render() {
     `<div class="shell">
       <nav class="sidenav" dir="${LANG}">${items}</nav>
       <main class="content" dir="${LANG}">
-        <div class="rolebar-lite"><button class="nav-toggle" onclick="toggleNav()" title="${t("menu")}">☰</button><div class="rb-txt"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div></div>
+        <div class="rolebar-lite"><div class="rb-txt"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div></div>
         <div class="wrap" id="rv"></div>
       </main>
     </div>`;
