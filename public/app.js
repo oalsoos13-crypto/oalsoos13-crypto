@@ -1927,6 +1927,7 @@ function vSalesman() {
 }
 function tblSalesLetters(list) {
   if (!list.length) return `<div class="empty">${t("noLetters")}</div>`;
+  const isAdmin = currentUser && currentUser.role === "admin";
   return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("coop")}</th><th>${t("th_brand")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list
     .map((L) => {
       const isPrice = L.type === "changeprice" || !!specOf(L.type);
@@ -1945,7 +1946,7 @@ function tblSalesLetters(list) {
         if (active) dnBtn = `<button class="btn primary sm" onclick="openDocById('${active.id}')">${t("viewDN")}</button>`;
         else if (printed) dnBtn = `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
       }
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button></div></td></tr>`;
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${isAdmin ? `<button class="btn danger sm" onclick="delLetter('${L.id}')">${t("del")}</button>` : ""}</div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }

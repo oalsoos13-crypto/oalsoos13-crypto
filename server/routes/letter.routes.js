@@ -325,23 +325,17 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
   res.json({ ok: true, id, lysal, num: num_, value: calc.value, letter: created, warnings });
 }));
 
-// DELETE /api/letters/:id  (own draft, or admin)
-router.delete('/letters/:id', requireRole('salesman', 'sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
+// DELETE /api/letters/:id  (ADMIN ONLY — nobody else may delete or edit)
+router.delete('/letters/:id', requireRole(), asyncH((req, res) => {
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);
   if (!L) throw notFound('الكتاب غير موجود');
-  if (req.user.role !== 'admin' && L.sales !== req.user.name) throw forbidden('لا يمكنك حذف كتاب مندوب آخر');
   // Notes issued from this letter that are still live (anything not already
-  // rejected — including an *approved* note). Once such a note exists the
-  // letter is 'noted' and a normal user cannot delete it.
+  // rejected — including an *approved* note).
   const liveNotes = db.prepare("SELECT id, value, coop, status FROM notes WHERE letter_id = ? AND status != 'rejected'").all(L.id);
   if (L.status === 'noted' || liveNotes.length) {
-    // A non-admin still cannot delete a letter that carries a debit note.
-    // An admin may cancel it, which also voids the linked note(s) — this is
-    // the only way to clear a letter whose note was already approved (there
-    // is otherwise no path back from an approved note).
-    if (req.user.role !== 'admin') {
-      throw badRequest('لا يمكن حذف كتاب صدر عنه إشعار خصم', 'HAS_NOTE');
-    }
+    // The admin may cancel a letter that carries a debit note, which also
+    // voids the linked note(s) — the only way to clear a letter whose note was
+    // already approved (there is otherwise no path back from an approved note).
     const now = nowIso();
     const tx = db.transaction(() => {
       for (const n of liveNotes) {
