@@ -397,6 +397,7 @@ function run() {
   seedContracts();
   seedCounter();
   const createdUsers = seedUsers();
+  ensureDefaultPasswords();
   // Retire the legacy default 'admin' (System Admin) account — Omar Zain is the
   // only admin — but only once another admin exists (never leave zero admins).
   try {
@@ -404,6 +405,30 @@ function run() {
     if (otherAdmin) db.prepare("DELETE FROM users WHERE username='admin' AND role='admin'").run();
   } catch (e) { /* non-fatal */ }
   return { createdUsers };
+}
+
+// One-time recovery: on a persistent database an earlier deploy may have created
+// the default accounts with a different (now-forgotten) password, and the
+// insert-if-missing seeding never corrects them — locking the owner out. Reset
+// every DEFAULT_USERS account to its documented default password (and fix
+// role/name/active/mc) ONCE, guarded by a bumpable meta flag so the admin's
+// later password changes via the UI are not clobbered on every boot.
+function ensureDefaultPasswords() {
+  const FLAG = 'default_pw_reset_v2';
+  try {
+    if (db.prepare('SELECT value FROM meta WHERE key=?').get(FLAG)) return;
+    const now = nowIso();
+    const upd = db.prepare('UPDATE users SET password_hash=?, name=?, role=?, active=1, must_change_password=?, updated_at=? WHERE username=?');
+    db.transaction(() => {
+      for (const u of DEFAULT_USERS) {
+        if (!db.prepare('SELECT 1 FROM users WHERE username=?').get(u.u)) continue;
+        const pw = u.pw || (u.role === 'admin' ? config.adminPassword : config.defaultPassword);
+        const mc = u.mc === 0 ? 0 : (u.role === 'salesman' || u.role === 'supervisor' ? 0 : 1);
+        upd.run(hashPassword(pw), u.name, u.role, mc, now, u.u);
+      }
+    })();
+    db.prepare('INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)').run(FLAG, now);
+  } catch (e) { /* non-fatal */ }
 }
 
 // When executed directly (npm run seed), report a summary.
