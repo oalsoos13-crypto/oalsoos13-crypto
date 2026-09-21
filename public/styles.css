@@ -4,12 +4,12 @@ body{margin:0;font-family:'Tajawal',system-ui,sans-serif;color:var(--text);font-
  background:radial-gradient(1100px 560px at 100% -8%,#dbe7f5 0%,rgba(255,230,201,0) 58%),radial-gradient(950px 640px at -8% 108%,#cfe0f2 0%,rgba(255,220,187,0) 55%),linear-gradient(158deg,#f4f8fd,#eaf1fa)}
 button,input,select,textarea{font-family:inherit;font-size:inherit}
 .wrap{max-width:1160px;margin:0 auto;padding:0 22px}
-.appbar{background:linear-gradient(95deg,#0c2444,#164070 55%,#1c4e8a);color:#fff;padding:13px 0;border-bottom:3px solid #2f6fb5}
+.appbar{background:linear-gradient(95deg,#0c2444,#164070 55%,#1c4e8a);color:#fff;padding:6px 0;border-bottom:2px solid #2f6fb5}
 .appbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .appbar .logo{display:flex;align-items:center;gap:11px}
-.appbar .mark{width:38px;height:38px;border-radius:9px;background:#fff;padding:3px;display:grid;place-items:center}
+.appbar .mark{width:30px;height:30px;border-radius:7px;background:#fff;padding:2px;display:grid;place-items:center}
 .appbar .mark img{width:100%;height:100%;object-fit:contain}
-.appbar h1{font-size:16px;margin:0;font-weight:700}.appbar p{margin:1px 0 0;font-size:12px;color:#cfe0f2}
+.appbar h1{font-size:14px;margin:0;font-weight:700}.appbar p{margin:0;font-size:11px;color:#cfe0f2}
 .appbar .right{display:flex;align-items:center;gap:10px}
 .appbar .role-chip{background:rgba(255,255,255,.16);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700}
 .lang{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:20px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px}
@@ -530,13 +530,13 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 .landing-topsel{position:absolute;top:16px;inset-inline-end:16px;width:min(300px,80vw);z-index:2}
 
 /* Bilingual left side navigation (post-login) */
-.shell{display:flex;direction:ltr;min-height:calc(100vh - 64px);align-items:stretch}
-.sidenav{width:236px;flex-shrink:0;background:rgba(255,255,255,.94);border-inline-end:1px solid var(--line);box-shadow:var(--shadow);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
+.shell{display:flex;min-height:calc(100vh - 52px);align-items:stretch}
+.sidenav{width:222px;flex-shrink:0;background:rgba(255,255,255,.94);border-inline-end:1px solid var(--line);box-shadow:var(--shadow);padding:6px 8px 14px;display:flex;flex-direction:column;gap:5px}
 .content{flex:1;min-width:0;padding:0 0 30px}
 .content .wrap{padding-inline:18px}
 .rolebar-lite{background:linear-gradient(90deg,#fff,#f2f7fc);border-bottom:1px solid var(--line);padding:14px 18px;margin-bottom:18px}
-.rolebar-lite h2{margin:0;color:var(--ink);font-size:20px}
-.rolebar-lite .sub{color:var(--muted);font-size:13px}
+.rolebar-lite h2{margin:0;color:var(--ink);font-size:16px}
+.rolebar-lite .sub{color:var(--muted);font-size:12px}
 .nav-item{display:flex;justify-content:flex-start;align-items:center;gap:10px;width:100%;padding:11px 13px;border-radius:10px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:14px;font-weight:600;color:var(--text);transition:background .12s,color .12s;text-align:start}
 .nav-item:hover{background:var(--bg)}
 .nav-item.active{background:var(--ink);color:#fff;font-weight:700;box-shadow:var(--shadow)}
@@ -553,7 +553,7 @@ tbody tr:hover td{background:rgba(28,78,138,.06)}
 /* Collapsible sidebar + single-language nav labels */
 .shell.nav-collapsed .sidenav{display:none}
 .nav-toggle{background:var(--ink);color:#fff;border:none;border-radius:9px;width:38px;height:38px;font-size:18px;cursor:pointer;flex-shrink:0}
-.rolebar-lite{display:flex;align-items:center;gap:12px}
+.rolebar-lite{display:flex;align-items:center;gap:12px;padding:8px 16px!important;margin-bottom:12px}
 .rolebar-lite .rb-txt{flex:1;min-width:0}
 
 
@@ -573,6 +573,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @media (prefers-color-scheme:dark){body::before{opacity:.05}}
 
 /* Menu toggle inside the top blue bar (only when logged in) */
-.appbar-toggle{display:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:9px;width:38px;height:38px;font-size:18px;cursor:pointer;align-items:center;justify-content:center}
+.appbar-toggle{display:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;align-items:center;justify-content:center;margin-inline-end:6px}
 .appbar-toggle:hover{background:rgba(255,255,255,.28)}
 body.app-in .appbar-toggle{display:inline-flex}
