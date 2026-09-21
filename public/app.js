@@ -75,6 +75,7 @@ const T = {
   barSub: { ar: "", en: "" },
   langBtn: { ar: "EN", en: "ع" },
   menu: { ar: "القائمة", en: "Menu" },
+  pickSection: { ar: "اختر قسمًا من القائمة للبدء", en: "Choose a section from the menu to begin" },
   // Top-level sections.
   sec_debitnote: { ar: "الدبت نوت", en: "Debit Notes" },
   sec_settings: { ar: "الإعدادات", en: "Settings" },
@@ -974,7 +975,8 @@ function render() {
   const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "lettersHistory", "users", "backup", "audit", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
   const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
     .filter((k) => !HIDDEN_ROUTES.has(k));
-  let rk = (role && navKeys.includes(role)) ? role : navKeys[0];
+  // No default screen: the content stays empty until the user picks a section.
+  let rk = (role && navKeys.includes(role)) ? role : null;
   role = rk;
   document.getElementById("roleChip").innerHTML = "";
   // Two-level side navigation: sections (accordion) → their screens.
@@ -988,16 +990,18 @@ function render() {
     ).join("");
     return `<details class="nav-group" ${open ? "open" : ""}><summary class="nav-sec">${esc(t("sec_" + g.k))}</summary><div class="nav-sub">${links}</div></details>`;
   }).join("");
-  const subKey = "r_" + rk + "_d";
-  const sub = T[subKey] ? t(subKey) : "";
+  const subKey = rk ? "r_" + rk + "_d" : "";
+  const sub = rk && T[subKey] ? t(subKey) : "";
+  const header = rk
+    ? `<div class="rolebar-lite"><div class="rb-txt"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div></div>`
+    : "";
+  const bodyHtml = rk ? `<div class="wrap" id="rv"></div>` : `<div class="empty-screen">${t("pickSection")}</div>`;
   document.getElementById("app").innerHTML =
     `<div class="shell">
       <nav class="sidenav" dir="${LANG}">${items}</nav>
-      <main class="content" dir="${LANG}">
-        <div class="rolebar-lite"><div class="rb-txt"><h2>${t("r_" + rk)}</h2>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div></div>
-        <div class="wrap" id="rv"></div>
-      </main>
+      <main class="content" dir="${LANG}">${header}${bodyHtml}</main>
     </div>`;
+  if (!rk) return; // empty screen until a section is chosen
   const view = {
     sales_manager: vSalesManager,
     marketing_manager: vMarketingMgr,

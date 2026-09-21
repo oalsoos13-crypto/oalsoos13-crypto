@@ -576,3 +576,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .appbar-toggle{display:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;align-items:center;justify-content:center;margin-inline-end:6px}
 .appbar-toggle:hover{background:rgba(255,255,255,.28)}
 body.app-in .appbar-toggle{display:inline-flex}
+
+/* Full-width appbar so the menu button sits at the screen corner */
+.appbar .wrap{max-width:none;padding:0 14px}
+.empty-screen{display:flex;align-items:center;justify-content:center;min-height:50vh;color:var(--muted);font-size:15px}
