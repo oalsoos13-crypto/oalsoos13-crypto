@@ -397,6 +397,12 @@ function run() {
   seedContracts();
   seedCounter();
   const createdUsers = seedUsers();
+  // Retire the legacy default 'admin' (System Admin) account — Omar Zain is the
+  // only admin — but only once another admin exists (never leave zero admins).
+  try {
+    const otherAdmin = db.prepare("SELECT 1 FROM users WHERE role='admin' AND username != 'admin'").get();
+    if (otherAdmin) db.prepare("DELETE FROM users WHERE username='admin' AND role='admin'").run();
+  } catch (e) { /* non-fatal */ }
   return { createdUsers };
 }
 

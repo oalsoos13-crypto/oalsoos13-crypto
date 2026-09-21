@@ -868,8 +868,7 @@ const DEFAULT_DIST = [
 ];
 
 const DEFAULT_USERS = [
-  { u: "admin", p: "admin", name: "System Admin", role: "admin" },
-  // Owner admin (Omar Zain). Fixed password, not forced to change on first login.
+  // Owner admin (Omar Zain) is the only admin. Fixed password, no forced change.
   { u: "omar zain", pw: "12345678", name: "Omar Zain", role: "admin", mc: 0 },
 
   // Approval-chain managers. Username = English handle, password 12345678, no
