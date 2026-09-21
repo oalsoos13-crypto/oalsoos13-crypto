@@ -484,6 +484,10 @@ const T = {
   coopDN: { ar: "رقم الإشعار بالجمعية", en: "Co-op note no." },
   saveDN: { ar: "حفظ الإشعار", en: "Save note" },
   dnSaved: { ar: "تم حفظ الإشعار", en: "Debit note saved" },
+  saving: { ar: "جارٍ الحفظ…", en: "Saving…" },
+  errDNNo: { ar: "الرجاء إدخال رقم الإشعار بالجمعية أولًا", en: "Please enter the co-op note number first" },
+  errDNAtt: { ar: "الرجاء إرفاق صورة الإشعار أو ملف PDF", en: "Please attach the note image or a PDF" },
+  errSave: { ar: "تعذّر الحفظ، حاول مرة أخرى", en: "Save failed, please try again" },
   attachments: { ar: "المرفقات (صور/PDF)", en: "Attachments (images/PDF)" },
   camera: { ar: "الكاميرا", en: "Camera" },
   attachImg: { ar: "صورة / PDF", en: "Image / PDF" },
@@ -1948,7 +1952,8 @@ function openDNForm(id) {
      </div>
    </div>
    <div id="attList" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
-   <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveDN('${id}')">${t("saveDN")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
+   <div id="dnErr" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;background:#fdecec;color:#9b1c1c;font-weight:700;border:1px solid #f5c2c2"></div>
+   <div class="actions" style="margin-top:16px"><button id="dnSaveBtn" class="btn primary" onclick="saveDN('${id}')">${t("saveDN")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
   </div>`);
   renderAttList();
 }
@@ -1973,10 +1978,28 @@ function renderAttList() {
     )
     .join("");
 }
+function dnShowErr(msg, focusId) {
+  const box = document.getElementById("dnErr");
+  if (box) { box.textContent = msg; box.style.display = "block"; }
+  const f = focusId && document.getElementById(focusId);
+  if (f) { f.style.borderColor = "#dc2626"; f.focus(); }
+  toast(msg);
+}
 async function saveDN(letterId) {
-  const coopDN = (document.getElementById("dnNo").value || "").trim();
+  const dnNo = document.getElementById("dnNo");
+  const coopDN = (dnNo.value || "").trim();
   const val = +document.getElementById("dnVal").value || undefined;
   const date = document.getElementById("dnDate").value;
+  // Clear any previous error state.
+  const box = document.getElementById("dnErr");
+  if (box) box.style.display = "none";
+  if (dnNo) dnNo.style.borderColor = "";
+  // Client-side validation with an inline, visible message (a toast alone can
+  // sit behind the modal on mobile, so the user thinks nothing happened).
+  if (!coopDN) return dnShowErr(t("errDNNo"), "dnNo");
+  if (!dnAttach.length) return dnShowErr(t("errDNAtt"));
+  const btn = document.getElementById("dnSaveBtn");
+  if (btn) { btn.disabled = true; btn.textContent = t("saving"); }
   try {
     await api("/notes", {
       method: "POST",
@@ -1987,7 +2010,10 @@ async function saveDN(letterId) {
     closeModal();
     toast(t("dnSaved"));
     render();
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    dnShowErr(e.message || t("errSave"));
+    if (btn) { btn.disabled = false; btn.textContent = t("saveDN"); }
+  }
 }
 function tblLetters(list) {
   if (!list.length) return `<div class="empty">${t("noLetters")}</div>`;
