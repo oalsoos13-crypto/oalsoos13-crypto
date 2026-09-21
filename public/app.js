@@ -1765,7 +1765,9 @@ function vLettersHistory() {
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
 }
 /* ---------- budget-type classification ---------- */
-const BUDGET_TYPE_KEYS = ["pallets", "stands", "pricediff", "polypack", "foc", "offinv"];
+// 'polypack' (الكوباج) and 'foc' (مجاني) are hidden for now — add them back here
+// to restore them in the letter budget-type selector.
+const BUDGET_TYPE_KEYS = ["pallets", "stands", "pricediff", "offinv"];
 function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
 // A <select> to classify a letter's budget type (used by sales manager + admin).
 function budgetTypeSelect(L) {
