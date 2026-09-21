@@ -99,6 +99,21 @@ function buildState(user) {
   const dist = db.prepare(
     "SELECT * FROM dist ORDER BY (sup=''), sup, (sales=''), sales, (coop=''), coop, outlet"
   ).all().map(mapDist);
+  // Real salesman -> supervisor mapping, derived from the outlets master (the
+  // authoritative distribution). Keyed by salesman name (what letters/notes
+  // store in `sales`); the supervisor's clean user name is preferred over the
+  // raw outlets FSM name. Used by the monitoring summary instead of `dist`.
+  const salesSup = {};
+  try {
+    const userByPf = new Map(
+      db.prepare('SELECT username, name FROM users').all().map((u) => [String(u.username), u.name])
+    );
+    db.prepare('SELECT DISTINCT salesman, fsm, fsm_pf FROM outlets').all().forEach((r) => {
+      if (!r.salesman) return;
+      const supName = userByPf.get(String(r.fsm_pf)) || String(r.fsm || '').replace(/\s+/g, ' ').trim();
+      if (supName) salesSup[r.salesman] = supName;
+    });
+  } catch (e) { /* outlets table optional */ }
   // Letters are scoped: a salesman sees their own; a supervisor sees the letters
   // for co-ops within their scope; management/documentation see all.
   const scope = buildScope(user);
@@ -124,6 +139,7 @@ function buildState(user) {
     budgets,
     budget: { channels },
     dist,
+    salesSup,
     letters,
     notes,
     counter: counter ? counter.value : 0,

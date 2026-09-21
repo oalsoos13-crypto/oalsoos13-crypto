@@ -826,6 +826,7 @@ async function loadState() {
   DB.budgets = s.budgets || [];
   DB.budget = s.budget || { channels: {} };
   DB.dist = s.dist || [];
+  DB.salesSup = s.salesSup || {};
   DB.letters = s.letters || [];
   DB.notes = s.notes || [];
   DB.counter = s.counter || 0;
@@ -1657,7 +1658,12 @@ async function setBudgetType(id, bt) {
 let monitorDim = "salesman";
 function setMonitorDim(d) { monitorDim = d; vMonitor(); }
 function noteActiveOf(L) { return DB.notes.find((n) => n.letterId === L.id && n.status !== "rejected"); }
-function supOfSales(sales) { const d = DB.dist.find((x) => x.sales === sales); return (d && d.sup) || t("noSup"); }
+function supOfSales(sales) {
+  // Prefer the authoritative outlets-based map; fall back to the dist table.
+  if (DB.salesSup && DB.salesSup[sales]) return DB.salesSup[sales];
+  const d = DB.dist.find((x) => x.sales === sales);
+  return (d && d.sup) || t("noSup");
+}
 function monVal(L) { const n = noteActiveOf(L); return n ? (+n.value || 0) : (+L.value || 0); }
 function monDimValue(L) {
   if (monitorDim === "coop") return coopAr(L.coop) || L.coop || "—";
