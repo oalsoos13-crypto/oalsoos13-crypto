@@ -15,6 +15,13 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .lang{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:20px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px}
 .lang:hover{background:rgba(255,255,255,.28)}
 .userN{color:#fff;font-weight:700;font-size:13px;margin-inline-end:2px}
+.notif-btn{position:relative}
+.notif-badge{position:absolute;top:-6px;inset-inline-end:-4px;min-width:18px;height:18px;padding:0 4px;
+  background:#e11d48;color:#fff;border-radius:10px;font-size:11px;font-weight:800;line-height:18px;
+  text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.notif-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 6px;border-bottom:1px solid var(--line);font-weight:600;color:var(--ink)}
+.notif-row:last-child{border-bottom:none}
 .login-wrap{max-width:400px;margin-top:110px;margin-bottom:40px;margin-inline-start:6vw;margin-inline-end:auto;padding:0 18px}
 .login-card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:28px 26px}
 .login-card h2{margin:0 0 4px;color:#123f70;font-size:22px}

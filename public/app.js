@@ -645,6 +645,16 @@ const T = {
   toDate: { ar: "إلى تاريخ", en: "To" },
   apply: { ar: "تطبيق", en: "Apply" },
   loading: { ar: "جارِ التحميل…", en: "Loading…" },
+  notifTitle: { ar: "التنبيهات", en: "Notifications" },
+  notifsNone: { ar: "لا توجد تنبيهات — كل شيء منجز 👍", en: "No notifications — all clear 👍" },
+  notifGo: { ar: "الذهاب", en: "Go" },
+  settingsBtn: { ar: "الإعدادات", en: "Settings" },
+  nfDNNeeded: { ar: "أدخل إشعار الخصم", en: "Enter the debit note" },
+  nfRejected: { ar: "كتاب مرفوض/مُعاد — يحتاج تعديل", en: "Rejected/returned letter — needs fixing" },
+  nfAwaitYou: { ar: "بانتظار موافقتك", en: "Awaiting your approval" },
+  nfNeedSign: { ar: "يتطلب توقيعك", en: "Needs your signature" },
+  nfReadyPrint: { ar: "جاهز للطباعة", en: "Ready to print" },
+  nfNoteApprove: { ar: "إشعار خصم بانتظار اعتمادك", en: "Debit note awaiting your approval" },
   noAudit: { ar: "لا توجد سجلات.", en: "No records." },
   showing: { ar: "المعروض", en: "Showing" },
   viewAll: { ar: "عرض الكل", en: "View all" },
@@ -971,6 +981,43 @@ function go(r) {
 // Sidebar label follows the system language.
 function navLabel(k) { return esc(t("r_" + k)); }
 function toggleNav() { try { document.body.classList.toggle("nav-collapsed"); } catch (e) {} }
+// Per-user notifications: the things that currently need THIS user's action
+// (approve, sign, enter a debit note, print, …), computed from the loaded state.
+function notifItems() {
+  const me = currentUser;
+  if (!me) return [];
+  const out = [];
+  const L = DB.letters || [], N = DB.notes || [];
+  const role = me.role;
+  if (role === "salesman") {
+    L.forEach((x) => {
+      if (x.sales !== me.name) return;
+      const monetary = (+x.value || 0) > 0;
+      const note = N.find((n) => n.letterId === x.id && n.status !== "rejected");
+      if (monetary && x.printedAt && !note) out.push({ t: t("nfDNNeeded") + " — " + (x.lysal || ""), go: "salesman" });
+      if (x.approval === "rejected") out.push({ t: t("nfRejected") + " — " + (x.lysal || ""), go: "salesman" });
+    });
+  } else if (["supervisor", "sales_manager", "marketing_manager", "sales_ops"].includes(role)) {
+    L.forEach((x) => {
+      if (x.apprStage === role && x.approval !== "rejected") {
+        const sig = stageNeedsSig(role, x);
+        out.push({ t: (sig ? t("nfNeedSign") : t("nfAwaitYou")) + " — " + (x.lysal || ""), go: role });
+      }
+    });
+  } else if (role === "admin") {
+    L.forEach((x) => { if (x.apprStage === "print" && !x.printedAt) out.push({ t: t("nfReadyPrint") + " — " + (x.lysal || ""), go: "printQueue" }); });
+    N.forEach((n) => { if (n.status === "pending") out.push({ t: t("nfNoteApprove") + " — " + (n.lysal || ""), go: "monitor" }); });
+  }
+  return out;
+}
+function openNotifs() {
+  const items = notifItems();
+  const body = items.length
+    ? items.map((it) => `<div class="notif-row"><span>${esc(it.t)}</span><button class="btn ghost sm" onclick="closeModal();go('${it.go}')">${t("notifGo")} ←</button></div>`).join("")
+    : `<div class="empty">${t("notifsNone")}</div>`;
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">🔔 ${t("notifTitle")} (${items.length})</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+    <div style="padding:16px 22px;max-height:70vh;overflow:auto">${body}</div>`);
+}
 // Mobile: the sidebar title acts as a menu button that opens/closes the menu.
 // When opening, expand all section groups so every screen is one tap away.
 function toggleMobileMenu(el) {
@@ -993,8 +1040,11 @@ function render() {
     else renderLanding();
     return;
   }
+  const nCount = notifItems().length;
+  const bell = `<button class="lang notif-btn" title="${t("notifTitle")}" onclick="openNotifs()">🔔${nCount ? `<span class="notif-badge">${nCount > 99 ? "99+" : nCount}</span>` : ""}</button>`;
+  const gear = currentUser.role === "admin" ? `<button class="lang" title="${t("settingsBtn")}" onclick="go('users')">⚙️</button>` : "";
   document.getElementById("userBox").innerHTML =
-    `<span class="userN">${esc(currentUser.name)}</span><button class="lang" title="${t("changePw")}" onclick="openChangePw()">🔑</button><button class="lang" onclick="logout()">${t("logout")}</button>`;
+    `<span class="userN">${esc(currentUser.name)}</span>${bell}<button class="lang" title="${t("changePw")}" onclick="openChangePw()">🔑</button>${gear}<button class="lang" onclick="logout()">${t("logout")}</button>`;
   // Force a password change on first login.
   if (currentUser.mustChangePassword) {
     document.getElementById("roleChip").innerHTML = "";
