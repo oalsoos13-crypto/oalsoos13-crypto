@@ -134,8 +134,9 @@ function buildState(user) {
   } else {
     letterRows = db.prepare('SELECT * FROM letters ORDER BY created_at ASC').all();
   }
-  const letters = letterRows.map((r) => mapLetter(r, nameOf));
-  const notes = db.prepare('SELECT * FROM notes ORDER BY created_at ASC').all().map((r) => mapNote(r, nameOf));
+  // Archived letters/notes leave the active screens (a copy stays in the DB).
+  const letters = letterRows.filter((r) => !r.archived_at).map((r) => mapLetter(r, nameOf));
+  const notes = db.prepare('SELECT * FROM notes WHERE archived_at IS NULL ORDER BY created_at ASC').all().map((r) => mapNote(r, nameOf));
 
   const counter = db.prepare("SELECT value FROM counters WHERE name='lysal'").get();
 

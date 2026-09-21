@@ -581,6 +581,18 @@ const T = {
   clearSign: { ar: "مسح", en: "Clear" },
   signRequired: { ar: "الرجاء التوقيع أولًا", en: "Please sign first" },
   // Admin print queue.
+  r_archive: { ar: "أرشفة الشهر (D.N)", en: "Month archive (D.N)" },
+  r_archive_d: { ar: "أرشفة إشعارات الخصم للجهاز عند تسكيرة الشهر.", en: "Archive debit notes to the device at month close." },
+  archiveMonth: { ar: "الشهر", en: "Month" },
+  archiveReady: { ar: "إشعارات جاهزة للأرشفة", en: "Debit notes ready to archive" },
+  archiveBtn: { ar: "⤓ أرشفة الشهر (ZIP)", en: "⤓ Archive month (ZIP)" },
+  archiveCond: { ar: "تُؤرشف فقط الإشعارات التي أُدخل لها رقم إشعار بالجمعية ولها مرفقات. لكل إشعار ملف PDF (الكتاب + المرفقات + الملخّص) داخل مجلدات: المشرف ← D.N ← المندوب ← الجمعية.", en: "Only debit notes with a co-op DN number and attachments are archived. Each becomes a PDF (letter + attachments + summary) inside folders: supervisor → D.N → salesman → coop." },
+  archiveNone: { ar: "لا توجد إشعارات جاهزة للأرشفة لهذا الشهر.", en: "No debit notes ready to archive for this month." },
+  archiveBuilding: { ar: "جارٍ تجهيز الأرشيف…", en: "Building the archive…" },
+  archiveDoneMsg: { ar: "تمت الأرشفة — نزّل الملف ثم اختفت من النظام.", en: "Archived — file downloaded; hidden from the system." },
+  archiveLibFail: { ar: "تعذّر تحميل أدوات الـ PDF (تحقق من الاتصال)", en: "Could not load the PDF tools (check the connection)" },
+  archiveHistory: { ar: "أرشيف الأشهر السابقة", en: "Previous months' archive" },
+  archiveConfirm: { ar: "سيتم توليد ملف ZIP وأرشفة الإشعارات (تختفي من النظام). متابعة؟", en: "A ZIP will be generated and the debit notes archived (removed from the active screens). Continue?" },
   r_printQueue: { ar: "قائمة الطباعة", en: "Print queue" },
   r_printQueue_d: { ar: "الكتب المكتملة الاعتماد الجاهزة للطباعة.", en: "Fully-approved letters ready to print." },
   printQueueTitle: { ar: "جاهزة للطباعة", en: "Ready to print" },
@@ -944,7 +956,7 @@ const ROLES = [
 const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "budgetHistory"]);
 // Top-level sections (two-level sidebar): each groups a set of screens.
 const SECTIONS = [
-  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "printQueue", "lettersHistory"] },
+  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory"] },
   { k: "settings", screens: ["users", "backup", "audit"] },
   { k: "contracts", screens: ["contracts"] },
   { k: "sales", screens: ["sales", "salesMonthly"] },
@@ -998,7 +1010,7 @@ function render() {
     supervisor: ["lettersHistory"],
     salesman: [],
   };
-  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "lettersHistory", "users", "backup", "audit", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
+  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "users", "backup", "audit", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
   const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
     .filter((k) => !HIDDEN_ROUTES.has(k));
   // No default screen: the content stays empty until the user picks a section.
@@ -1046,6 +1058,7 @@ function render() {
     salesMonthly: vSalesMonthly,
     contracts: vContracts,
     printQueue: vPrintQueue,
+    archive: vArchive,
     monitor: vMonitor,
     budgetPlan: vBudgetPlan,
     union: vUnion,
@@ -1847,6 +1860,142 @@ function letterSignerName(L) {
 }
 function stageNeedsSig(stage, L) { return !!STAGE_SIGNER[stage] && letterSignerName(L) === STAGE_SIGNER[stage]; }
 function stageLabel(st) { return t("stg_" + st) || st; }
+
+/* ===================== Month-end D.N archive (admin) =====================
+   Builds a ZIP of one PDF per completed debit note (letter + attachments +
+   summary), foldered supervisor → D.N → salesman → coop, then marks them
+   archived so they leave the active screens (a copy stays in the DB). */
+let ARCHIVE_MONTH = null;
+async function vArchive() {
+  const box = document.getElementById("rv");
+  box.innerHTML = `<div class="panel"><header><h3>${t("r_archive")}</h3></header><div class="body"><div class="empty">${t("loading")}</div></div></div>`;
+  let data, hist;
+  try { data = await api("/archive/pending" + (ARCHIVE_MONTH ? "?month=" + encodeURIComponent(ARCHIVE_MONTH) : "")); }
+  catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  try { hist = await api("/archive/list"); } catch (e) { hist = { notes: [], months: [] }; }
+  const months = data.months || [];
+  const monthSel = months.length
+    ? `<label class="hint" style="display:flex;align-items:center;gap:6px">${t("archiveMonth")}
+        <select id="arcMonth" onchange="ARCHIVE_MONTH=this.value||null;vArchive()">
+          <option value="">${LANG === "en" ? "All" : "الكل"}</option>
+          ${months.map((m) => `<option value="${m}" ${m === ARCHIVE_MONTH ? "selected" : ""}>${m}</option>`).join("")}
+        </select></label>`
+    : "";
+  box.innerHTML = `
+    <div class="panel"><header><h3>${t("r_archive")}</h3><div class="actions">${monthSel}</div></header>
+      <div class="body">
+        <p class="hint">${t("archiveCond")}</p>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 6px">
+          <span class="pill-info" style="padding:6px 12px;font-size:15px"><b>${data.count}</b> — ${t("archiveReady")}</span>
+          <button class="btn primary" ${data.count ? "" : "disabled"} onclick="archiveRun()">${t("archiveBtn")}</button>
+        </div>
+        <div id="arcProg" class="hint" style="min-height:18px;color:var(--navy3);font-weight:700"></div>
+        ${data.count ? tblArchivePending(data.notes) : `<div class="empty">${t("archiveNone")}</div>`}
+      </div>
+    </div>
+    ${hist.notes.length ? `<div class="panel"><header><h3>${t("archiveHistory")} (${hist.notes.length})</h3></header><div class="tbl-wrap">${tblArchiveHistory(hist.notes)}</div></div>` : ""}`;
+}
+function tblArchivePending(notes) {
+  return `<div class="tbl-wrap"><table><thead><tr><th>${t("mon_sup")}</th><th>${t("salesman")}</th><th>${t("coop")}</th><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th></tr></thead><tbody>${notes.map((n) => `<tr><td>${esc(n.supervisor)}</td><td>${esc(n.sales)}</td><td>${esc(coopAr(n.coop) || n.coop)}</td><td class="mono">${esc(n.lysal)}</td><td class="mono">${esc(n.coopDN)}</td><td class="mono">${KD(n.value)}</td><td>${esc(n.entryDate)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function tblArchiveHistory(notes) {
+  return `<table><thead><tr><th>${t("archiveMonth")}</th><th>${t("coop")}</th><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("th_value")}</th></tr></thead><tbody>${notes.map((n) => `<tr><td class="mono">${esc(n.archivedMonth || "")}</td><td>${esc(coopAr(n.coop) || n.coop)}</td><td class="mono">${esc(n.lysal)}</td><td class="mono">${esc(n.coopDN)}</td><td class="mono">${KD(n.value)}</td></tr>`).join("")}</tbody></table>`;
+}
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    if ([...document.scripts].some((s) => s.src === src)) return resolve();
+    const s = document.createElement("script");
+    s.src = src; s.onload = () => resolve(); s.onerror = () => reject(new Error("load " + src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureArchiveLibs() {
+  const tryLoad = async (urls) => { for (const u of urls) { try { await loadScriptOnce(u); return; } catch (e) { /* next */ } } throw new Error("cdn"); };
+  if (!window.JSZip) await tryLoad([
+    "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+    "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
+  ]);
+  if (!window.html2pdf) await tryLoad([
+    "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
+    "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js",
+  ]);
+  if (!window.JSZip || !window.html2pdf) throw new Error("libs");
+}
+function safeName(s) { return String(s || "").replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 90) || "-"; }
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+}
+function archiveSummaryHTML(meta, note) {
+  const row = (k, v) => `<tr><td style="font-weight:700;padding:6px 10px;border:1px solid #ccc">${k}</td><td style="padding:6px 10px;border:1px solid #ccc">${esc(v)}</td></tr>`;
+  return `<div style="page-break-before:always;padding:26px" dir="rtl">
+    <h2 style="text-align:center;color:#0b1f3a">ملخّص إشعار الخصم</h2>
+    <table style="width:100%;border-collapse:collapse;margin-top:14px;font-size:14px">
+      ${row(t("coop"), coopAr(meta.coop) || meta.coop)}
+      ${row(t("letterNo"), meta.lysal)}
+      ${row(t("coopDN"), meta.coopDN)}
+      ${row(t("th_value") + " (د.ك)", KD(meta.value))}
+      ${row(t("salesman"), meta.sales)}
+      ${row(t("mon_sup"), meta.supervisor)}
+      ${row(t("th_date"), meta.entryDate)}
+      ${row(t("attachments"), (note.attachments || []).length)}
+    </table></div>`;
+}
+async function archiveRun() {
+  if (!confirm(t("archiveConfirm"))) return;
+  const prog = document.getElementById("arcProg");
+  const setP = (m) => { if (prog) prog.textContent = m; };
+  setP(t("archiveBuilding"));
+  let pending;
+  try { pending = await api("/archive/pending" + (ARCHIVE_MONTH ? "?month=" + encodeURIComponent(ARCHIVE_MONTH) : "")); }
+  catch (e) { setP(e.message); return; }
+  if (!pending.count) { setP(t("archiveNone")); return; }
+  try { await ensureArchiveLibs(); } catch (e) { setP(t("archiveLibFail")); return; }
+  const prevLH = LH_MODE; LH_MODE = "full";
+  const zip = new window.JSZip();
+  const stage = document.createElement("div");
+  stage.style.cssText = "position:fixed;left:-99999px;top:0;width:794px;background:#fff;z-index:-1";
+  document.body.appendChild(stage);
+  const doneIds = [];
+  try {
+    for (let i = 0; i < pending.notes.length; i++) {
+      const meta = pending.notes[i];
+      setP(`${t("archiveBuilding")} ${i + 1}/${pending.notes.length} — ${coopAr(meta.coop) || meta.coop}`);
+      let full; try { full = await api("/notes/" + meta.id); } catch (e) { full = { attachments: [] }; }
+      const letter = DB.letters.find((l) => l.id === meta.letterId);
+      const letterHTML = letter ? docHTML(letter, true) : `<div class="doc"><div class="lh-body" dir="rtl" style="padding:30px">${esc(meta.lysal)} — ${esc(coopAr(meta.coop) || meta.coop)}</div></div>`;
+      const attHTML = (full.attachments || []).map((a) => (a.url && a.url.startsWith("data:image"))
+        ? `<div style="page-break-before:always;padding:14px;text-align:center"><img src="${a.url}" style="max-width:100%;max-height:1000px"></div>` : "").join("");
+      stage.innerHTML = `<div>${letterHTML}${attHTML}${archiveSummaryHTML(meta, full)}</div>`;
+      await new Promise((r) => setTimeout(r, 60));
+      const blob = await window.html2pdf().set({
+        margin: 0, image: { type: "jpeg", quality: 0.92 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] },
+      }).from(stage.firstChild).outputPdf("blob");
+      const coopN = safeName(coopAr(meta.coop) || meta.coop);
+      const fname = safeName(`${coopN} - ${meta.lysal.replace(/\//g, "-")} - ${meta.entryDate}`) + ".pdf";
+      const path = `${safeName(meta.supervisor)}/D.N/${safeName(meta.sales)}/${coopN}/${fname}`;
+      zip.file(path, blob);
+      doneIds.push(meta.id);
+    }
+    setP(t("archiveBuilding") + " (ZIP)…");
+    const out = await zip.generateAsync({ type: "blob" });
+    downloadBlob(out, `DN-Archive-${ARCHIVE_MONTH || (pending.notes[0] && pending.notes[0].month) || "all"}.zip`);
+    await api("/archive/commit", { method: "POST", body: { ids: doneIds, month: ARCHIVE_MONTH || (pending.notes[0] && pending.notes[0].month) } });
+    await loadState();
+    setP("");
+    toast(t("archiveDoneMsg"));
+    vArchive();
+  } catch (e) {
+    setP((e && e.message) || "error");
+  } finally {
+    LH_MODE = prevLH; stage.remove();
+  }
+}
 // One approval queue for a given chain stage (the current role's inbox).
 function stageLettersPanel(stage) {
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);

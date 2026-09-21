@@ -501,6 +501,13 @@ function migrate() {
   // monitoring summary. A letter-type -> budget-type map lets future letters of
   // the same type be classified automatically.
   addLetterCol('budget_type', 'TEXT');
+  // Month-end archiving: once a debit note is archived to the device it is
+  // marked here and hidden from the active screens (a copy stays in the DB).
+  addLetterCol('archived_at', 'TEXT');
+  addLetterCol('archived_month', 'TEXT');
+  const noteCols = db.prepare("PRAGMA table_info(notes)").all().map((c) => c.name);
+  if (!noteCols.includes('archived_at')) db.exec('ALTER TABLE notes ADD COLUMN archived_at TEXT');
+  if (!noteCols.includes('archived_month')) db.exec('ALTER TABLE notes ADD COLUMN archived_month TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS budget_type_map (
       letter_type TEXT PRIMARY KEY,
       budget_type TEXT NOT NULL,
