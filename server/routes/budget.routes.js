@@ -117,9 +117,22 @@ function monthSpend(month) {
   const noteVal = {};
   db.prepare("SELECT letter_id, SUM(value) v FROM notes WHERE status!='rejected' GROUP BY letter_id").all()
     .forEach((r) => { noteVal[r.letter_id] = r.v; });
+  // Letters store the co-op under either its clean parent name ("RAWDA PARENT")
+  // or its coops.name ("Rawda"); the distribution is keyed by coops.name. Map
+  // both spellings to the canonical coops.name so spend lines up with allocation.
+  const coopByCode = new Map(db.prepare('SELECT code, name FROM coops').all().map((c) => [String(c.code).toUpperCase(), c.name]));
+  const codeOf = (p) => { const m = String(p || '').match(/^(P\d+)/i); return m ? m[1].toUpperCase() : null; };
+  const canonCoop = new Map(); // any stored spelling -> coops.name
+  db.prepare('SELECT DISTINCT parent FROM outlets').all().forEach((r) => {
+    const canon = coopByCode.get(codeOf(r.parent)) || String(r.parent || '').replace(/^P\d+\s*-\s*/i, '').trim();
+    const clean = String(r.parent || '').replace(/^P\d+\s*-\s*/i, '').trim();
+    if (clean) canonCoop.set(clean, canon);
+    if (canon) canonCoop.set(canon, canon);
+  });
+  const normCoop = (c) => canonCoop.get(c) || c;
   const byType = {}, bySup = {}, bySales = {}, byCoop = {}, byOutlet = {};
   for (const L of letters) {
-    const bt = L.budget_type, sup = supMap[L.sales] || '—', sm = L.sales || '—', coop = L.coop || '—';
+    const bt = L.budget_type, sup = supMap[L.sales] || '—', sm = L.sales || '—', coop = normCoop(L.coop) || '—';
     const lv = num(L.value), nv = num(noteVal[L.id] || 0);
     (byType[bt] = byType[bt] || { letter: 0, note: 0 }); byType[bt].letter += lv; byType[bt].note += nv;
     const ks = sup + '|' + bt;

@@ -188,6 +188,10 @@ const T = {
   total: { ar: "الإجمالي", en: "Total" },
   letters: { ar: "الكتب", en: "Letters" },
   newLetter: { ar: "كتاب جديد", en: "New letter" },
+  genFromBudget: { ar: "توليد الكتب من التوزيعة", en: "Generate from budget" },
+  genConfirm: { ar: "سيتم توليد كتب إشعار خصم لكل جمعية/أوتليت إلها بتجيت موزّع هذا الشهر. متابعة؟", en: "This creates a debit-note letter for every co-op/outlet with a budget allocation this month. Continue?" },
+  genDone: { ar: "تم توليد الكتب", en: "Letters generated" },
+  genNone: { ar: "ما في توزيعة بتجيت لهذا الشهر (أو الكتب متولّدة مسبقًا)", en: "No budget distribution for this month (or already generated)" },
   th_type: { ar: "النوع", en: "Type" },
   th_brand: { ar: "البراند", en: "Brand" },
   th_value: { ar: "القيمة", en: "Value" },
@@ -2388,7 +2392,16 @@ function vSalesman() {
   const me = scopeName();
   const myLetters = me ? DB.letters.filter((l) => l.sales === me) : DB.letters;
   document.getElementById("rv").innerHTML = `
-  <div class="panel"><header><h3>${t("letters")} (${myLetters.length})</h3><button class="btn gold sm" onclick="openLetterForm()">＋ ${t("newLetter")}</button></header><div class="tbl-wrap">${tblSalesLetters(myLetters.slice().reverse())}</div></div>`;
+  <div class="panel"><header><h3>${t("letters")} (${myLetters.length})</h3><div class="actions"><button class="btn primary sm" onclick="generateFromBudget()">⚡ ${t("genFromBudget")}</button><button class="btn gold sm" onclick="openLetterForm()">＋ ${t("newLetter")}</button></div></header><div class="tbl-wrap">${tblSalesLetters(myLetters.slice().reverse())}</div></div>`;
+}
+async function generateFromBudget() {
+  if (!confirm(t("genConfirm"))) return;
+  try {
+    const r = await api("/letters/generate-from-budget", { method: "POST", body: {} });
+    if (!r.created) { toast(t("genNone")); return; }
+    await loadState(); render();
+    toast(t("genDone") + " (" + r.created + ")");
+  } catch (e) { toast(e.message); }
 }
 function tblSalesLetters(list) {
   if (!list.length) return `<div class="empty">${t("noLetters")}</div>`;

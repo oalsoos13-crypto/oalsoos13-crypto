@@ -7,6 +7,8 @@ const { requireAuth, requireRole } = require('../auth');
 const { asyncH, genId, nowIso, num, toJson, badRequest, notFound, forbidden } = require('../util');
 const { SEED } = require('../seed-data');
 const { SPEC_BY_KEY } = require('../letter-specs');
+let AR = { coops: {}, outlets: {} };
+try { AR = require('../outlet_ar.json'); } catch (e) { /* optional Arabic name map */ }
 
 const router = express.Router();
 router.use(requireAuth);
@@ -329,6 +331,129 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
       .concat(itemPriceWarnings(calc.items));
   } catch (e) { warnings = []; }
   res.json({ ok: true, id, lysal, num: num_, value: calc.value, letter: created, warnings });
+}));
+
+// ---- Generate debit-note letters from the supervisor's budget distribution ----
+// The supervisor distributes a monthly budget down to each co-op (and optionally
+// each outlet). This lets the salesman turn that distribution into actual debit
+// notes with one click: for every co-op/outlet allocated a non-zero amount, a
+// letter of the matching type is created with value = the allocated amount.
+const GEN_TYPE_OF = { pallets: 'palletdn', stands: 'standdn', pricediff: 'pricediff' };
+const GEN_REASON = { palletdn: 'إيجار طبلية', standdn: 'إيجار استاند', pricediff: '' };
+// Mirror of the front-end marketLabel(): the outlet's market label ("السوق …").
+function marketLabelServer(outletText) {
+  let m = String(outletText || '').trim();
+  const dash = m.indexOf(' - ');
+  if (dash >= 0) m = m.slice(dash + 3).trim();
+  m = m.replace(/(?:ال)?سوبر\s*ماركت/g, '').replace(/(?:ال)?سوق\s*المركزي/g, '')
+    .replace(/المركزي/g, '').replace(/كو[- ]?اوب|co[- ]?op/gi, '').replace(/\s+/g, ' ').trim();
+  m = m.replace(/^(?:ال)?سوق\s*/, '').trim();
+  if (!m) m = 'الرئيسي';
+  return 'السوق ' + m;
+}
+function coopFullFromAr(ar, fallback) {
+  const a = String(ar || fallback || '').trim();
+  if (!a) return '';
+  if (/جمعي/.test(a)) return a;
+  return `جمعية ${a} التعاونية`;
+}
+
+// POST /api/letters/generate-from-budget  { month? }
+router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((req, res) => {
+  const month = /^\d{4}-\d{2}$/.test(String(req.body.month || '')) ? req.body.month : nowIso().slice(0, 7);
+  const sales = req.user.name;
+  const pf = req.user.username;
+
+  // If the month is closed, the distribution is final but still generatable.
+  // Build the salesman's co-op structure from the outlets master.
+  const coopRows = db.prepare('SELECT code, name, name_ar FROM coops').all();
+  const nameByCode = new Map(coopRows.map((c) => [String(c.code).toUpperCase(), c.name]));
+  const arByCode = new Map(coopRows.map((c) => [String(c.code).toUpperCase(), c.name_ar || '']));
+  const codeOf = (p) => { const m = String(p || '').match(/^(P\d+)/i); return m ? m[1].toUpperCase() : null; };
+  // coopsName -> { scopeCoop, recipient, outlets: [{custId, market}] }
+  const coops = new Map();
+  db.prepare('SELECT cust_id, name, parent FROM outlets WHERE salesman_pf = ? ORDER BY parent, name').all(pf).forEach((r) => {
+    const code = codeOf(r.parent);
+    const coopsName = (code && nameByCode.get(code)) || cleanCoop(r.parent) || String(r.parent || '').trim();
+    if (!coopsName) return;
+    if (!coops.has(coopsName)) {
+      coops.set(coopsName, {
+        scopeCoop: cleanCoop(r.parent) || coopsName,
+        recipient: coopFullFromAr(code ? arByCode.get(code) : '', coopsName),
+        outlets: new Map(),
+      });
+    }
+    const outName = String(r.name || '').replace(/^\d+\s*-\s*/, '').trim() || r.name;
+    coops.get(coopsName).outlets.set(String(r.cust_id), AR.outlets[outName] || outName);
+  });
+
+  const allocCoop = db.prepare('SELECT budget_type, coop, amount FROM budget_alloc_coop WHERE month=? AND salesman=?').all(month, sales);
+  const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month);
+  const outletByKey = new Map(); // `${bt}|${coop}|${custId}` -> amount
+  const coopHasOutlet = new Set(); // `${bt}|${coop}`
+  for (const o of allocOutlet) {
+    if (!(num(o.amount) > 0)) continue;
+    outletByKey.set(`${o.budget_type}|${o.coop}|${o.cust_id}`, num(o.amount));
+    coopHasOutlet.add(`${o.budget_type}|${o.coop}`);
+  }
+
+  // Already-generated letters for this month (dedupe): key by type|scopeCoop|custId.
+  const doneKeys = new Set();
+  db.prepare("SELECT type, coop, cust_id, meta FROM letters WHERE created_by=?").all(req.user.id).forEach((L) => {
+    let mj = null; try { mj = L.meta ? JSON.parse(L.meta) : null; } catch (e) { mj = null; }
+    if (mj && mj.genBudget === month) doneKeys.add(`${L.type}|${L.coop}|${L.cust_id || ''}`);
+  });
+
+  const targets = []; // { type, bt, scopeCoop, recipient, custId, market, value }
+  for (const bt of Object.keys(GEN_TYPE_OF)) {
+    const type = GEN_TYPE_OF[bt];
+    // Coop-level allocations for this type.
+    for (const row of allocCoop) {
+      if (row.budget_type !== bt || !(num(row.amount) > 0)) continue;
+      const info = coops.get(row.coop);
+      if (!info) continue; // coop not in this salesman's scope
+      if (coopHasOutlet.has(`${bt}|${row.coop}`)) continue; // outlets drive it instead
+      targets.push({ type, bt, scopeCoop: info.scopeCoop, recipient: info.recipient, custId: null, market: '', value: num(row.amount) });
+    }
+    // Outlet-level allocations for this type.
+    for (const [key, amount] of outletByKey) {
+      const [kbt, kcoop, kcust] = key.split('|');
+      if (kbt !== bt) continue;
+      const info = coops.get(kcoop);
+      if (!info || !info.outlets.has(kcust)) continue; // not this salesman's outlet
+      targets.push({ type, bt, scopeCoop: info.scopeCoop, recipient: info.recipient, custId: kcust, market: marketLabelServer(info.outlets.get(kcust)), value: amount });
+    }
+  }
+
+  const created = [];
+  const insert = db.prepare(`INSERT INTO letters
+      (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, budget_type, approved_by, approved_at, created_by, created_at)
+      VALUES (@id,@num,@lysal,@type,@coop,'',@sales,@date,'','',@value,NULL,NULL,NULL,@recipient,@meta,@custId,'pending','pending','supervisor',@bt,NULL,NULL,@by,@now)`);
+  const tx = db.transaction(() => {
+    for (const g of targets) {
+      const dedupeKey = `${g.type}|${g.scopeCoop}|${g.custId || ''}`;
+      if (doneKeys.has(dedupeKey)) continue;
+      doneKeys.add(dedupeKey);
+      const id = genId('L');
+      const now = nowIso();
+      const n = nextCounter();
+      const meta = { reason: GEN_REASON[g.type] || '', genBudget: month };
+      if (g.market) meta.market = g.market;
+      insert.run({
+        id, num: n, lysal: refNo(n), type: g.type, coop: g.scopeCoop,
+        sales, date: now.slice(0, 10), value: g.value,
+        recipient: g.recipient, meta: toJson(meta), custId: g.custId, bt: g.bt, by: req.user.id, now,
+      });
+      created.push({ id, lysal: refNo(n), type: g.type, coop: g.scopeCoop, custId: g.custId, value: g.value });
+    }
+  });
+  tx();
+
+  audit.fromReq(req, 'letter.generate_budget', {
+    entityType: 'letter', summary: `Generated ${created.length} letters from budget (${month}, ${sales})`,
+    details: { month, sales, count: created.length },
+  });
+  res.json({ ok: true, month, created: created.length, skipped: targets.length - created.length, letters: created });
 }));
 
 // DELETE /api/letters/:id  (ADMIN ONLY — nobody else may delete or edit)
