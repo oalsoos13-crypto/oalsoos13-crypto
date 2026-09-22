@@ -3534,6 +3534,27 @@ async function resetAllPw() {
 let methData = null;
 const METH_ST_KEYS = ["done", "ongoing", "partial", "notstarted", "na"];
 function methStLabel(k) { return t("meth_" + k) || k; }
+// Resolve a bilingual { ar, en } value (or a plain string) for the current LANG.
+function mL(x) {
+  if (x && typeof x === "object") return x[LANG] != null && x[LANG] !== "" ? x[LANG] : (x.ar || x.en || "");
+  return x == null ? "" : x;
+}
+// Merge edited current-language lines into a bilingual list, preserving the
+// other language by index (so editing English never wipes the Arabic).
+function mMergeList(existing, lines) {
+  return lines.map((line, i) => {
+    const base = (existing && existing[i] && typeof existing[i] === "object") ? { ar: existing[i].ar || "", en: existing[i].en || "" } : { ar: "", en: "" };
+    base[LANG] = line;
+    if (!base[LANG === "en" ? "ar" : "en"]) base[LANG === "en" ? "ar" : "en"] = line;
+    return base;
+  });
+}
+function mSet(obj, val) {
+  const o = (obj && typeof obj === "object") ? obj : { ar: "", en: "" };
+  o[LANG] = val;
+  if (!o[LANG === "en" ? "ar" : "en"]) o[LANG === "en" ? "ar" : "en"] = val;
+  return o;
+}
 async function vMethodology() {
   try { methData = await api("/methodology"); }
   catch (e) { document.getElementById("rv").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
@@ -3542,57 +3563,57 @@ async function vMethodology() {
 function renderMethodology() {
   const M = methData;
   const isAdmin = currentUser && currentUser.role === "admin";
-  const refRows = M.refs.map((r) => `<tr><td>${esc(r.n)}</td><td>${esc(r.by)}</td><td class="mono">${esc(r.yr)}</td></tr>`).join("");
+  const refRows = M.refs.map((r) => `<tr><td>${esc(mL(r.n))}</td><td>${esc(r.by)}</td><td class="mono">${esc(r.yr)}</td></tr>`).join("");
   const stSel = (p, i) => `<select onchange="methData.phases[${i}].st=this.value">${METH_ST_KEYS.map((k) => `<option value="${k}" ${p.st === k ? "selected" : ""}>${methStLabel(k)}</option>`).join("")}</select>`;
-  const gapRows = M.gaps.map((g) => `<li>${esc(g)}</li>`).join("");
+  const gapRows = M.gaps.map((g) => `<li>${esc(mL(g))}</li>`).join("");
   const done = M.phases.filter((p) => p.st === "done").length;
   const total = M.phases.filter((p) => p.st !== "na").length;
   const editedLine = M.updatedAt
     ? `${t("meth_lastEdit")}: ${esc((M.updatedAt || "").slice(0, 16).replace("T", " "))}${M.updatedBy ? " · " + t("meth_editBy") + " " + esc(M.updatedBy) : ""}`
     : t("meth_notEdited");
-  // Vision & Goals (editable for admin).
-  const goalsText = (M.goals || []).join("\n");
+  // Vision & Goals (editable for admin — edits the current language field).
+  const goalsText = (M.goals || []).map(mL).join("\n");
   const visionPanel = isAdmin
     ? `<div class="panel"><header><h3>🎯 ${t("meth_visionGoals")}</h3></header><div class="body">
         <label class="hint" style="font-weight:700">${t("meth_vision")}</label>
-        <textarea id="methVision" rows="3" style="width:100%;margin:4px 0 12px">${esc(M.vision || "")}</textarea>
+        <textarea id="methVision" rows="3" style="width:100%;margin:4px 0 12px">${esc(mL(M.vision))}</textarea>
         <label class="hint" style="font-weight:700">${t("meth_goals")} (${t("meth_goalsHint")})</label>
         <textarea id="methGoals" rows="6" style="width:100%;margin-top:4px">${esc(goalsText)}</textarea>
       </div></div>`
     : `<div class="panel"><header><h3>🎯 ${t("meth_visionGoals")}</h3></header><div class="body">
-        <p><b>${t("meth_vision")}:</b> ${esc(M.vision || "")}</p>
-        <ul style="line-height:2;padding-inline-start:22px">${(M.goals || []).map((g) => `<li>${esc(g)}</li>`).join("")}</ul>
+        <p><b>${t("meth_vision")}:</b> ${esc(mL(M.vision))}</p>
+        <ul style="line-height:2;padding-inline-start:22px">${(M.goals || []).map((g) => `<li>${esc(mL(g))}</li>`).join("")}</ul>
       </div></div>`;
   // Phases table + editable/expandable sub-steps row per phase.
   const phaseTable = M.phases.map((p, i) => {
     const main = isAdmin
-      ? `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td>
+      ? `<tr><td class="mono">${p.id}</td><td>${esc(mL(p.name))}</td><td>${esc(mL(p.pmi))}</td>
           <td>${stSel(p, i)}</td>
           <td><input type="date" value="${esc(p.start || "")}" onchange="methData.phases[${i}].start=this.value" style="width:135px"></td>
           <td><input type="date" value="${esc(p.end || "")}" onchange="methData.phases[${i}].end=this.value" style="width:135px"></td>
-          <td><input value="${esc(p.note || "")}" onchange="methData.phases[${i}].note=this.value" style="width:100%"></td></tr>`
-      : `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td><td>${esc(methStLabel(p.st))}</td><td class="mono">${esc(p.start || "—")}</td><td class="mono">${esc(p.end || "—")}</td><td>${esc(p.note || "")}</td></tr>`;
+          <td><input id="methNote_${i}" value="${esc(mL(p.note))}" style="width:100%"></td></tr>`
+      : `<tr><td class="mono">${p.id}</td><td>${esc(mL(p.name))}</td><td>${esc(mL(p.pmi))}</td><td>${esc(methStLabel(p.st))}</td><td class="mono">${esc(p.start || "—")}</td><td class="mono">${esc(p.end || "—")}</td><td>${esc(mL(p.note))}</td></tr>`;
     const subs = isAdmin
-      ? `<tr><td></td><td colspan="6"><details><summary class="hint" style="cursor:pointer">${t("meth_subs")} (${(p.subs || []).length}) — ${t("meth_subsHint")}</summary><textarea id="methSubs_${i}" rows="4" style="width:100%;margin-top:6px">${esc((p.subs || []).join("\n"))}</textarea></details></td></tr>`
+      ? `<tr><td></td><td colspan="6"><details><summary class="hint" style="cursor:pointer">${t("meth_subs")} (${(p.subs || []).length}) — ${t("meth_subsHint")}</summary><textarea id="methSubs_${i}" rows="4" style="width:100%;margin-top:6px">${esc((p.subs || []).map(mL).join("\n"))}</textarea></details></td></tr>`
       : ((p.subs && p.subs.length)
-        ? `<tr><td></td><td colspan="6"><details><summary class="hint" style="cursor:pointer">${t("meth_subs")} (${p.subs.length})</summary><ol style="line-height:1.9;padding-inline-start:22px;margin:6px 0">${p.subs.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details></td></tr>`
+        ? `<tr><td></td><td colspan="6"><details><summary class="hint" style="cursor:pointer">${t("meth_subs")} (${p.subs.length})</summary><ol style="line-height:1.9;padding-inline-start:22px;margin:6px 0">${p.subs.map((s) => `<li>${esc(mL(s))}</li>`).join("")}</ol></details></td></tr>`
         : "");
     return main + subs;
   }).join("");
   // SOPs — editable for admin, read-only otherwise.
   const sopCards = (M.sops || []).map((s, i) => {
     if (isAdmin) {
-      return `<div class="mon-node"><details><summary><b>${esc(s.code || "SOP")} — ${esc(s.title)}</b></summary>
+      return `<div class="mon-node"><details><summary><b>${esc(s.code || "SOP")} — ${esc(mL(s.title))}</b></summary>
         <div style="padding:8px 4px">
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-            <input value="${esc(s.title || "")}" onchange="methData.sops[${i}].title=this.value" placeholder="العنوان" style="flex:1;min-width:200px">
-            <input value="${esc(s.role || "")}" onchange="methData.sops[${i}].role=this.value" placeholder="${t("meth_role")}" style="width:160px">
+            <input id="methSopTitle_${i}" value="${esc(mL(s.title))}" placeholder="${t("meth_note")}" style="flex:1;min-width:200px">
+            <input id="methSopRole_${i}" value="${esc(mL(s.role))}" placeholder="${t("meth_role")}" style="width:160px">
           </div>
           <label class="hint">${t("meth_stepsHint")}</label>
-          <textarea id="methSopSteps_${i}" rows="5" style="width:100%;margin-top:4px">${esc((s.steps || []).join("\n"))}</textarea>
+          <textarea id="methSopSteps_${i}" rows="5" style="width:100%;margin-top:4px">${esc((s.steps || []).map(mL).join("\n"))}</textarea>
         </div></details></div>`;
     }
-    return `<div class="mon-node"><details><summary><b>${esc(s.code)} — ${esc(s.title)}</b>${s.role ? ` <span class="pill-info">${esc(s.role)}</span>` : ""}</summary><ol style="line-height:1.9;padding-inline-start:22px;margin:8px 0">${(s.steps || []).map((st) => `<li>${esc(st)}</li>`).join("")}</ol></details></div>`;
+    return `<div class="mon-node"><details><summary><b>${esc(s.code)} — ${esc(mL(s.title))}</b>${mL(s.role) ? ` <span class="pill-info">${esc(mL(s.role))}</span>` : ""}</summary><ol style="line-height:1.9;padding-inline-start:22px;margin:8px 0">${(s.steps || []).map((st) => `<li>${esc(mL(st))}</li>`).join("")}</ol></details></div>`;
   }).join("");
   const topBtns = `<div class="actions" style="display:inline-flex;gap:8px"><button class="btn ghost sm" onclick="exportMethodology()">📄 ${t("meth_export")}</button></div>`;
   const saveBar = isAdmin
@@ -3608,29 +3629,36 @@ function renderMethodology() {
   <div class="panel"><header><h3>📋 ${t("meth_sops")}</h3></header><div class="body">${sopCards || `<div class="empty">—</div>`}</div></div>
   <div class="panel"><header><h3>⚠️ ${t("meth_gaps")}</h3></header><div class="body"><p class="hint">${t("meth_gapsHint")}</p><ul style="line-height:2;padding-inline-start:22px">${gapRows}</ul></div></div>`;
 }
-// Pull any open textarea edits (subs/sops/vision/goals) back into methData.
+// Pull open edits back into methData, writing the CURRENT language field only.
 function methCollect() {
   const vEl = document.getElementById("methVision");
   const gEl = document.getElementById("methGoals");
-  if (vEl) methData.vision = vEl.value;
-  if (gEl) methData.goals = gEl.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (vEl) methData.vision = mSet(methData.vision, vEl.value);
+  if (gEl) methData.goals = mMergeList(methData.goals, gEl.value.split("\n").map((s) => s.trim()).filter(Boolean));
   methData.phases.forEach((p, i) => {
+    const nEl = document.getElementById("methNote_" + i);
+    if (nEl) p.note = mSet(p.note, nEl.value);
     const el = document.getElementById("methSubs_" + i);
-    if (el) p.subs = el.value.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (el) p.subs = mMergeList(p.subs, el.value.split("\n").map((s) => s.trim()).filter(Boolean));
   });
   (methData.sops || []).forEach((s, i) => {
+    const tEl = document.getElementById("methSopTitle_" + i);
+    const rEl = document.getElementById("methSopRole_" + i);
+    if (tEl) s.title = mSet(s.title, tEl.value);
+    if (rEl) s.role = mSet(s.role, rEl.value);
     const el = document.getElementById("methSopSteps_" + i);
-    if (el) s.steps = el.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    if (el) s.steps = mMergeList(s.steps, el.value.split("\n").map((x) => x.trim()).filter(Boolean));
   });
 }
 async function saveMethodology() {
   try {
     methCollect();
     const body = {
-      phases: methData.phases.map((p) => ({ id: p.id, st: p.st, start: p.start || "", end: p.end || "", note: p.note || "", subs: p.subs || [] })),
-      vision: methData.vision || "",
+      phases: methData.phases.map((p) => ({ id: p.id, st: p.st, start: p.start || "", end: p.end || "", note: p.note, subs: p.subs || [] })),
+      vision: methData.vision,
       goals: methData.goals || [],
-      sops: (methData.sops || []).map((s) => ({ code: s.code || "", title: s.title || "", role: s.role || "", steps: s.steps || [] })),
+      gaps: methData.gaps || [],
+      sops: (methData.sops || []).map((s) => ({ code: s.code || "", title: s.title, role: s.role, steps: s.steps || [] })),
     };
     methData = await api("/methodology", { method: "POST", body });
     renderMethodology();
@@ -3644,9 +3672,9 @@ function exportMethodology() {
   const done = M.phases.filter((p) => p.st === "done").length;
   const total = M.phases.filter((p) => p.st !== "na").length;
   const rtl = LANG !== "en";
-  const refRows = M.refs.map((r) => `<tr><td>${esc(r.n)}</td><td>${esc(r.by)}</td><td>${esc(r.yr)}</td></tr>`).join("");
-  const phaseRows = M.phases.map((p) => `<tr><td>${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td><td>${esc(methStLabel(p.st))}</td><td>${esc(p.start || "—")}</td><td>${esc(p.end || "—")}</td><td>${esc(p.note || "")}</td></tr>${(p.subs && p.subs.length) ? `<tr><td></td><td colspan="6"><ol>${p.subs.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></td></tr>` : ""}`).join("");
-  const sopHtml = (M.sops || []).map((s) => `<div class="sop"><b>${esc(s.code)} — ${esc(s.title)}</b>${s.role ? ` <i>(${esc(s.role)})</i>` : ""}<ol>${(s.steps || []).map((st) => `<li>${esc(st)}</li>`).join("")}</ol></div>`).join("");
+  const refRows = M.refs.map((r) => `<tr><td>${esc(mL(r.n))}</td><td>${esc(r.by)}</td><td>${esc(r.yr)}</td></tr>`).join("");
+  const phaseRows = M.phases.map((p) => `<tr><td>${p.id}</td><td>${esc(mL(p.name))}</td><td>${esc(mL(p.pmi))}</td><td>${esc(methStLabel(p.st))}</td><td>${esc(p.start || "—")}</td><td>${esc(p.end || "—")}</td><td>${esc(mL(p.note))}</td></tr>${(p.subs && p.subs.length) ? `<tr><td></td><td colspan="6"><ol>${p.subs.map((s) => `<li>${esc(mL(s))}</li>`).join("")}</ol></td></tr>` : ""}`).join("");
+  const sopHtml = (M.sops || []).map((s) => `<div class="sop"><b>${esc(s.code)} — ${esc(mL(s.title))}</b>${mL(s.role) ? ` <i>(${esc(mL(s.role))})</i>` : ""}<ol>${(s.steps || []).map((st) => `<li>${esc(mL(st))}</li>`).join("")}</ol></div>`).join("");
   const html = `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${LANG}"><head><meta charset="utf-8"><title>${t("meth_title")}</title>
   <style>body{font-family:Arial,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px;line-height:1.6}
   h1{color:#1F4E79;font-size:20px;margin:0 0 4px}h2{color:#1F4E79;font-size:15px;border-bottom:2px solid #1F4E79;padding-bottom:3px;margin:18px 0 8px}
@@ -3655,11 +3683,11 @@ function exportMethodology() {
   .sub{color:#555;font-size:11px}@media print{body{padding:0}}</style></head><body>
   <h1>📐 ${t("meth_title")}</h1>
   <p>${t("meth_intro")} — <b>${done}/${total} ${t("meth_completed")}</b>. · v${esc(M.version)}${M.updatedAt ? " · " + t("meth_lastEdit") + ": " + esc((M.updatedAt || "").slice(0, 16).replace("T", " ")) : ""}</p>
-  <h2>🎯 ${t("meth_visionGoals")}</h2><p><b>${t("meth_vision")}:</b> ${esc(M.vision || "")}</p><ul>${(M.goals || []).map((g) => `<li>${esc(g)}</li>`).join("")}</ul>
+  <h2>🎯 ${t("meth_visionGoals")}</h2><p><b>${t("meth_vision")}:</b> ${esc(mL(M.vision))}</p><ul>${(M.goals || []).map((g) => `<li>${esc(mL(g))}</li>`).join("")}</ul>
   <h2>${t("meth_refs")}</h2><table><thead><tr><th>${t("meth_ref")}</th><th>${t("meth_by")}</th><th>${t("meth_yr")}</th></tr></thead><tbody>${refRows}</tbody></table>
   <h2>${t("meth_phases")}</h2><table><thead><tr><th>#</th><th>${t("meth_phase")}</th><th>${t("meth_group")}</th><th>${t("meth_status")}</th><th>${t("meth_start")}</th><th>${t("meth_end")}</th><th>${t("meth_note")}</th></tr></thead><tbody>${phaseRows}</tbody></table>
   <h2>📋 ${t("meth_sops")}</h2>${sopHtml}
-  <h2>⚠️ ${t("meth_gaps")}</h2><ul>${M.gaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>
+  <h2>⚠️ ${t("meth_gaps")}</h2><ul>${M.gaps.map((g) => `<li>${esc(mL(g))}</li>`).join("")}</ul>
   <script>window.onload=function(){window.print();}<\/script></body></html>`;
   const w = window.open("", "_blank");
   if (!w) { toast("Popup blocked"); return; }

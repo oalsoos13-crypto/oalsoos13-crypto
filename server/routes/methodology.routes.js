@@ -1,6 +1,7 @@
 'use strict';
 // Project methodology (PMI PMBOK 6th Ed., 2017) reference — persisted so the
-// admin can edit each phase's status and start/end dates from the UI. Every save
+// admin can edit each phase/SOP from the UI. All narrative content is bilingual
+// ({ ar, en }) so the whole screen switches with the language toggle. Every save
 // stamps updatedAt + updatedBy, so the screen shows the real last-edit date.
 const express = require('express');
 const db = require('../db');
@@ -14,89 +15,96 @@ router.use(requireAuth);
 const META_KEY = 'methodology';
 const STATUSES = ['done', 'ongoing', 'partial', 'notstarted', 'na'];
 const isDate = (s) => s === '' || s == null || /^\d{4}-\d{2}-\d{2}$/.test(String(s));
+const bi = (ar, en) => ({ ar, en });
+// Normalise any value to a { ar, en } object (accepts plain strings from old data).
+function nbi(v) {
+  if (v && typeof v === 'object') return { ar: String(v.ar || '').slice(0, 500), en: String(v.en || '').slice(0, 500) };
+  const s = String(v == null ? '' : v).slice(0, 500);
+  return { ar: s, en: s };
+}
+function nbiList(a) { return Array.isArray(a) ? a.map(nbi).filter((x) => x.ar || x.en) : []; }
 
-// Default content (seeded on first read). Dates are best-effort estimates —
-// the admin edits them from the screen; each edit updates the timestamp.
+// Default content (seeded on first read). Dates are best-effort estimates.
 function defaults() {
   return {
-    version: '2.0',
+    version: '3.0',
     updatedAt: null,
     updatedBy: null,
-    vision: 'أتمتة كاملة لدورة حياة إشعارات الخصم وفق المعايير العالمية (PMI)، بحيث يصبح كل إشعار موثّقاً ومعتمَداً ومؤرشفاً إلكترونياً، مع شفافية وحوكمة تامّة على البتجيت والصرف.',
+    vision: bi(
+      'أتمتة كاملة لدورة حياة إشعارات الخصم وفق المعايير العالمية (PMI)، بحيث يصبح كل إشعار موثّقاً ومعتمَداً ومؤرشفاً إلكترونياً، مع شفافية وحوكمة تامّة على البتجيت والصرف.',
+      'Full automation of the debit-note lifecycle per the global PMI standard, so every note is documented, approved and archived electronically, with complete transparency and governance over budget and spend.'),
     goals: [
-      'تقليل الأخطاء اليدوية في إصدار الإشعارات إلى الحد الأدنى.',
-      'ضبط البتجيت لكل جمعية/مندوب ومقارنة المصروف بالموزّع لحظياً.',
-      'سلسلة اعتماد واضحة (٤ مراحل) قبل الطباعة لضمان الرقابة.',
-      'أرشفة شهرية منظّمة قابلة للتدقيق (PDF لكل إشعار).',
-      'شفافية كاملة عبر سجل تدقيق (Audit) لكل عملية.',
-      'صلاحيات دقيقة حسب الدور تحمي البيانات والعمليات.',
+      bi('تقليل الأخطاء اليدوية في إصدار الإشعارات إلى الحد الأدنى.', 'Minimise manual errors in issuing debit notes.'),
+      bi('ضبط البتجيت لكل جمعية/مندوب ومقارنة المصروف بالموزّع لحظياً.', 'Control the budget per co-op/salesman and compare spend vs. allocation in real time.'),
+      bi('سلسلة اعتماد واضحة (٤ مراحل) قبل الطباعة لضمان الرقابة.', 'A clear 4-stage approval chain before printing for control.'),
+      bi('أرشفة شهرية منظّمة قابلة للتدقيق (PDF لكل إشعار).', 'Organised, auditable monthly archiving (a PDF per note).'),
+      bi('شفافية كاملة عبر سجل تدقيق (Audit) لكل عملية.', 'Full transparency via an audit log of every action.'),
+      bi('صلاحيات دقيقة حسب الدور تحمي البيانات والعمليات.', 'Precise role-based permissions protecting data and operations.'),
     ],
     refs: [
-      { n: 'PMBOK® Guide — 6th Edition (المرجع الأساسي)', by: 'PMI', yr: '2017' },
-      { n: 'ISO 21502 — إرشادات إدارة المشاريع', by: 'ISO', yr: '2020' },
-      { n: 'PRINCE2 (الحوكمة)', by: 'AXELOS', yr: '2017' },
-      { n: 'Scrum Guide (أجايل)', by: 'Scrum.org', yr: '2020' },
+      { n: bi('PMBOK® Guide — 6th Edition (المرجع الأساسي)', 'PMBOK® Guide — 6th Edition (primary reference)'), by: 'PMI', yr: '2017' },
+      { n: bi('ISO 21502 — إرشادات إدارة المشاريع', 'ISO 21502 — project management guidance'), by: 'ISO', yr: '2020' },
+      { n: bi('PRINCE2 (الحوكمة)', 'PRINCE2 (governance)'), by: 'AXELOS', yr: '2017' },
+      { n: bi('Scrum Guide (أجايل)', 'Scrum Guide (Agile)'), by: 'Scrum.org', yr: '2020' },
     ],
-    // Each phase carries sub-steps (L2/L3) — the deeper breakdown per PMI level.
     phases: [
-      { id: 1, ar: 'البدء والدخول والأدوار والنطاق', pmi: 'البدء Initiating', st: 'done', start: '2026-05-01', end: '2026-05-07', note: 'الدخول، الصلاحيات، الأدوار الستة، النطاق.',
-        subs: ['تعريف المشكلة والهدف ودراسة الجدوى', 'تحديد أصحاب العلاقة (المناديب/المشرفين/المدراء/الأدمن)', 'تحديد النطاق (داخل/خارج)', 'إعداد الدخول والمصادقة JWT'] },
-      { id: 2, ar: 'المتطلبات والتحليل', pmi: 'التخطيط Planning', st: 'done', start: '2026-05-08', end: '2026-05-20', note: 'المتطلبات الوظيفية وغير الوظيفية، تحليل البيانات.',
-        subs: ['المتطلبات الوظيفية (مدخلات/قواعد/تقارير)', 'المتطلبات غير الوظيفية (أداء/أمن/لغة)', 'تحليل العملية الحالية مقابل المستهدفة', 'تحليل مصادر البيانات (أوتليت/جمعيات/عقود)'] },
-      { id: 3, ar: 'التصميم والتخطيط', pmi: 'التخطيط Planning', st: 'done', start: '2026-05-21', end: '2026-06-10', note: 'سير العمل، نموذج البيانات، الشاشات، الأدوار.',
-        subs: ['تصميم سير العمل وانتقالات الحالة', 'نموذج البيانات (الجداول والعلاقات)', 'تصميم الشاشات والتقارير', 'مصفوفة الأدوار والصلاحيات'] },
-      { id: 4, ar: 'إعداد وتوزيع البتجيت', pmi: 'التخطيط Planning', st: 'done', start: '2026-06-11', end: '2026-06-30', note: 'سقوف ← مدير مبيعات ← مشرف ← مندوب/جمعية/أوتليت.',
-        subs: ['سقوف الأدمن الشهرية', 'توزيع مدير المبيعات على المشرفين', 'توزيع المشرف على المندوب/الجمعية/الأوتليت', 'مقارنة المصروف بالموزّع'] },
-      { id: 5, ar: 'البناء والتنفيذ', pmi: 'التنفيذ Executing', st: 'done', start: '2026-06-15', end: '2026-08-15', note: 'قاعدة البيانات، منطق الخادم، الواجهة، التكامل.',
-        subs: ['بناء قاعدة البيانات والترحيلات', 'منطق الخادم (قواعد/حسابات/تحقق)', 'بناء الواجهة والشاشات', 'التكامل (استيراد/تصدير) وضبط الإصدارات'] },
-      { id: 6, ar: 'الاختبار والجودة', pmi: 'المراقبة M&C', st: 'partial', start: '2026-07-01', end: '', note: 'اختبار E2E ويدوي منجز؛ لا يوجد إطار وحدات رسمي.',
-        subs: ['اختبار تكامل End-to-End', 'اختبار دقة البيانات والأداء', 'اختبار الصلاحيات والأمن', 'قبول المستخدم UAT وإصلاح الأخطاء'] },
-      { id: 7, ar: 'العرض والاعتماد', pmi: 'التنفيذ Executing', st: 'ongoing', start: '2026-06-01', end: '', note: 'عرض واعتماد المالك مع كل ميزة.',
-        subs: ['تجهيز العرض والبيانات', 'عرض السير والشاشات للمالك', 'جمع الملاحظات وقرار المضي'] },
-      { id: 8, ar: 'النشر والتشغيل', pmi: 'التنفيذ Executing', st: 'done', start: '2026-07-01', end: '2026-08-20', note: 'نشر تلقائي على Render، قرص دائم، فحص بعد النشر.',
-        subs: ['فحص ما قبل النشر ونسخة احتياطية', 'ترحيل وتنظيف البيانات', 'النشر للإنتاج', 'فحص المسار الحرج بعد النشر'] },
-      { id: 9, ar: 'التدريب وإدارة التغيير', pmi: 'التنفيذ Executing', st: 'notstarted', start: '', end: '', note: 'لا يوجد دليل مستخدم/تدريب رسمي بعد.',
-        subs: ['إعداد دليل المستخدم والمواد', 'جلسات تدريب حسب الدور', 'إدارة التغيير والتبليغ'] },
-      { id: 10, ar: 'التغذية الراجعة والتقييم', pmi: 'المراقبة M&C', st: 'ongoing', start: '2026-06-01', end: '', note: 'ملاحظات المالك مستمرة، سجل تدقيق للاستخدام.',
-        subs: ['جمع التغذية الراجعة ومقاييس الاستخدام', 'التقييم مقابل الأهداف والمؤشرات', 'تخطيط التحسينات'] },
-      { id: 11, ar: 'الدعم والصيانة والتكرار', pmi: 'مستمر Ongoing', st: 'ongoing', start: '2026-08-20', end: '', note: 'معالجة الأعطال، تحسينات، متطلبات جديدة.',
-        subs: ['معالجة الأعطال (تشخيص وحل)', 'تحسينات وضبط الأداء', 'دورات تكرار لمتطلبات جديدة'] },
-      { id: 12, ar: 'الإغلاق', pmi: 'الإغلاق Closing', st: 'na', start: '', end: '', note: 'غير منطبق — المشروع في تطوير نشط.',
-        subs: ['الإغلاق الرسمي والتسليم', 'تحرير الموارد', 'مراجعة ما بعد المشروع والدروس المستفادة'] },
+      { id: 1, name: bi('البدء والدخول والأدوار والنطاق', 'Initiation, login, roles & scope'), pmi: bi('البدء Initiating', 'Initiating'), st: 'done', start: '2026-05-01', end: '2026-05-07', note: bi('الدخول، الصلاحيات، الأدوار الستة، النطاق.', 'Login, permissions, six roles, scope.'),
+        subs: [bi('تعريف المشكلة والهدف ودراسة الجدوى', 'Define the problem, goal & feasibility'), bi('تحديد أصحاب العلاقة', 'Identify stakeholders'), bi('تحديد النطاق (داخل/خارج)', 'Define scope (in/out)'), bi('إعداد الدخول والمصادقة JWT', 'Set up login & JWT authentication')] },
+      { id: 2, name: bi('المتطلبات والتحليل', 'Requirements & analysis'), pmi: bi('التخطيط Planning', 'Planning'), st: 'done', start: '2026-05-08', end: '2026-05-20', note: bi('المتطلبات الوظيفية وغير الوظيفية، تحليل البيانات.', 'Functional & non-functional requirements, data analysis.'),
+        subs: [bi('المتطلبات الوظيفية (مدخلات/قواعد/تقارير)', 'Functional requirements (inputs/rules/reports)'), bi('المتطلبات غير الوظيفية (أداء/أمن/لغة)', 'Non-functional requirements (performance/security/language)'), bi('تحليل العملية الحالية مقابل المستهدفة', 'As-is vs. to-be process analysis'), bi('تحليل مصادر البيانات', 'Data-source analysis')] },
+      { id: 3, name: bi('التصميم والتخطيط', 'Design & planning'), pmi: bi('التخطيط Planning', 'Planning'), st: 'done', start: '2026-05-21', end: '2026-06-10', note: bi('سير العمل، نموذج البيانات، الشاشات، الأدوار.', 'Workflow, data model, screens, roles.'),
+        subs: [bi('تصميم سير العمل وانتقالات الحالة', 'Workflow & state-transition design'), bi('نموذج البيانات (الجداول والعلاقات)', 'Data model (tables & relations)'), bi('تصميم الشاشات والتقارير', 'Screens & reports design'), bi('مصفوفة الأدوار والصلاحيات', 'Roles & permissions matrix')] },
+      { id: 4, name: bi('إعداد وتوزيع البتجيت', 'Budget setup & distribution'), pmi: bi('التخطيط Planning', 'Planning'), st: 'done', start: '2026-06-11', end: '2026-06-30', note: bi('سقوف ← مدير مبيعات ← مشرف ← مندوب/جمعية/أوتليت.', 'Caps → sales manager → supervisor → salesman/coop/outlet.'),
+        subs: [bi('سقوف الأدمن الشهرية', 'Admin monthly caps'), bi('توزيع مدير المبيعات على المشرفين', 'Sales manager distributes to supervisors'), bi('توزيع المشرف على المندوب/الجمعية/الأوتليت', 'Supervisor distributes to salesman/coop/outlet'), bi('مقارنة المصروف بالموزّع', 'Compare spend vs. allocation')] },
+      { id: 5, name: bi('البناء والتنفيذ', 'Build & implementation'), pmi: bi('التنفيذ Executing', 'Executing'), st: 'done', start: '2026-06-15', end: '2026-08-15', note: bi('قاعدة البيانات، منطق الخادم، الواجهة، التكامل.', 'Database, server logic, UI, integration.'),
+        subs: [bi('بناء قاعدة البيانات والترحيلات', 'Build database & migrations'), bi('منطق الخادم (قواعد/حسابات/تحقق)', 'Server logic (rules/calc/validation)'), bi('بناء الواجهة والشاشات', 'Build UI & screens'), bi('التكامل (استيراد/تصدير) وضبط الإصدارات', 'Integration (import/export) & version control')] },
+      { id: 6, name: bi('الاختبار والجودة', 'Testing & quality'), pmi: bi('المراقبة M&C', 'Monitoring & Controlling'), st: 'partial', start: '2026-07-01', end: '', note: bi('اختبار E2E ويدوي منجز؛ لا يوجد إطار وحدات رسمي.', 'E2E and manual testing done; no formal unit-test framework.'),
+        subs: [bi('اختبار تكامل End-to-End', 'End-to-end integration testing'), bi('اختبار دقة البيانات والأداء', 'Data-accuracy & performance testing'), bi('اختبار الصلاحيات والأمن', 'Permissions & security testing'), bi('قبول المستخدم UAT وإصلاح الأخطاء', 'UAT & bug fixing')] },
+      { id: 7, name: bi('العرض والاعتماد', 'Demo & approval'), pmi: bi('التنفيذ Executing', 'Executing'), st: 'ongoing', start: '2026-06-01', end: '', note: bi('عرض واعتماد المالك مع كل ميزة.', 'Owner demo & approval with each feature.'),
+        subs: [bi('تجهيز العرض والبيانات', 'Prepare demo & data'), bi('عرض السير والشاشات للمالك', 'Walk the owner through flow & screens'), bi('جمع الملاحظات وقرار المضي', 'Collect feedback & go/no-go')] },
+      { id: 8, name: bi('النشر والتشغيل', 'Deployment & go-live'), pmi: bi('التنفيذ Executing', 'Executing'), st: 'done', start: '2026-07-01', end: '2026-08-20', note: bi('نشر تلقائي على Render، قرص دائم، فحص بعد النشر.', 'Auto-deploy on Render, persistent disk, post-deploy check.'),
+        subs: [bi('فحص ما قبل النشر ونسخة احتياطية', 'Pre-deployment check & backup'), bi('ترحيل وتنظيف البيانات', 'Data migration & cleanup'), bi('النشر للإنتاج', 'Deploy to production'), bi('فحص المسار الحرج بعد النشر', 'Post-deploy critical-path check')] },
+      { id: 9, name: bi('التدريب وإدارة التغيير', 'Training & change management'), pmi: bi('التنفيذ Executing', 'Executing'), st: 'notstarted', start: '', end: '', note: bi('لا يوجد دليل مستخدم/تدريب رسمي بعد.', 'No formal user manual/training yet.'),
+        subs: [bi('إعداد دليل المستخدم والمواد', 'Prepare user manual & materials'), bi('جلسات تدريب حسب الدور', 'Role-based training sessions'), bi('إدارة التغيير والتبليغ', 'Change management & communication')] },
+      { id: 10, name: bi('التغذية الراجعة والتقييم', 'Feedback & evaluation'), pmi: bi('المراقبة M&C', 'Monitoring & Controlling'), st: 'ongoing', start: '2026-06-01', end: '', note: bi('ملاحظات المالك مستمرة، سجل تدقيق للاستخدام.', 'Continuous owner feedback, usage audit log.'),
+        subs: [bi('جمع التغذية الراجعة ومقاييس الاستخدام', 'Collect feedback & usage metrics'), bi('التقييم مقابل الأهداف والمؤشرات', 'Evaluate vs. goals & KPIs'), bi('تخطيط التحسينات', 'Plan improvements')] },
+      { id: 11, name: bi('الدعم والصيانة والتكرار', 'Support, maintenance & iteration'), pmi: bi('مستمر Ongoing', 'Ongoing'), st: 'ongoing', start: '2026-08-20', end: '', note: bi('معالجة الأعطال، تحسينات، متطلبات جديدة.', 'Bug handling, enhancements, new requirements.'),
+        subs: [bi('معالجة الأعطال (تشخيص وحل)', 'Issue handling (diagnose & resolve)'), bi('تحسينات وضبط الأداء', 'Enhancements & performance tuning'), bi('دورات تكرار لمتطلبات جديدة', 'Iterations for new requirements')] },
+      { id: 12, name: bi('الإغلاق', 'Closure'), pmi: bi('الإغلاق Closing', 'Closing'), st: 'na', start: '', end: '', note: bi('غير منطبق — المشروع في تطوير نشط.', 'N-A — project in active development.'),
+        subs: [bi('الإغلاق الرسمي والتسليم', 'Formal closure & handover'), bi('تحرير الموارد', 'Release resources'), bi('مراجعة ما بعد المشروع والدروس المستفادة', 'Post-project review & lessons learned')] },
     ],
     gaps: [
-      'دليل مستخدم رسمي + مواد تدريب (المرحلة 8) — موجود بالمعيار، ناقص عندك.',
-      'سجل مخاطر رسمي (Risk Register) وخطة استجابة — PMBOK مجال المخاطر.',
-      'إطار اختبار وحدات آلي (Unit tests) — المرحلة 6 (الجودة).',
-      'توثيق فني رسمي (Design/Requirements docs) — حالياً تعليقات كود فقط.',
-      'معايير قبول موثّقة (Acceptance criteria) وخطة جودة رسمية.',
-      'ميثاق مشروع + جدول زمني/WBS رسمي — اختياري لأن المنهجية رشيقة (Agile).',
+      bi('دليل مستخدم رسمي + مواد تدريب (المرحلة 8) — موجود بالمعيار، ناقص عندك.', 'Formal user manual + training material (phase 8) — in the standard, missing here.'),
+      bi('سجل مخاطر رسمي (Risk Register) وخطة استجابة — PMBOK مجال المخاطر.', 'Formal risk register + response plan — PMBOK risk area.'),
+      bi('إطار اختبار وحدات آلي (Unit tests) — المرحلة 6 (الجودة).', 'Automated unit-test framework — phase 6 (quality).'),
+      bi('توثيق فني رسمي (Design/Requirements docs) — حالياً تعليقات كود فقط.', 'Formal technical docs (design/requirements) — currently only code comments.'),
+      bi('معايير قبول موثّقة (Acceptance criteria) وخطة جودة رسمية.', 'Documented acceptance criteria + formal quality plan.'),
+      bi('ميثاق مشروع + جدول زمني/WBS رسمي — اختياري لأن المنهجية رشيقة (Agile).', 'Project charter + formal schedule/WBS — optional since the methodology is Agile.'),
     ],
-    // Standard Operating Procedures — the step-by-step operating procedures.
     sops: [
-      { code: 'SOP-01', title: 'إنشاء كتاب إشعار خصم (المندوب)', role: 'المندوب', steps: [
-        'ادخل بحساب المندوب واذهب لشاشة الكتب.', 'اضغط «كتاب جديد» واختر النوع (طبالي/استاند/فروق أسعار).',
-        'اختر الجمعية من نطاقك، و(اختياري) الأوتليت.', 'أدخل القيمة والسبب.', 'احفظ — يدخل الكتاب دورة الاعتماد عند المشرف.'] },
-      { code: 'SOP-02', title: 'توليد الكتب من توزيعة البتجيت (المندوب)', role: 'المندوب', steps: [
-        'تأكد أن المشرف وزّع البتجيت لهذا الشهر.', 'من شاشة الكتب اضغط زر ⚡ «توليد الكتب من التوزيعة».',
-        'راجع الكتب المتولّدة (كتاب لكل جمعية/أوتليت بقيمة التوزيعة).', 'الكتب تدخل الاعتماد تلقائياً؛ التكرار محمي.'] },
-      { code: 'SOP-03', title: 'اعتماد الكتاب (كل مرحلة)', role: 'المشرف/المدراء', steps: [
-        'افتح الكتاب المعروض للاعتماد وعاينه.', 'اعتمد مع التوقيع لينتقل للمرحلة التالية، أو ارفض بسبب.',
-        'الترتيب: مشرف ← مدير مبيعات ← مدير تسويق ← مدير عمليات ← جاهز.'] },
-      { code: 'SOP-04', title: 'الطباعة (الأدمن)', role: 'الأدمن', steps: [
-        'افتح «طابور الطباعة».', 'تأكد أن الكتاب أكمل كل المراحل.', 'اطبع — يُسجَّل تاريخ الطباعة تلقائياً.'] },
-      { code: 'SOP-05', title: 'إدخال إشعار الجمعية D.N (المندوب)', role: 'المندوب', steps: [
-        'بعد طباعة الكتاب، افتحه لإدخال الإشعار.', 'أدخل رقم الإشعار بالجمعية (إلزامي).',
-        'أرفق الصور/الإثباتات.', 'احفظ — ينتظر اعتماد الأدمن.'] },
-      { code: 'SOP-06', title: 'توزيع البتجيت (المشرف)', role: 'المشرف', steps: [
-        'افتح شاشة «توزيع البتجيت» واختر الشهر.', 'وزّع الحصة على كل مندوب.',
-        'وزّع على الجمعيات، و(اختياري) على الأوتليت.', 'راجع عمود «المصروف» مقابل الموزّع.'] },
-      { code: 'SOP-07', title: 'إقفال الشهر والأرشفة (الأدمن)', role: 'الأدمن', steps: [
-        'سكّر الشهر (شرط إلزامي).', 'اضغط أرشفة لتوليد ZIP منظّم (المشرف ← D.N ← المندوب ← الجمعية).',
-        'كل PDF = الكتاب + المرفقات + السمري.', 'بعد الأرشفة تختفي من الشاشات النشطة (نسخة محفوظة).'] },
-      { code: 'SOP-08', title: 'إدارة المستخدمين والنسخ الاحتياطي (الأدمن)', role: 'الأدمن', steps: [
-        'من الإعدادات أدر المستخدمين والأدوار وكلمات المرور.', 'نزّل نسخة احتياطية دورياً.',
-        'راجع سجل التدقيق (Audit) للعمليات.'] },
+      { code: 'SOP-01', title: bi('إنشاء كتاب إشعار خصم (المندوب)', 'Create a debit-note letter (salesman)'), role: bi('المندوب', 'Salesman'), steps: [
+        bi('ادخل بحساب المندوب واذهب لشاشة الكتب.', 'Log in as the salesman and open the Letters screen.'), bi('اضغط «كتاب جديد» واختر النوع (طبالي/استاند/فروق أسعار).', 'Click "New letter" and pick the type (pallets/stands/price-diff).'),
+        bi('اختر الجمعية من نطاقك، و(اختياري) الأوتليت.', 'Pick the co-op from your scope, and optionally the outlet.'), bi('أدخل القيمة والسبب.', 'Enter the value and reason.'), bi('احفظ — يدخل الكتاب دورة الاعتماد عند المشرف.', 'Save — the letter enters the approval chain at the supervisor.')] },
+      { code: 'SOP-02', title: bi('توليد الكتب من توزيعة البتجيت (المندوب)', 'Generate letters from the budget distribution (salesman)'), role: bi('المندوب', 'Salesman'), steps: [
+        bi('تأكد أن المشرف وزّع البتجيت لهذا الشهر.', 'Make sure the supervisor distributed the budget for the month.'), bi('من شاشة الكتب اضغط زر ⚡ «توليد الكتب من التوزيعة».', 'On the Letters screen press the ⚡ "Generate from budget" button.'),
+        bi('راجع الكتب المتولّدة (كتاب لكل جمعية/أوتليت بقيمة التوزيعة).', 'Review the generated letters (one per coop/outlet with its allocation).'), bi('الكتب تدخل الاعتماد تلقائياً؛ التكرار محمي.', 'Letters enter approval automatically; duplicates are prevented.')] },
+      { code: 'SOP-03', title: bi('اعتماد الكتاب (كل مرحلة)', 'Approve a letter (each stage)'), role: bi('المشرف/المدراء', 'Supervisor/Managers'), steps: [
+        bi('افتح الكتاب المعروض للاعتماد وعاينه.', 'Open the letter awaiting approval and review it.'), bi('اعتمد مع التوقيع لينتقل للمرحلة التالية، أو ارفض بسبب.', 'Approve with signature to move to the next stage, or reject with a reason.'),
+        bi('الترتيب: مشرف ← مدير مبيعات ← مدير تسويق ← مدير عمليات ← جاهز.', 'Order: supervisor → sales manager → marketing manager → sales ops → ready.')] },
+      { code: 'SOP-04', title: bi('الطباعة (الأدمن)', 'Printing (admin)'), role: bi('الأدمن', 'Admin'), steps: [
+        bi('افتح «طابور الطباعة».', 'Open the Print Queue.'), bi('تأكد أن الكتاب أكمل كل المراحل.', 'Confirm the letter cleared all stages.'), bi('اطبع — يُسجَّل تاريخ الطباعة تلقائياً.', 'Print — the print date is recorded automatically.')] },
+      { code: 'SOP-05', title: bi('إدخال إشعار الجمعية D.N (المندوب)', 'Enter the co-op debit note D.N (salesman)'), role: bi('المندوب', 'Salesman'), steps: [
+        bi('بعد طباعة الكتاب، افتحه لإدخال الإشعار.', 'After the letter is printed, open it to enter the note.'), bi('أدخل رقم الإشعار بالجمعية (إلزامي).', 'Enter the co-op debit-note number (required).'),
+        bi('أرفق الصور/الإثباتات.', 'Attach the photos/evidence.'), bi('احفظ — ينتظر اعتماد الأدمن.', 'Save — it awaits admin approval.')] },
+      { code: 'SOP-06', title: bi('توزيع البتجيت (المشرف)', 'Distribute the budget (supervisor)'), role: bi('المشرف', 'Supervisor'), steps: [
+        bi('افتح شاشة «توزيع البتجيت» واختر الشهر.', 'Open the Budget Distribution screen and pick the month.'), bi('وزّع الحصة على كل مندوب.', 'Distribute the share to each salesman.'),
+        bi('وزّع على الجمعيات، و(اختياري) على الأوتليت.', 'Distribute to co-ops, and optionally to outlets.'), bi('راجع عمود «المصروف» مقابل الموزّع.', 'Review the "spend" column vs. the allocation.')] },
+      { code: 'SOP-07', title: bi('إقفال الشهر والأرشفة (الأدمن)', 'Month close & archive (admin)'), role: bi('الأدمن', 'Admin'), steps: [
+        bi('سكّر الشهر (شرط إلزامي).', 'Close the month (mandatory first step).'), bi('اضغط أرشفة لتوليد ZIP منظّم (المشرف ← D.N ← المندوب ← الجمعية).', 'Press Archive to build an organised ZIP (supervisor → D.N → salesman → coop).'),
+        bi('كل PDF = الكتاب + المرفقات + السمري.', 'Each PDF = the letter + attachments + summary.'), bi('بعد الأرشفة تختفي من الشاشات النشطة (نسخة محفوظة).', 'After archiving they leave the active screens (a copy is kept).')] },
+      { code: 'SOP-08', title: bi('إدارة المستخدمين والنسخ الاحتياطي (الأدمن)', 'User management & backup (admin)'), role: bi('الأدمن', 'Admin'), steps: [
+        bi('من الإعدادات أدر المستخدمين والأدوار وكلمات المرور.', 'From Settings manage users, roles and passwords.'), bi('نزّل نسخة احتياطية دورياً.', 'Download a backup periodically.'),
+        bi('راجع سجل التدقيق (Audit) للعمليات.', 'Review the audit log of operations.')] },
     ],
   };
 }
@@ -107,21 +115,28 @@ function load() {
   try {
     const saved = JSON.parse(row.value);
     const base = defaults();
-    // Merge saved edits over the current defaults so newly added phases/refs
-    // still appear, while the admin's status/dates/notes win.
     const byId = new Map((saved.phases || []).map((p) => [p.id, p]));
     base.phases = base.phases.map((p) => {
       const s = byId.get(p.id);
       if (!s) return p;
       return {
         ...p,
-        st: s.st ?? p.st, start: s.start ?? p.start, end: s.end ?? p.end, note: s.note ?? p.note,
-        subs: Array.isArray(s.subs) ? s.subs : p.subs,
+        name: s.name ? nbi(s.name) : p.name,
+        pmi: s.pmi ? nbi(s.pmi) : p.pmi,
+        st: s.st ?? p.st, start: s.start ?? p.start, end: s.end ?? p.end,
+        note: s.note ? nbi(s.note) : p.note,
+        subs: Array.isArray(s.subs) ? nbiList(s.subs) : p.subs,
       };
     });
-    if (typeof saved.vision === 'string') base.vision = saved.vision;
-    if (Array.isArray(saved.goals)) base.goals = saved.goals;
-    if (Array.isArray(saved.sops)) base.sops = saved.sops;
+    if (saved.vision) base.vision = nbi(saved.vision);
+    if (Array.isArray(saved.goals)) base.goals = nbiList(saved.goals);
+    if (Array.isArray(saved.gaps)) base.gaps = nbiList(saved.gaps);
+    if (Array.isArray(saved.sops)) {
+      base.sops = saved.sops.map((s) => ({
+        code: String(s.code || '').slice(0, 20), title: nbi(s.title), role: nbi(s.role),
+        steps: nbiList(s.steps),
+      })).filter((s) => s.title.ar || s.title.en);
+    }
     base.updatedAt = saved.updatedAt || null;
     base.updatedBy = saved.updatedBy || null;
     return base;
@@ -133,7 +148,7 @@ router.get('/methodology', asyncH((req, res) => {
   res.json(load());
 }));
 
-// POST /api/methodology — admin edits phase status/dates/notes; stamps the edit.
+// POST /api/methodology — admin edits; stamps the edit. Content is bilingual.
 router.post('/methodology', requireRole(), asyncH((req, res) => {
   const cur = load();
   const incoming = Array.isArray(req.body.phases) ? req.body.phases : [];
@@ -147,23 +162,23 @@ router.post('/methodology', requireRole(), asyncH((req, res) => {
     }
     if (s.start != null) { if (!isDate(s.start)) throw badRequest('تاريخ بداية غير صحيح', 'BAD_DATE'); p.start = String(s.start || ''); }
     if (s.end != null) { if (!isDate(s.end)) throw badRequest('تاريخ نهاية غير صحيح', 'BAD_DATE'); p.end = String(s.end || ''); }
-    if (s.note != null) p.note = String(s.note).slice(0, 400);
-    if (Array.isArray(s.subs)) p.subs = s.subs.map((x) => String(x).slice(0, 300)).filter(Boolean).slice(0, 20);
+    if (s.name != null) p.name = nbi(s.name);
+    if (s.note != null) p.note = nbi(s.note);
+    if (Array.isArray(s.subs)) p.subs = nbiList(s.subs).slice(0, 20);
   }
-  if (typeof req.body.vision === 'string') cur.vision = req.body.vision.slice(0, 2000);
-  if (Array.isArray(req.body.goals)) cur.goals = req.body.goals.map((g) => String(g).slice(0, 300)).filter(Boolean).slice(0, 30);
+  if (req.body.vision != null) cur.vision = nbi(req.body.vision);
+  if (Array.isArray(req.body.goals)) cur.goals = nbiList(req.body.goals).slice(0, 30);
+  if (Array.isArray(req.body.gaps)) cur.gaps = nbiList(req.body.gaps).slice(0, 30);
   if (Array.isArray(req.body.sops)) {
     cur.sops = req.body.sops.slice(0, 40).map((s) => ({
-      code: String(s.code || '').slice(0, 20),
-      title: String(s.title || '').slice(0, 200),
-      role: String(s.role || '').slice(0, 60),
-      steps: Array.isArray(s.steps) ? s.steps.map((x) => String(x).slice(0, 400)).filter(Boolean).slice(0, 30) : [],
-    })).filter((s) => s.title);
+      code: String(s.code || '').slice(0, 20), title: nbi(s.title), role: nbi(s.role),
+      steps: nbiList(s.steps).slice(0, 30),
+    })).filter((s) => s.title.ar || s.title.en);
   }
   cur.updatedAt = nowIso();
   cur.updatedBy = req.user.name;
   db.prepare('INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
-    .run(META_KEY, JSON.stringify({ phases: cur.phases, vision: cur.vision, goals: cur.goals, sops: cur.sops, updatedAt: cur.updatedAt, updatedBy: cur.updatedBy }));
+    .run(META_KEY, JSON.stringify({ phases: cur.phases, vision: cur.vision, goals: cur.goals, gaps: cur.gaps, sops: cur.sops, updatedAt: cur.updatedAt, updatedBy: cur.updatedBy }));
   audit.fromReq(req, 'methodology.update', { entityType: 'methodology', summary: `Updated methodology (${cur.updatedBy})` });
   res.json(cur);
 }));
