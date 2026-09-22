@@ -995,6 +995,17 @@ function coopFull(coopName) {
   if (/جمعي/.test(a)) return a;           // already "جمعية … التعاونية"
   return `جمعية ${a} التعاونية`;
 }
+// The co-op's English name as "<Name> Co-operative Society" (for English letters).
+function coopEnFull(rec) {
+  const coop = rec && rec.coop ? rec.coop : rec;
+  let n = "";
+  const list = DB.ref && DB.ref.coops ? DB.ref.coops : [];
+  const c = list.find((x) => x.n === coop || x.p === coop);
+  n = c ? c.n : String(coop || "").replace(/\s*(PARENT|CO[- ]?OP\.?|COOP|SOCIETY|\(\?\))\s*/gi, " ").replace(/\s+/g, " ").trim();
+  if (!n) return "";
+  n = n.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return n + " Co-operative Society";
+}
 // The market label for a chosen outlet: always "السوق <qualifier>" (الرئيسي /
 // الجديد / القديم / رقم). This is placed at the END of the letter body, not in
 // the recipient line (the recipient stays the co-op only).
@@ -3211,22 +3222,26 @@ function specDocHTML(rec, spec) {
   // Listing debit note prints as TWO copies under one LYSAL: (1) the debit-note
   // text with value + tafqit, (2) the items table (تحديث بيانات style).
   if (spec.k === "listing_dn") return listingDnHTML(rec, spec);
-  const en = spec.lang === "en";
+  // Follow the app language toggle when the spec carries English text; the spec's
+  // own lang (e.g. an English-only Union letter) still forces English.
+  const en = spec.lang === "en" || (LANG === "en" && spec.intro && spec.intro.en && spec.subject && spec.subject.en);
   const lg = en ? "en" : "ar";
-  const subject = specSubst(spec.subject[lg], rec);
-  let intro = specSubst(spec.intro[lg], rec);
-  // The chosen market (السوق الرئيسي/الجديد/…) goes at the end of the body
-  // sentence, not in the recipient line.
+  const subject = specSubst(spec.subject[lg] || spec.subject.ar, rec);
+  let intro = specSubst(spec.intro[lg] || spec.intro.ar, rec);
+  // The chosen market (السوق الرئيسي/…) goes at the end of the body sentence.
   const market = rec.meta && rec.meta.market ? String(rec.meta.market).trim() : "";
-  if (market && !en) intro = intro.replace(/\s*\.?\s*$/, "") + " - " + market + ".";
-  const who = rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopAr(rec.coop) : (spec.recipientFixed || ""));
+  if (market) intro = intro.replace(/\s*\.?\s*$/, "") + " - " + market + ".";
+  const who = en
+    ? (coopEnFull(rec) || rec.recipient || (spec.recipientFixed || ""))
+    : (rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopAr(rec.coop) : (spec.recipientFixed || "")));
   const to = en
-    ? `<div class="to">${esc(who)}</div>`
+    ? `<div class="to"><span>Messrs / ${esc(who)}</span></div><div class="greet">Dear Sir/Madam,</div>`
     : `<div class="to"><span>السـادة / ${esc(who)}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
   const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(en ? (rec.date || "") : fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
-  const closing = (spec.closing || []).map((l) => `<div class="close">${esc(l)}</div>`).join("");
+  const closingLines = en ? ["Yours faithfully,"] : (spec.closing || []);
+  const closing = closingLines.map((l) => `<div class="close">${esc(l)}</div>`).join("");
   const sg = (rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role)) ? rec.meta.sign : spec.signatory;
   const sign = sg && (sg.name || sg.role) ? signBlock(rec, sg) : "";
   const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
