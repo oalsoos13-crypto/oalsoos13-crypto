@@ -204,6 +204,8 @@ const T = {
   approve: { ar: "اعتماد", en: "Approve" },
   mkNote: { ar: "إنشاء إشعار", en: "Create note" },
   print: { ar: "طباعة", en: "Print" },
+  pdfBuilding: { ar: "جاري تحضير الـ PDF …", en: "Preparing PDF …" },
+  pdfErr: { ar: "تعذّر تصدير الـ PDF (تحقّق من الاتصال بالإنترنت)", en: "PDF export failed (check your internet connection)" },
   del: { ar: "حذف", en: "Delete" },
   noLetters: {
     ar: "لا يوجد كتب بعد — ابدأ بإنشاء كتاب جديد.",
@@ -3348,16 +3350,16 @@ function openDoc(rec, isLetter) {
       : "";
   const trail = !isLetter ? `<div style="padding:0 24px 18px">${approvalTrail(rec)}</div>` : "";
   const lhBtn = `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
-  // Only the ADMIN prints, and only after a letter clears the whole approval
-  // chain (apprStage === 'print'). Everyone else sees the current status.
-  // Debit notes keep their own print behaviour.
-  const canPrint = isLetter
-    ? (currentUser.role === "admin" && rec.apprStage === "print")
-    : true;
+  // The ADMIN may print or download ANY letter at any stage (even before any
+  // approval or signature). Other roles print only their own debit notes; on a
+  // letter they see the current status instead.
+  const isAdmin = currentUser.role === "admin";
+  const canPrint = isLetter ? isAdmin : true;
   const printBtn = canPrint
     ? `<button class="btn gold sm" onclick="printCur()">${t("print")}</button>`
+      + `<button class="btn primary sm no-print" onclick="pdfCur()">⬇ PDF</button>`
     : (isLetter
-      ? `<span class="pill-info" style="padding:3px 10px">${rec.apprStage === "print" ? t("adminOnlyPrint") : (rec.approval === "rejected" ? t("lt_rejected") : t("awaitStage").replace("{s}", stageLabel(rec.apprStage || "supervisor")))}</span>`
+      ? `<span class="pill-info" style="padding:3px 10px">${rec.approval === "rejected" ? t("lt_rejected") : t("awaitStage").replace("{s}", stageLabel(rec.apprStage || "supervisor"))}</span>`
       : "");
   // Admin controls on a letter still in the workflow (not printed, not rejected):
   // edit the text, reject, or return it to any earlier stage.
@@ -3367,8 +3369,27 @@ function openDoc(rec, isLetter) {
       + `<button class="btn danger sm no-print" onclick="rejectLetter('${rec.id}')">${t("reject")}</button>`
     : "";
   modal(
-    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docHTML(rec, isLetter)}${att}${trail}`,
+    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
   );
+}
+// Download the currently-open letter/note as a PDF (admin: any letter, any stage).
+async function pdfCur() {
+  if (!curDoc || !curDoc.rec) return;
+  const el = document.getElementById("docPrintArea");
+  if (!el) return;
+  try {
+    toast(t("pdfBuilding"));
+    await ensureArchiveLibs();
+    const name = docFileName(curDoc.rec, curDoc.isLetter);
+    await window.html2pdf().set({
+      margin: 0,
+      filename: name + ".pdf",
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    }).from(el).save();
+  } catch (e) { toast(t("pdfErr")); }
 }
 async function openDocById(id) {
   const rec = DB.notes.find((n) => n.id === id);
