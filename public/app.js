@@ -3372,24 +3372,28 @@ function openDoc(rec, isLetter) {
     `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
   );
 }
-// Download the currently-open letter/note as a PDF (admin: any letter, any stage).
-async function pdfCur() {
+// Download/print the open letter as a PDF via the browser's NATIVE print — this
+// renders Arabic correctly (html2canvas drops spaces between Arabic words). The
+// document title becomes the default "Save as PDF" filename.
+function pdfCur() {
   if (!curDoc || !curDoc.rec) return;
   const el = document.getElementById("docPrintArea");
   if (!el) return;
-  try {
-    toast(t("pdfBuilding"));
-    await ensureArchiveLibs();
-    const name = docFileName(curDoc.rec, curDoc.isLetter);
-    await window.html2pdf().set({
-      margin: 0,
-      filename: name + ".pdf",
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    }).from(el).save();
-  } catch (e) { toast(t("pdfErr")); }
+  const name = docFileName(curDoc.rec, curDoc.isLetter);
+  const dir = document.documentElement.dir || "rtl";
+  const w = window.open("", "_blank");
+  if (!w) { toast(t("pdfErr")); return; }
+  // Pull in the app's stylesheet so the letterhead/layout render identically.
+  const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+    .map((l) => `<link rel="stylesheet" href="${l.href}">`).join("");
+  w.document.write(`<!doctype html><html dir="${dir}" lang="${LANG}"><head><meta charset="utf-8"><title>${esc(name)}</title>
+    ${cssLinks}
+    <style>body{margin:0;background:#fff}.no-print{display:none!important}
+    @page{size:A4;margin:10mm}</style></head>
+    <body>${el.innerHTML}
+    <script>window.onload=function(){setTimeout(function(){window.focus();window.print();},500);};window.onafterprint=function(){window.close();};<\/script>
+    </body></html>`);
+  w.document.close();
 }
 async function openDocById(id) {
   const rec = DB.notes.find((n) => n.id === id);
