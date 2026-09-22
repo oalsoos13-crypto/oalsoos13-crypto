@@ -255,8 +255,9 @@ router.post('/budget-alloc-coop', requireRole('supervisor'), asyncH((req, res) =
   const supName = req.user.role === 'admin' ? null : req.user.name;
   if (req.user.role !== 'admin') {
     const mine = struct[supName] || {};
-    const coops = mine[salesman] || [];
-    if (!coops.includes(coop)) throw forbidden('هذه الجمعية ليست ضمن مندوبك', 'NOT_MINE');
+    // mine[salesman] is a { coopName: [outlets] } map, not an array.
+    const coops = mine[salesman] || {};
+    if (!Object.prototype.hasOwnProperty.call(coops, coop)) throw forbidden('هذه الجمعية ليست ضمن مندوبك', 'NOT_MINE');
   }
   const amount = num(req.body.amount);
   const now = nowIso();
