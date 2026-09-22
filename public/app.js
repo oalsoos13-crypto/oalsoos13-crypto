@@ -627,6 +627,8 @@ const T = {
   r_audit_d: { ar: "استعراض كل العمليات وتصديرها للمراجعة.", en: "Review and export every action." },
   r_users: { ar: "المستخدمون", en: "Users" },
   r_users_d: { ar: "إدارة الحسابات والأدوار وكلمات المرور.", en: "Manage accounts, roles and passwords." },
+  r_methodology: { ar: "منهجية العمل — PMI", en: "Methodology — PMI" },
+  r_methodology_d: { ar: "دورة حياة المشروع حسب المعيار العالمي PMI، الحالة والمراجع.", en: "Project lifecycle per the PMI global standard, status and references." },
   r_backup: { ar: "النسخ والتصدير", en: "Backup & Export" },
   r_backup_d: { ar: "نسخ احتياطي واستعادة وتصدير البيانات.", en: "Backup, restore and export data." },
   changePw: { ar: "تغيير كلمة المرور", en: "Change password" },
@@ -1008,7 +1010,7 @@ const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrac
 // Top-level sections (two-level sidebar): each groups a set of screens.
 const SECTIONS = [
   { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "budgetDist", "printQueue", "archive", "lettersHistory"] },
-  { k: "settings", screens: ["users", "backup", "audit"] },
+  { k: "settings", screens: ["users", "backup", "audit", "methodology"] },
   { k: "contracts", screens: ["contracts"] },
   { k: "sales", screens: ["sales", "salesMonthly"] },
   { k: "dailyreports", screens: ["dailyReports"] },
@@ -1110,7 +1112,7 @@ function render() {
     supervisor: ["budgetDist", "lettersHistory"],
     salesman: [],
   };
-  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "users", "backup", "audit", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
+  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "users", "backup", "audit", "methodology", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
   const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
     .filter((k) => !HIDDEN_ROUTES.has(k));
   // No default screen: the content stays empty until the user picks a section.
@@ -1164,6 +1166,7 @@ function render() {
     monitor: vMonitor,
     budgetPlan: vBudgetPlan,
     budgetDist: vBudgetDist,
+    methodology: vMethodology,
     union: vUnion,
     dailyReports: vDailyReports,
     orders: vOrders,
@@ -1328,6 +1331,7 @@ const ADMIN_ROLES = [
   { k: "audit", ic: "🛡" },
   { k: "users", ic: "👥" },
   { k: "backup", ic: "💾" },
+  { k: "methodology", ic: "📐" },
 ];
 function renderHome() {
   const cards = ROLES.concat(currentUser.role === "admin" ? ADMIN_ROLES : []).filter((r) => !HIDDEN_ROUTES.has(r.k));
@@ -3486,6 +3490,71 @@ async function resetAllPw() {
 }
 
 /* ---------- backup / restore (admin) ---------- */
+/* ---------- Methodology (PMI global standard) — admin reference screen ----------
+ * A read-only, code-maintained view of the project's lifecycle mapped to the PMI
+ * PMBOK 6th Edition (2017) process groups, with the current status of each phase
+ * and a gap list vs. the global standard. It updates with each deploy (see the
+ * "آخر تحديث" line), so what the admin presents always reflects the live build. */
+const METHODOLOGY = {
+  version: "1.0",
+  updated: "2026-09-22",
+  refs: [
+    { n: "PMBOK® Guide — 6th Edition (المرجع الأساسي)", by: "PMI", yr: "2017" },
+    { n: "ISO 21502 — إرشادات إدارة المشاريع", by: "ISO", yr: "2020" },
+    { n: "PRINCE2 (الحوكمة)", by: "AXELOS", yr: "2017" },
+    { n: "Scrum Guide (أجايل)", by: "Scrum.org", yr: "2020" },
+  ],
+  // st: done | ongoing | partial | notstarted | na
+  phases: [
+    { id: 1, ar: "البدء والدخول والأدوار والنطاق", pmi: "البدء Initiating", st: "done", note: "الدخول، الصلاحيات، الأدوار الستة، النطاق." },
+    { id: 2, ar: "المتطلبات والتحليل", pmi: "التخطيط Planning", st: "done", note: "المتطلبات الوظيفية وغير الوظيفية، تحليل البيانات." },
+    { id: 3, ar: "التصميم والتخطيط", pmi: "التخطيط Planning", st: "done", note: "سير العمل، نموذج البيانات، الشاشات، الأدوار." },
+    { id: 4, ar: "إعداد وتوزيع البتجيت", pmi: "التخطيط Planning", st: "done", note: "سقوف ← مدير مبيعات ← مشرف ← مندوب/جمعية/أوتليت." },
+    { id: 5, ar: "البناء والتنفيذ", pmi: "التنفيذ Executing", st: "done", note: "قاعدة البيانات، منطق الخادم، الواجهة، التكامل." },
+    { id: 6, ar: "الاختبار والجودة", pmi: "المراقبة M&C", st: "partial", note: "اختبار E2E ويدوي منجز؛ لا يوجد إطار وحدات رسمي." },
+    { id: 7, ar: "العرض والاعتماد", pmi: "التنفيذ Executing", st: "ongoing", note: "عرض واعتماد المالك مع كل ميزة." },
+    { id: 8, ar: "النشر والتشغيل", pmi: "التنفيذ Executing", st: "done", note: "نشر تلقائي على Render، قرص دائم، فحص بعد النشر." },
+    { id: 9, ar: "التدريب وإدارة التغيير", pmi: "التنفيذ Executing", st: "notstarted", note: "لا يوجد دليل مستخدم/تدريب رسمي بعد." },
+    { id: 10, ar: "التغذية الراجعة والتقييم", pmi: "المراقبة M&C", st: "ongoing", note: "ملاحظات المالك مستمرة، سجل تدقيق للاستخدام." },
+    { id: 11, ar: "الدعم والصيانة والتكرار", pmi: "مستمر Ongoing", st: "ongoing", note: "معالجة الأعطال، تحسينات، متطلبات جديدة." },
+    { id: 12, ar: "الإغلاق", pmi: "الإغلاق Closing", st: "na", note: "غير منطبق — المشروع في تطوير نشط." },
+  ],
+  gaps: [
+    "دليل مستخدم رسمي + مواد تدريب (المرحلة 8) — موجود بالمعيار، ناقص عندك.",
+    "سجل مخاطر رسمي (Risk Register) وخطة استجابة — PMBOK مجال المخاطر.",
+    "إطار اختبار وحدات آلي (Unit tests) — المرحلة 6 (الجودة).",
+    "توثيق فني رسمي (Design/Requirements docs) — حالياً تعليقات كود فقط.",
+    "معايير قبول موثّقة (Acceptance criteria) وخطة جودة رسمية.",
+    "ميثاق مشروع + جدول زمني/WBS رسمي — اختياري لأن المنهجية رشيقة (Agile).",
+  ],
+};
+function methStatusTag(st) {
+  const m = {
+    done: { ar: "خلصت ✔", cls: "appr" },
+    ongoing: { ar: "ماشية ⟳", cls: "info" },
+    partial: { ar: "جزئي ◐", cls: "warn" },
+    notstarted: { ar: "ما بلّشت ☐", cls: "" },
+    na: { ar: "N-A", cls: "" },
+  }[st] || { ar: st, cls: "" };
+  return `<span class="tag ${m.cls === "appr" ? "appr" : ""}" style="${m.cls === "warn" ? "background:#fff3cd;color:#7a5b00" : m.cls === "info" ? "background:#e6f0ff;color:#1F4E79" : ""}">${m.ar}</span>`;
+}
+function vMethodology() {
+  const M = METHODOLOGY;
+  const refRows = M.refs.map((r) => `<tr><td>${esc(r.n)}</td><td>${esc(r.by)}</td><td class="mono">${esc(r.yr)}</td></tr>`).join("");
+  const phaseRows = M.phases.map((p) => `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td><td>${methStatusTag(p.st)}</td><td>${esc(p.note)}</td></tr>`).join("");
+  const gapRows = M.gaps.map((g) => `<li>${esc(g)}</li>`).join("");
+  const done = M.phases.filter((p) => p.st === "done").length;
+  const total = M.phases.filter((p) => p.st !== "na").length;
+  document.getElementById("rv").innerHTML = `
+  <div class="panel"><header><h3>📐 منهجية العمل — المعيار العالمي PMI</h3><span class="pill-info">v${esc(M.version)} · آخر تحديث ${esc(M.updated)}</span></header>
+    <div class="body">
+      <p class="hint">هذا النظام مبني ومُدار وفق دليل <b>PMBOK® Guide — الإصدار السادس (PMI، 2017)</b>: مجموعات العمليات الخمس (البدء ← التخطيط ← التنفيذ ← المراقبة والضبط ← الإغلاق). البداية كانت من المرحلة (1) بالترتيب الصحيح، والوصول الحالي: <b>${done}/${total}</b> مرحلة مكتملة.</p>
+    </div>
+  </div>
+  <div class="panel"><header><h3>المراجع المعتمدة</h3></header><div class="tbl-wrap"><table><thead><tr><th>المرجع</th><th>الجهة</th><th>السنة</th></tr></thead><tbody>${refRows}</tbody></table></div></div>
+  <div class="panel"><header><h3>مراحل دورة الحياة والحالة</h3></header><div class="tbl-wrap"><table><thead><tr><th>#</th><th>المرحلة</th><th>مجموعة PMI</th><th>الحالة</th><th>ملاحظة</th></tr></thead><tbody>${phaseRows}</tbody></table></div></div>
+  <div class="panel"><header><h3>⚠️ نواقص مقابل المعيار العالمي</h3></header><div class="body"><p class="hint">بنود موجودة بالأنظمة العالمية (PMI/ISO) ويُنصح بإضافتها لاكتمال الصورة:</p><ul style="line-height:2;padding-inline-start:22px">${gapRows}</ul></div></div>`;
+}
 function vBackup() {
   document.getElementById("rv").innerHTML = `
   <div class="panel"><header><h3>${t("backupTitle")}</h3></header><div class="body">
