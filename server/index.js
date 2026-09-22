@@ -53,6 +53,7 @@ app.use('/api', require('./routes/products.routes'));
 app.use('/api', require('./routes/tracking.routes'));
 app.use('/api', require('./routes/contracts.routes'));
 app.use('/api', require('./routes/admin.routes'));
+app.use('/api', require('./routes/methodology.routes'));
 
 // Unknown API route -> JSON 404 (so the SPA fallback never swallows API typos).
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found', code: 'NO_ROUTE' }));

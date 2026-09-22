@@ -3490,70 +3490,65 @@ async function resetAllPw() {
 }
 
 /* ---------- backup / restore (admin) ---------- */
-/* ---------- Methodology (PMI global standard) — admin reference screen ----------
- * A read-only, code-maintained view of the project's lifecycle mapped to the PMI
- * PMBOK 6th Edition (2017) process groups, with the current status of each phase
- * and a gap list vs. the global standard. It updates with each deploy (see the
- * "آخر تحديث" line), so what the admin presents always reflects the live build. */
-const METHODOLOGY = {
-  version: "1.0",
-  updated: "2026-09-22",
-  refs: [
-    { n: "PMBOK® Guide — 6th Edition (المرجع الأساسي)", by: "PMI", yr: "2017" },
-    { n: "ISO 21502 — إرشادات إدارة المشاريع", by: "ISO", yr: "2020" },
-    { n: "PRINCE2 (الحوكمة)", by: "AXELOS", yr: "2017" },
-    { n: "Scrum Guide (أجايل)", by: "Scrum.org", yr: "2020" },
-  ],
-  // st: done | ongoing | partial | notstarted | na
-  phases: [
-    { id: 1, ar: "البدء والدخول والأدوار والنطاق", pmi: "البدء Initiating", st: "done", note: "الدخول، الصلاحيات، الأدوار الستة، النطاق." },
-    { id: 2, ar: "المتطلبات والتحليل", pmi: "التخطيط Planning", st: "done", note: "المتطلبات الوظيفية وغير الوظيفية، تحليل البيانات." },
-    { id: 3, ar: "التصميم والتخطيط", pmi: "التخطيط Planning", st: "done", note: "سير العمل، نموذج البيانات، الشاشات، الأدوار." },
-    { id: 4, ar: "إعداد وتوزيع البتجيت", pmi: "التخطيط Planning", st: "done", note: "سقوف ← مدير مبيعات ← مشرف ← مندوب/جمعية/أوتليت." },
-    { id: 5, ar: "البناء والتنفيذ", pmi: "التنفيذ Executing", st: "done", note: "قاعدة البيانات، منطق الخادم، الواجهة، التكامل." },
-    { id: 6, ar: "الاختبار والجودة", pmi: "المراقبة M&C", st: "partial", note: "اختبار E2E ويدوي منجز؛ لا يوجد إطار وحدات رسمي." },
-    { id: 7, ar: "العرض والاعتماد", pmi: "التنفيذ Executing", st: "ongoing", note: "عرض واعتماد المالك مع كل ميزة." },
-    { id: 8, ar: "النشر والتشغيل", pmi: "التنفيذ Executing", st: "done", note: "نشر تلقائي على Render، قرص دائم، فحص بعد النشر." },
-    { id: 9, ar: "التدريب وإدارة التغيير", pmi: "التنفيذ Executing", st: "notstarted", note: "لا يوجد دليل مستخدم/تدريب رسمي بعد." },
-    { id: 10, ar: "التغذية الراجعة والتقييم", pmi: "المراقبة M&C", st: "ongoing", note: "ملاحظات المالك مستمرة، سجل تدقيق للاستخدام." },
-    { id: 11, ar: "الدعم والصيانة والتكرار", pmi: "مستمر Ongoing", st: "ongoing", note: "معالجة الأعطال، تحسينات، متطلبات جديدة." },
-    { id: 12, ar: "الإغلاق", pmi: "الإغلاق Closing", st: "na", note: "غير منطبق — المشروع في تطوير نشط." },
-  ],
-  gaps: [
-    "دليل مستخدم رسمي + مواد تدريب (المرحلة 8) — موجود بالمعيار، ناقص عندك.",
-    "سجل مخاطر رسمي (Risk Register) وخطة استجابة — PMBOK مجال المخاطر.",
-    "إطار اختبار وحدات آلي (Unit tests) — المرحلة 6 (الجودة).",
-    "توثيق فني رسمي (Design/Requirements docs) — حالياً تعليقات كود فقط.",
-    "معايير قبول موثّقة (Acceptance criteria) وخطة جودة رسمية.",
-    "ميثاق مشروع + جدول زمني/WBS رسمي — اختياري لأن المنهجية رشيقة (Agile).",
-  ],
+/* ---------- Methodology (PMI global standard) — admin screen ----------
+ * The project lifecycle mapped to the PMI PMBOK 6th Edition (2017) process
+ * groups. Persisted server-side: the admin edits each phase's status and
+ * start/end dates from this screen, and every save stamps the edit date +
+ * editor, shown under "آخر تعديل". */
+let methData = null;
+const METH_STATUS = {
+  done: "خلصت ✔",
+  ongoing: "ماشية ⟳",
+  partial: "جزئي ◐",
+  notstarted: "ما بلّشت ☐",
+  na: "لا ينطبق N-A",
 };
-function methStatusTag(st) {
-  const m = {
-    done: { ar: "خلصت ✔", cls: "appr" },
-    ongoing: { ar: "ماشية ⟳", cls: "info" },
-    partial: { ar: "جزئي ◐", cls: "warn" },
-    notstarted: { ar: "ما بلّشت ☐", cls: "" },
-    na: { ar: "N-A", cls: "" },
-  }[st] || { ar: st, cls: "" };
-  return `<span class="tag ${m.cls === "appr" ? "appr" : ""}" style="${m.cls === "warn" ? "background:#fff3cd;color:#7a5b00" : m.cls === "info" ? "background:#e6f0ff;color:#1F4E79" : ""}">${m.ar}</span>`;
+async function vMethodology() {
+  try { methData = await api("/methodology"); }
+  catch (e) { document.getElementById("rv").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  renderMethodology();
 }
-function vMethodology() {
-  const M = METHODOLOGY;
+function renderMethodology() {
+  const M = methData;
+  const isAdmin = currentUser && currentUser.role === "admin";
   const refRows = M.refs.map((r) => `<tr><td>${esc(r.n)}</td><td>${esc(r.by)}</td><td class="mono">${esc(r.yr)}</td></tr>`).join("");
-  const phaseRows = M.phases.map((p) => `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td><td>${methStatusTag(p.st)}</td><td>${esc(p.note)}</td></tr>`).join("");
+  const stSel = (p) => `<select onchange="methData.phases[${M.phases.indexOf(p)}].st=this.value">${Object.keys(METH_STATUS).map((k) => `<option value="${k}" ${p.st === k ? "selected" : ""}>${METH_STATUS[k]}</option>`).join("")}</select>`;
+  const phaseRows = M.phases.map((p, i) => {
+    if (isAdmin) {
+      return `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td>
+        <td>${stSel(p)}</td>
+        <td><input type="date" value="${esc(p.start || "")}" onchange="methData.phases[${i}].start=this.value" style="width:135px"></td>
+        <td><input type="date" value="${esc(p.end || "")}" onchange="methData.phases[${i}].end=this.value" style="width:135px"></td>
+        <td><input value="${esc(p.note || "")}" onchange="methData.phases[${i}].note=this.value" style="width:100%"></td></tr>`;
+    }
+    return `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td><td>${esc(METH_STATUS[p.st] || p.st)}</td><td class="mono">${esc(p.start || "—")}</td><td class="mono">${esc(p.end || "—")}</td><td>${esc(p.note || "")}</td></tr>`;
+  }).join("");
   const gapRows = M.gaps.map((g) => `<li>${esc(g)}</li>`).join("");
   const done = M.phases.filter((p) => p.st === "done").length;
   const total = M.phases.filter((p) => p.st !== "na").length;
+  const editedLine = M.updatedAt
+    ? `آخر تعديل: ${esc((M.updatedAt || "").slice(0, 16).replace("T", " "))}${M.updatedBy ? " · بواسطة " + esc(M.updatedBy) : ""}`
+    : "لم يُعدّل بعد (القيم الأولية)";
+  const saveBar = isAdmin
+    ? `<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMethodology()">💾 حفظ التعديلات</button><span class="hint" style="margin-inline-start:10px">عدّل الحالة والتواريخ فوق ثم احفظ — بينحفظ تاريخ التعديل تلقائياً.</span></div>`
+    : "";
   document.getElementById("rv").innerHTML = `
-  <div class="panel"><header><h3>📐 منهجية العمل — المعيار العالمي PMI</h3><span class="pill-info">v${esc(M.version)} · آخر تحديث ${esc(M.updated)}</span></header>
+  <div class="panel"><header><h3>📐 منهجية العمل — المعيار العالمي PMI</h3><span class="pill-info">v${esc(M.version)} · ${editedLine}</span></header>
     <div class="body">
       <p class="hint">هذا النظام مبني ومُدار وفق دليل <b>PMBOK® Guide — الإصدار السادس (PMI، 2017)</b>: مجموعات العمليات الخمس (البدء ← التخطيط ← التنفيذ ← المراقبة والضبط ← الإغلاق). البداية كانت من المرحلة (1) بالترتيب الصحيح، والوصول الحالي: <b>${done}/${total}</b> مرحلة مكتملة.</p>
     </div>
   </div>
   <div class="panel"><header><h3>المراجع المعتمدة</h3></header><div class="tbl-wrap"><table><thead><tr><th>المرجع</th><th>الجهة</th><th>السنة</th></tr></thead><tbody>${refRows}</tbody></table></div></div>
-  <div class="panel"><header><h3>مراحل دورة الحياة والحالة</h3></header><div class="tbl-wrap"><table><thead><tr><th>#</th><th>المرحلة</th><th>مجموعة PMI</th><th>الحالة</th><th>ملاحظة</th></tr></thead><tbody>${phaseRows}</tbody></table></div></div>
+  <div class="panel"><header><h3>مراحل دورة الحياة — الحالة والتواريخ</h3></header><div class="tbl-wrap"><table><thead><tr><th>#</th><th>المرحلة</th><th>مجموعة PMI</th><th>الحالة</th><th>البداية</th><th>النهاية</th><th>ملاحظة</th></tr></thead><tbody>${phaseRows}</tbody></table></div>${saveBar ? `<div class="body">${saveBar}</div>` : ""}</div>
   <div class="panel"><header><h3>⚠️ نواقص مقابل المعيار العالمي</h3></header><div class="body"><p class="hint">بنود موجودة بالأنظمة العالمية (PMI/ISO) ويُنصح بإضافتها لاكتمال الصورة:</p><ul style="line-height:2;padding-inline-start:22px">${gapRows}</ul></div></div>`;
+}
+async function saveMethodology() {
+  try {
+    const phases = methData.phases.map((p) => ({ id: p.id, st: p.st, start: p.start || "", end: p.end || "", note: p.note || "" }));
+    methData = await api("/methodology", { method: "POST", body: { phases } });
+    renderMethodology();
+    toast(t("saved") || "تم الحفظ");
+  } catch (e) { toast(e.message); }
 }
 function vBackup() {
   document.getElementById("rv").innerHTML = `
