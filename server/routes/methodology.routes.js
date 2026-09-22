@@ -112,10 +112,16 @@ function load() {
     const byId = new Map((saved.phases || []).map((p) => [p.id, p]));
     base.phases = base.phases.map((p) => {
       const s = byId.get(p.id);
-      return s ? { ...p, st: s.st ?? p.st, start: s.start ?? p.start, end: s.end ?? p.end, note: s.note ?? p.note } : p;
+      if (!s) return p;
+      return {
+        ...p,
+        st: s.st ?? p.st, start: s.start ?? p.start, end: s.end ?? p.end, note: s.note ?? p.note,
+        subs: Array.isArray(s.subs) ? s.subs : p.subs,
+      };
     });
     if (typeof saved.vision === 'string') base.vision = saved.vision;
     if (Array.isArray(saved.goals)) base.goals = saved.goals;
+    if (Array.isArray(saved.sops)) base.sops = saved.sops;
     base.updatedAt = saved.updatedAt || null;
     base.updatedBy = saved.updatedBy || null;
     return base;
@@ -142,13 +148,22 @@ router.post('/methodology', requireRole(), asyncH((req, res) => {
     if (s.start != null) { if (!isDate(s.start)) throw badRequest('تاريخ بداية غير صحيح', 'BAD_DATE'); p.start = String(s.start || ''); }
     if (s.end != null) { if (!isDate(s.end)) throw badRequest('تاريخ نهاية غير صحيح', 'BAD_DATE'); p.end = String(s.end || ''); }
     if (s.note != null) p.note = String(s.note).slice(0, 400);
+    if (Array.isArray(s.subs)) p.subs = s.subs.map((x) => String(x).slice(0, 300)).filter(Boolean).slice(0, 20);
   }
   if (typeof req.body.vision === 'string') cur.vision = req.body.vision.slice(0, 2000);
   if (Array.isArray(req.body.goals)) cur.goals = req.body.goals.map((g) => String(g).slice(0, 300)).filter(Boolean).slice(0, 30);
+  if (Array.isArray(req.body.sops)) {
+    cur.sops = req.body.sops.slice(0, 40).map((s) => ({
+      code: String(s.code || '').slice(0, 20),
+      title: String(s.title || '').slice(0, 200),
+      role: String(s.role || '').slice(0, 60),
+      steps: Array.isArray(s.steps) ? s.steps.map((x) => String(x).slice(0, 400)).filter(Boolean).slice(0, 30) : [],
+    })).filter((s) => s.title);
+  }
   cur.updatedAt = nowIso();
   cur.updatedBy = req.user.name;
   db.prepare('INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
-    .run(META_KEY, JSON.stringify({ phases: cur.phases, vision: cur.vision, goals: cur.goals, updatedAt: cur.updatedAt, updatedBy: cur.updatedBy }));
+    .run(META_KEY, JSON.stringify({ phases: cur.phases, vision: cur.vision, goals: cur.goals, sops: cur.sops, updatedAt: cur.updatedAt, updatedBy: cur.updatedBy }));
   audit.fromReq(req, 'methodology.update', { entityType: 'methodology', summary: `Updated methodology (${cur.updatedBy})` });
   res.json(cur);
 }));
