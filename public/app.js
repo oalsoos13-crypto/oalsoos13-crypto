@@ -3529,23 +3529,59 @@ function renderMethodology() {
   const editedLine = M.updatedAt
     ? `آخر تعديل: ${esc((M.updatedAt || "").slice(0, 16).replace("T", " "))}${M.updatedBy ? " · بواسطة " + esc(M.updatedBy) : ""}`
     : "لم يُعدّل بعد (القيم الأولية)";
+  // Vision & Goals (editable for admin).
+  const goalsText = (M.goals || []).join("\n");
+  const visionPanel = isAdmin
+    ? `<div class="panel"><header><h3>🎯 الرؤية والأهداف</h3></header><div class="body">
+        <label class="hint" style="font-weight:700">الرؤية</label>
+        <textarea id="methVision" rows="3" style="width:100%;margin:4px 0 12px">${esc(M.vision || "")}</textarea>
+        <label class="hint" style="font-weight:700">الأهداف (هدف بكل سطر)</label>
+        <textarea id="methGoals" rows="6" style="width:100%;margin-top:4px">${esc(goalsText)}</textarea>
+      </div></div>`
+    : `<div class="panel"><header><h3>🎯 الرؤية والأهداف</h3></header><div class="body">
+        <p><b>الرؤية:</b> ${esc(M.vision || "")}</p>
+        <ul style="line-height:2;padding-inline-start:22px">${(M.goals || []).map((g) => `<li>${esc(g)}</li>`).join("")}</ul>
+      </div></div>`;
+  // Phases table with an expandable sub-steps row per phase.
+  const phaseTable = M.phases.map((p, i) => {
+    const main = isAdmin
+      ? `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td>
+          <td>${stSel(p)}</td>
+          <td><input type="date" value="${esc(p.start || "")}" onchange="methData.phases[${i}].start=this.value" style="width:135px"></td>
+          <td><input type="date" value="${esc(p.end || "")}" onchange="methData.phases[${i}].end=this.value" style="width:135px"></td>
+          <td><input value="${esc(p.note || "")}" onchange="methData.phases[${i}].note=this.value" style="width:100%"></td></tr>`
+      : `<tr><td class="mono">${p.id}</td><td>${esc(p.ar)}</td><td>${esc(p.pmi)}</td><td>${esc(METH_STATUS[p.st] || p.st)}</td><td class="mono">${esc(p.start || "—")}</td><td class="mono">${esc(p.end || "—")}</td><td>${esc(p.note || "")}</td></tr>`;
+    const subs = (p.subs && p.subs.length)
+      ? `<tr><td></td><td colspan="6"><details><summary class="hint" style="cursor:pointer">الخطوات الفرعية (${p.subs.length})</summary><ol style="line-height:1.9;padding-inline-start:22px;margin:6px 0">${p.subs.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details></td></tr>`
+      : "";
+    return main + subs;
+  }).join("");
   const saveBar = isAdmin
-    ? `<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMethodology()">💾 حفظ التعديلات</button><span class="hint" style="margin-inline-start:10px">عدّل الحالة والتواريخ فوق ثم احفظ — بينحفظ تاريخ التعديل تلقائياً.</span></div>`
+    ? `<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveMethodology()">💾 حفظ التعديلات</button><span class="hint" style="margin-inline-start:10px">عدّل الرؤية/الأهداف/الحالة/التواريخ ثم احفظ — بينحفظ تاريخ التعديل تلقائياً.</span></div>`
     : "";
+  // SOPs — standard operating procedures.
+  const sopCards = (M.sops || []).map((s) => `<div class="mon-node"><details><summary><b>${esc(s.code)} — ${esc(s.title)}</b>${s.role ? ` <span class="pill-info">${esc(s.role)}</span>` : ""}</summary><ol style="line-height:1.9;padding-inline-start:22px;margin:8px 0">${(s.steps || []).map((st) => `<li>${esc(st)}</li>`).join("")}</ol></details></div>`).join("");
   document.getElementById("rv").innerHTML = `
   <div class="panel"><header><h3>📐 منهجية العمل — المعيار العالمي PMI</h3><span class="pill-info">v${esc(M.version)} · ${editedLine}</span></header>
     <div class="body">
       <p class="hint">هذا النظام مبني ومُدار وفق دليل <b>PMBOK® Guide — الإصدار السادس (PMI، 2017)</b>: مجموعات العمليات الخمس (البدء ← التخطيط ← التنفيذ ← المراقبة والضبط ← الإغلاق). البداية كانت من المرحلة (1) بالترتيب الصحيح، والوصول الحالي: <b>${done}/${total}</b> مرحلة مكتملة.</p>
     </div>
   </div>
+  ${visionPanel}
   <div class="panel"><header><h3>المراجع المعتمدة</h3></header><div class="tbl-wrap"><table><thead><tr><th>المرجع</th><th>الجهة</th><th>السنة</th></tr></thead><tbody>${refRows}</tbody></table></div></div>
-  <div class="panel"><header><h3>مراحل دورة الحياة — الحالة والتواريخ</h3></header><div class="tbl-wrap"><table><thead><tr><th>#</th><th>المرحلة</th><th>مجموعة PMI</th><th>الحالة</th><th>البداية</th><th>النهاية</th><th>ملاحظة</th></tr></thead><tbody>${phaseRows}</tbody></table></div>${saveBar ? `<div class="body">${saveBar}</div>` : ""}</div>
+  <div class="panel"><header><h3>مراحل دورة الحياة — الحالة والتواريخ والخطوات الفرعية</h3></header><div class="tbl-wrap"><table><thead><tr><th>#</th><th>المرحلة</th><th>مجموعة PMI</th><th>الحالة</th><th>البداية</th><th>النهاية</th><th>ملاحظة</th></tr></thead><tbody>${phaseTable}</tbody></table></div>${saveBar ? `<div class="body">${saveBar}</div>` : ""}</div>
+  <div class="panel"><header><h3>📋 إجراءات التشغيل المعيارية (SOP)</h3></header><div class="body">${sopCards || `<div class="empty">لا يوجد</div>`}</div></div>
   <div class="panel"><header><h3>⚠️ نواقص مقابل المعيار العالمي</h3></header><div class="body"><p class="hint">بنود موجودة بالأنظمة العالمية (PMI/ISO) ويُنصح بإضافتها لاكتمال الصورة:</p><ul style="line-height:2;padding-inline-start:22px">${gapRows}</ul></div></div>`;
 }
 async function saveMethodology() {
   try {
     const phases = methData.phases.map((p) => ({ id: p.id, st: p.st, start: p.start || "", end: p.end || "", note: p.note || "" }));
-    methData = await api("/methodology", { method: "POST", body: { phases } });
+    const body = { phases };
+    const vEl = document.getElementById("methVision");
+    const gEl = document.getElementById("methGoals");
+    if (vEl) body.vision = vEl.value;
+    if (gEl) body.goals = gEl.value.split("\n").map((s) => s.trim()).filter(Boolean);
+    methData = await api("/methodology", { method: "POST", body });
     renderMethodology();
     toast(t("saved") || "تم الحفظ");
   } catch (e) { toast(e.message); }
