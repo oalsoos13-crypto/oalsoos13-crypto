@@ -1820,7 +1820,7 @@ function vSupervisor() {
 function vLettersHistory() {
   const list = DB.letters.slice().reverse();
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
-  const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
+  const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
 }
 /* ---------- budget-type classification ---------- */
@@ -1874,7 +1874,7 @@ function vMonitor() {
     const n = noteActiveOf(L);
     const dnBtn = n ? `<button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>` : "";
     const btCell = isAdmin ? budgetTypeSelect(L) : budgetTypeLabel(L.budgetType);
-    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopAr(L.coop) || L.coop || "")}</td><td>${esc(L.recipient || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopAr(L.coop) || L.coop || "")}</td><td>${esc(L.recipient || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
   };
   const letterTbl = (arr) => `<table><thead><tr><th>${t("letterNo")}</th><th>${t("budgetType")}</th><th>${t("coop")}</th><th>${t("outlet")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_status")}</th><th></th></tr></thead><tbody>${arr.map(rowFor).join("")}</tbody></table>`;
   const sups = Object.keys(tree).sort();
@@ -2101,7 +2101,7 @@ function vUnion() {
   const rows = list.length ? list.map((L) => {
     const canPrint = currentUser.role === "admin" && L.apprStage === "print";
     const printBtn = canPrint ? `<button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button>` : "";
-    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || "الاتحاد")}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`;
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || "الاتحاد")}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`;
   }).join("") : `<tr><td colspan="6"><div class="empty">${t("noLetters")}</div></td></tr>`;
   document.getElementById("rv").innerHTML =
     `<div class="panel"><header><h3>${t("unionLetters")} (${list.length})</h3><button class="btn gold sm" onclick="openLetterForm({union:true})">${t("newUnionLetter")}</button></header>
@@ -2479,7 +2479,7 @@ function tblSalesLetters(list) {
         if (active) dnBtn = `<button class="btn primary sm" onclick="openDocById('${active.id}')">${t("viewDN")}</button>`;
         else if (printed) dnBtn = `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
       }
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -3441,9 +3441,9 @@ function quickPrint(id) { const L = (DB.letters || []).find((x) => x.id === id);
 // The compact button set shown on a letter row: PDF · Print · (admin) Delete.
 function letterQuickBtns(L) {
   const admin = currentUser && currentUser.role === "admin";
-  return `<button class="btn primary sm" onclick="quickPdf('${L.id}')">PDF⬇</button>`
-    + `<button class="btn gold sm" onclick="quickPrint('${L.id}')">🖨 ${t("print")}</button>`
-    + (admin ? `<button class="btn danger sm" onclick="delLetter('${L.id}')">🗑 ${t("del")}</button>` : "");
+  return `<button class="btn primary sm" title="PDF" onclick="quickPdf('${L.id}')">PDF</button>`
+    + `<button class="btn gold sm" title="${t("print")}" onclick="quickPrint('${L.id}')">🖨</button>`
+    + (admin ? `<button class="btn danger sm" title="${t("del")}" onclick="delLetter('${L.id}')">🗑</button>` : "");
 }
 async function openDocById(id) {
   const rec = DB.notes.find((n) => n.id === id);

@@ -64,6 +64,9 @@ textarea{resize:vertical;min-height:64px}.hint{font-size:12px;color:var(--muted)
 .btn.ghost{background:transparent;border-color:var(--line2);color:var(--text)}.btn.ghost:hover{border-color:var(--ink2)}
 .btn.sm{padding:5px 10px;font-size:12.5px;border-radius:7px}.btn.danger{background:var(--dangerbg);color:var(--danger);border-color:#eccfc7}
 .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:6px}
+/* Compact one-line action group for letter rows (PDF · Print · Delete · View) */
+.lrow-acts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-start;align-items:center;margin-top:0}
+.lrow-acts .btn.sm{white-space:nowrap;padding:5px 9px;min-height:0;font-size:12px;flex:0 0 auto}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:10px 12px;text-align:start;border-bottom:1px solid var(--line)}
 th{background:#eef4fb;font-weight:700;color:#123f70;font-size:13px}
