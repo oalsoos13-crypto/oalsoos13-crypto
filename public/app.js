@@ -1848,7 +1848,9 @@ function vLettersHistory() {
     <button class="btn gold sm" onclick="lhBulkPrint()">🖨 ${t("printSelected")}</button>
     ${isAdmin ? `<button class="btn danger sm" onclick="lhBulkDelete()">🗑 ${t("delSelected")}</button>` : ""}
   </div>`;
-  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3>${isAdmin ? `<button class="btn gold sm" onclick="openQuickEntry()">${t("qeBtn")}</button>` : ""}</header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+  // Quick-entry button hidden for now (feature kept in code — re-enable by
+  // restoring the button below): ${isAdmin ? "..." : ""}
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
   lhUpdateCount();
 }
 function lhUpdateCount() { const el = document.getElementById("lhSelCount"); if (el) el.textContent = lhSel.size + " " + t("selCount"); }
