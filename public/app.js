@@ -3377,18 +3377,14 @@ function openDoc(rec, isLetter) {
           .join("")}</div>`
       : "";
   const trail = !isLetter ? `<div style="padding:0 24px 18px">${approvalTrail(rec)}</div>` : "";
-  const lhBtn = `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
-  // The ADMIN may print or download ANY letter at any stage (even before any
-  // approval or signature). Other roles print only their own debit notes; on a
-  // letter they see the current status instead.
+  // Letterhead toggle stays only for debit notes; letters use the row actions.
+  const lhBtn = isLetter ? "" : `<button class="btn ghost sm no-print" onclick="toggleLh()" title="${t("lhToggleHint")}">🏷 ${LH_MODE === "full" ? t("lhFull") : t("lhBlank")}</button>`;
   const isAdmin = currentUser.role === "admin";
-  const canPrint = isLetter ? isAdmin : true;
-  const printBtn = canPrint
-    ? `<button class="btn gold sm" onclick="printCur()">${t("print")}</button>`
-      + `<button class="btn primary sm no-print" onclick="pdfCur()">⬇ PDF</button>`
-    : (isLetter
-      ? `<span class="pill-info" style="padding:3px 10px">${rec.approval === "rejected" ? t("lt_rejected") : t("awaitStage").replace("{s}", stageLabel(rec.apprStage || "supervisor"))}</span>`
-      : "");
+  // For a LETTER the print/PDF/delete/letterhead actions live on the row, so the
+  // viewer is kept clean (only workflow controls + close). Debit notes keep their
+  // own print/PDF here.
+  const printBtn = isLetter ? "" : `<button class="btn gold sm" onclick="printCur()">${t("print")}</button>`
+    + `<button class="btn primary sm no-print" onclick="pdfCur()">⬇ PDF</button>`;
   // Admin controls on a letter still in the workflow (not printed, not rejected):
   // edit the text, reject, or return it to any earlier stage.
   const adminCtrls = (isLetter && currentUser.role === "admin" && !rec.printedAt && rec.approval !== "rejected")
@@ -3396,10 +3392,7 @@ function openDoc(rec, isLetter) {
       + `<button class="btn ghost sm no-print" onclick="openReturnPicker('${rec.id}')">↩ ${t("returnTo")}</button>`
       + `<button class="btn danger sm no-print" onclick="rejectLetter('${rec.id}')">${t("reject")}</button>`
     : "";
-  // Admin may permanently delete ANY letter from the system, at any stage.
-  const delCtrl = (isLetter && currentUser.role === "admin")
-    ? `<button class="btn danger sm no-print" onclick="delLetter('${rec.id}')">🗑 ${t("del")}</button>`
-    : "";
+  const delCtrl = "";
   modal(
     `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}${delCtrl}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
   );
