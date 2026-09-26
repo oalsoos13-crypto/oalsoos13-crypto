@@ -522,6 +522,64 @@ router.post('/spec-rows/import', requireRole('salesman', 'sales_manager', 'marke
   res.json({ ok: true, rows, matched: best });
 }));
 
+// POST /api/letters/quick-entry (ADMIN) — record a completed/paper letter in one
+// step: it is created already approved + printed, and its co-op debit note (with
+// attachments) is created already approved, so it counts in the budget without
+// going through the multi-stage workflow. For digitising historical letters.
+function sanitizeQEAtt(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.slice(0, 20).map((a) => ({
+    name: String((a && a.name) || 'attachment').slice(0, 120),
+    image: String((a && (a.image || a.url)) || '').slice(0, 8 * 1024 * 1024),
+  })).filter((a) => a.image);
+}
+router.post('/letters/quick-entry', requireRole(), asyncH((req, res) => {
+  const type = String(req.body.type || '');
+  if (!modeOf(type)) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
+  const coop = req.body.coop || '';
+  const recipient = req.body.recipient ? String(req.body.recipient).trim() : null;
+  if (!coop && !recipient) throw badRequest('أدخل الجمعية أو المستلم', 'NO_RECIPIENT');
+  const value = num(req.body.value);
+  if (!(value > 0)) throw badRequest('أدخل القيمة', 'NO_VALUE');
+  const coopDN = String(req.body.coopDN || '').trim();
+  const atts = sanitizeQEAtt(req.body.attachments);
+  const bt = String(req.body.budgetType || '').trim() || autoBudgetType(type);
+  if (bt && !BUDGET_TYPES.has(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_BUDGET_TYPE');
+  const now = nowIso();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || '')) ? req.body.date : now.slice(0, 10);
+  const sales = String(req.body.sales || '').trim() || req.user.name;
+  const manualNo = parseInt(req.body.lysalNo, 10);
+  let num_, lysal;
+  if (Number.isInteger(manualNo) && manualNo > 0) { num_ = manualNo; lysal = refNo(manualNo); }
+  else { num_ = nextCounter(); lysal = refNo(num_); }
+  const meta = { quickEntry: true };
+  if (req.body.reason) meta.reason = String(req.body.reason).slice(0, 300);
+  if (req.body.market) meta.market = String(req.body.market).slice(0, 60);
+  const id = genId('L');
+  const custId = String(req.body.custId || '').trim() || null;
+  const hasNote = !!(coopDN && atts.length);
+  const tx = db.transaction(() => {
+    db.prepare(`INSERT INTO letters
+        (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, budget_type, approved_by, approved_at, created_by, created_at, printed_at, printed_by)
+        VALUES (@id,@num,@lysal,@type,@coop,'',@sales,@date,'','',@value,NULL,NULL,NULL,@recipient,@meta,@custId,@status,'approved','print',@bt,@by,@now,@by,@now,@now,@by)`)
+      .run({ id, num: num_, lysal, type, coop, sales, date, value, recipient, meta: toJson(meta), custId, status: hasNote ? 'noted' : 'approved', bt: bt || null, by: req.user.id, now });
+    if (hasNote) {
+      const nid = genId('N');
+      db.prepare(`INSERT INTO notes
+          (id, num, lysal, letter_id, coop_dn, type, coop, brand, sales, value, date, items, note, attachments, status, created_by, created_at, mgr_approved_by, mgr_approved_at)
+          VALUES (@id,@num,@lysal,@lid,@dn,@type,@coop,'',@sales,@value,@date,NULL,'',@att,'approved',@by,@now,@by,@now)`)
+        .run({ id: nid, num: num_, lysal, lid: id, dn: coopDN, type, coop, sales, value, date, att: toJson(atts), by: req.user.id, now });
+    }
+  });
+  tx();
+  audit.fromReq(req, 'letter.quick_entry', {
+    entityType: 'letter', entityId: id,
+    summary: `Quick-entry completed letter ${lysal} (${type}, ${coop || recipient}, ${value}${hasNote ? ', DN ' + coopDN : ''})`,
+    details: { lysal, type, coop, value, budgetType: bt, coopDN: coopDN || null, attachments: atts.length },
+  });
+  res.json({ ok: true, id, lysal, noted: hasNote });
+}));
+
 // DELETE /api/letters/:id  (ADMIN ONLY — nobody else may delete or edit)
 router.delete('/letters/:id', requireRole(), asyncH((req, res) => {
   const L = db.prepare('SELECT * FROM letters WHERE id = ?').get(req.params.id);

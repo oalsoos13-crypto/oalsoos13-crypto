@@ -616,6 +616,15 @@ const T = {
   printedTitle: { ar: "تمت طباعتها", en: "Printed" },
   selectAll: { ar: "تحديد الكل", en: "Select all" },
   selCount: { ar: "محدد", en: "selected" },
+  qeBtn: { ar: "＋ إدخال كتاب مكتمل", en: "+ Add completed letter" },
+  qeTitle: { ar: "إدخال كتاب مكتمل (معتمد + محسوب بالبتجيت)", en: "Add completed letter (approved + counted in budget)" },
+  qeHint: { ar: "لإدخال كتاب ورقي/قديم دفعة واحدة: يتسجّل معتمداً ومطبوعاً مع إشعار الجمعية والمرفقات ويتحسب بالبتجيت مباشرة.", en: "Digitise a paper/old letter in one step: saved approved & printed with the co-op note and attachments, counted in budget." },
+  qeRecipient: { ar: "المستلم (اختياري — يظهر بالكتاب)", en: "Recipient (optional)" },
+  qeLysalNo: { ar: "رقم الكتاب (اتركه فارغًا للتلقائي)", en: "Letter no. (blank = auto)" },
+  qeCoopDN: { ar: "رقم إشعار الجمعية (D.N)", en: "Co-op debit-note no." },
+  qeAtt: { ar: "المرفقات (صور/PDF)", en: "Attachments (images/PDF)" },
+  qeSave: { ar: "حفظ الكتاب المكتمل", en: "Save completed letter" },
+  qeDone: { ar: "تم إدخال الكتاب واعتماده", en: "Letter saved and approved" },
   dlSelected: { ar: "تنزيل المحدد PDF", en: "Download selected PDF" },
   printSelected: { ar: "طباعة المحدد", en: "Print selected" },
   delSelected: { ar: "حذف المحدد", en: "Delete selected" },
@@ -1839,7 +1848,7 @@ function vLettersHistory() {
     <button class="btn gold sm" onclick="lhBulkPrint()">🖨 ${t("printSelected")}</button>
     ${isAdmin ? `<button class="btn danger sm" onclick="lhBulkDelete()">🗑 ${t("delSelected")}</button>` : ""}
   </div>`;
-  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3>${isAdmin ? `<button class="btn gold sm" onclick="openQuickEntry()">${t("qeBtn")}</button>` : ""}</header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
   lhUpdateCount();
 }
 function lhUpdateCount() { const el = document.getElementById("lhSelCount"); if (el) el.textContent = lhSel.size + " " + t("selCount"); }
@@ -1877,6 +1886,60 @@ async function lhBulkDelete() {
   await loadState();
   render();
   toast(t("del") + " ✓ (" + ok + ")");
+}
+// Admin: one-step entry of a completed/paper letter (approved + counted in budget).
+function openQuickEntry() {
+  const types = (DB.ref.letterTypes || (typeof SEED !== "undefined" ? SEED.letterTypes : []) || []).map((x) => `<option value="${x.k}">${esc(ltName(x.k))}</option>`).join("");
+  const coops = (DB.ref.coops || []).map((c) => `<option value="${esc(c.n)}">${esc(c.ar || c.n)}</option>`).join("");
+  const bts = BUDGET_TYPE_KEYS.map((k) => `<option value="${k}">${esc(t("bt_" + k))}</option>`).join("");
+  const fld = (lbl, inner) => `<div class="field"><label>${lbl}</label>${inner}</div>`;
+  modal(`<div class="panel"><header><h3>${t("qeTitle")}</h3><button class="btn ghost sm" onclick="closeModal()">✕</button></header><div class="body">
+    <p class="hint">${t("qeHint")}</p>
+    <div class="grid g2">
+      ${fld(t("th_type"), `<select id="qeType">${types}</select>`)}
+      ${fld(t("coop"), `<select id="qeCoop"><option value="">—</option>${coops}</select>`)}
+      ${fld(t("qeRecipient"), `<input id="qeRecipient" placeholder="السادة / جمعية … التعاونية">`)}
+      ${fld(t("th_value") + " (د.ك)", `<input id="qeValue" type="number" step="0.001">`)}
+      ${fld(t("th_date"), `<input id="qeDate" type="date" value="${new Date().toISOString().slice(0, 10)}">`)}
+      ${fld(t("qeLysalNo"), `<input id="qeLysalNo" type="number">`)}
+      ${fld(t("reasonField") || "السبب", `<input id="qeReason" placeholder="مثال: إيجار — العقد المبرم">`)}
+      ${fld("السوق (اختياري)", `<input id="qeMarket">`)}
+      ${fld(t("budgetType"), `<select id="qeBt"><option value="">تلقائي حسب النوع</option>${bts}</select>`)}
+      ${fld(t("qeCoopDN"), `<input id="qeCoopDN" placeholder="رقم D.N بالجمعية">`)}
+    </div>
+    <div class="field" style="margin-top:10px"><label>${t("qeAtt")}</label><input id="qeAtt" type="file" accept="image/*,.pdf" multiple></div>
+    <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="submitQuickEntry()">💾 ${t("qeSave")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
+  </div></div>`);
+}
+async function submitQuickEntry() {
+  const v = (id) => (document.getElementById(id) || {}).value || "";
+  const type = v("qeType");
+  const coop = v("qeCoop");
+  const value = +v("qeValue") || 0;
+  if (!type) { toast(t("th_type")); return; }
+  if (!value) { toast(t("th_value")); return; }
+  if (!coop && !v("qeRecipient")) { toast(t("coop")); return; }
+  const attInput = document.getElementById("qeAtt");
+  const attachments = [];
+  if (attInput && attInput.files) {
+    for (const f of attInput.files) {
+      const b64 = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => res(""); r.readAsDataURL(f); });
+      if (b64) attachments.push({ name: f.name, image: b64 });
+    }
+  }
+  const body = {
+    type, coop, recipient: v("qeRecipient"), value,
+    date: v("qeDate"), lysalNo: v("qeLysalNo"), reason: v("qeReason"),
+    market: v("qeMarket"), budgetType: v("qeBt"), coopDN: v("qeCoopDN"),
+    attachments,
+  };
+  try {
+    const r = await api("/letters/quick-entry", { method: "POST", body });
+    closeModal();
+    await loadState();
+    render();
+    toast(t("qeDone") + " — " + (r.lysal || ""));
+  } catch (e) { toast(e.message); }
 }
 /* ---------- budget-type classification ---------- */
 // 'polypack' (الكوباج) and 'foc' (مجاني) are hidden for now — add them back here
