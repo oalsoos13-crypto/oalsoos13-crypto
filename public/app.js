@@ -614,6 +614,13 @@ const T = {
   r_printQueue_d: { ar: "الكتب المكتملة الاعتماد الجاهزة للطباعة.", en: "Fully-approved letters ready to print." },
   printQueueTitle: { ar: "جاهزة للطباعة", en: "Ready to print" },
   printedTitle: { ar: "تمت طباعتها", en: "Printed" },
+  selectAll: { ar: "تحديد الكل", en: "Select all" },
+  selCount: { ar: "محدد", en: "selected" },
+  dlSelected: { ar: "تنزيل المحدد PDF", en: "Download selected PDF" },
+  printSelected: { ar: "طباعة المحدد", en: "Print selected" },
+  delSelected: { ar: "حذف المحدد", en: "Delete selected" },
+  noneSelected: { ar: "ما في كتب محددة", en: "No letters selected" },
+  confirmDelSel: { ar: "متأكد من حذف الكتب المحددة؟ لا يمكن التراجع.", en: "Delete the selected letters? This cannot be undone." },
   r_lettersHistory: { ar: "سجل الكتب", en: "Letters history" },
   r_lettersHistory_d: { ar: "كل الكتب الصادرة وحالتها.", en: "All issued letters and their status." },
   r_budgetHistory: { ar: "سجل الميزانية", en: "Budget history" },
@@ -1817,11 +1824,59 @@ function vSupervisor() {
   <div class="panel"><header><h3>${t("coopsRef")}</h3><span class="pill-info">${DB.ref.coops.length} ${t("coopsN")}</span></header><div class="tbl-wrap" style="max-height:300px"><table><thead><tr><th>${t("coop")}</th><th>${t("mainOut")}</th><th>${t("branches")}</th></tr></thead><tbody>${DB.ref.coops.map((c) => `<tr><td>${esc(c.n)}</td><td class="mono">${c.m}</td><td>${c.b}</td></tr>`).join("")}</tbody></table></div></div>`;
 }
 /* ---------- history views ---------- */
+let lhSel = new Set();
 function vLettersHistory() {
   const list = DB.letters.slice().reverse();
+  // Drop selections for letters that no longer exist.
+  const ids = new Set(list.map((L) => L.id));
+  lhSel.forEach((id) => { if (!ids.has(id)) lhSel.delete(id); });
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
-  const rows = list.map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
-  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="tbl-wrap">${list.length ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+  const isAdmin = currentUser && currentUser.role === "admin";
+  const rows = list.map((L) => `<tr><td><input type="checkbox" class="lhchk" ${lhSel.has(L.id) ? "checked" : ""} onclick="lhToggle('${L.id}',this.checked)"></td><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
+  const bulkBar = `<div class="actions" style="margin-bottom:10px;align-items:center">
+    <span class="pill-info" id="lhSelCount">0 ${t("selCount")}</span>
+    <button class="btn primary sm" onclick="lhBulkPdf()">⬇ ${t("dlSelected")}</button>
+    <button class="btn gold sm" onclick="lhBulkPrint()">🖨 ${t("printSelected")}</button>
+    ${isAdmin ? `<button class="btn danger sm" onclick="lhBulkDelete()">🗑 ${t("delSelected")}</button>` : ""}
+  </div>`;
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+  lhUpdateCount();
+}
+function lhUpdateCount() { const el = document.getElementById("lhSelCount"); if (el) el.textContent = lhSel.size + " " + t("selCount"); }
+function lhToggle(id, on) { if (on) lhSel.add(id); else lhSel.delete(id); lhUpdateCount(); }
+function lhToggleAll(on) {
+  lhSel = new Set();
+  if (on) DB.letters.forEach((L) => lhSel.add(L.id));
+  document.querySelectorAll(".lhchk").forEach((c) => { c.checked = on; });
+  lhUpdateCount();
+}
+// Build ONE print window holding every selected letter, each on its own page.
+function bulkLetterWindow(ids, record) {
+  const recs = ids.map((id) => (DB.letters || []).find((x) => x.id === id)).filter(Boolean);
+  if (!recs.length) { toast(t("noneSelected")); return; }
+  if (record && currentUser.role === "admin") {
+    recs.forEach((r) => { if (r.apprStage === "print" && !r.printedAt) api("/letters/" + r.id + "/print", { method: "POST" }).then(() => { r.printedAt = new Date().toISOString(); }).catch(() => {}); });
+  }
+  const dir = document.documentElement.dir || "rtl";
+  const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => `<link rel="stylesheet" href="${l.href}">`).join("");
+  const body = recs.map((r, i) => `<div${i ? ' style="page-break-before:always"' : ""}>${docHTML(r, true)}</div>`).join("");
+  const w = window.open("", "_blank");
+  if (!w) { toast(t("pdfErr")); return; }
+  w.document.write(`<!doctype html><html dir="${dir}" lang="${LANG}"><head><meta charset="utf-8"><title>Letters</title>${cssLinks}<style>body{margin:0;background:#fff}.no-print{display:none!important}@page{size:A4;margin:10mm}</style></head><body>${body}<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},600);};window.onafterprint=function(){window.close();};<\/script></body></html>`);
+  w.document.close();
+}
+function lhBulkPdf() { if (!lhSel.size) { toast(t("noneSelected")); return; } bulkLetterWindow([...lhSel], false); }
+function lhBulkPrint() { if (!lhSel.size) { toast(t("noneSelected")); return; } bulkLetterWindow([...lhSel], true); }
+async function lhBulkDelete() {
+  if (!lhSel.size) { toast(t("noneSelected")); return; }
+  if (!confirm(t("confirmDelSel") + " (" + lhSel.size + ")")) return;
+  const ids = [...lhSel];
+  let ok = 0;
+  for (const id of ids) { try { await api("/letters/" + id, { method: "DELETE" }); ok++; } catch (e) { /* keep going */ } }
+  lhSel = new Set();
+  await loadState();
+  render();
+  toast(t("del") + " ✓ (" + ok + ")");
 }
 /* ---------- budget-type classification ---------- */
 // 'polypack' (الكوباج) and 'foc' (مجاني) are hidden for now — add them back here
