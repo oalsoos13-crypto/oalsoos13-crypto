@@ -7,6 +7,7 @@ const { requireAuth, requireRole } = require('../auth');
 const { asyncH, genId, nowIso, num, toJson, badRequest, notFound, forbidden } = require('../util');
 const { SEED } = require('../seed-data');
 const { SPEC_BY_KEY } = require('../letter-specs');
+const XLSX = require('xlsx');
 let AR = { coops: {}, outlets: {} };
 try { AR = require('../outlet_ar.json'); } catch (e) { /* optional Arabic name map */ }
 
@@ -454,6 +455,71 @@ router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((re
     details: { month, sales, count: created.length },
   });
   res.json({ ok: true, month, created: created.length, skipped: targets.length - created.length, letters: created });
+}));
+
+// POST /api/spec-rows/import — parse an uploaded Excel/CSV into rows for a
+// spec letter's table (e.g. the Union item-approval letters). Maps the file's
+// header columns to the spec's columns by label (ar/en) or key, else by order.
+// Body: { type, which?, contentB64 }  ->  { rows: [...] }
+const _norm = (s) => String(s == null ? '' : s)
+  .replace(/[ً-ْـ]/g, '')          // Arabic diacritics + tatweel
+  .replace(/[إأآا]/g, 'ا').replace(/[ىي]/g, 'ي').replace(/[ةه]/g, 'ه')
+  .replace(/[^0-9a-zء-ي]/gi, '').toLowerCase().trim();
+router.post('/spec-rows/import', requireRole('salesman', 'sales_manager', 'marketing_manager', 'sales_ops'), asyncH((req, res) => {
+  const spec = SPEC_BY_KEY[String(req.body.type || '')];
+  if (!spec) throw badRequest('نوع الكتاب غير صحيح', 'BAD_TYPE');
+  const tbl = String(req.body.which) === '2' ? spec.table2 : spec.table;
+  if (!tbl || !Array.isArray(tbl.cols)) throw badRequest('هذا الكتاب لا يحتوي جدول أصناف', 'NO_TABLE');
+  const b64 = req.body.contentB64 || '';
+  if (!b64) throw badRequest('لم يتم إرفاق ملف', 'NO_FILE');
+  let wb;
+  try {
+    const buf = Buffer.from(b64.replace(/^data:[^,]*,/, ''), 'base64');
+    const isZip = buf[0] === 0x50 && buf[1] === 0x4b;
+    wb = isZip ? XLSX.read(buf, { type: 'buffer', cellDates: true })
+      : XLSX.read(buf.toString('utf8').replace(/^﻿/, ''), { type: 'string' });
+  } catch (e) { throw badRequest('تعذّر قراءة الملف', 'BAD_FILE'); }
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) throw badRequest('الملف فارغ', 'EMPTY');
+  const grid = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '', raw: false });
+  if (!grid.length) throw badRequest('الملف فارغ', 'EMPTY');
+  // Match a header cell to a spec column by normalised ar/en label or key.
+  const colByNorm = new Map();
+  for (const c of tbl.cols) {
+    [c.ar, c.en, c.key].forEach((v) => { const k = _norm(v); if (k) colByNorm.set(k, c.key); });
+  }
+  // Pick the header row (top 6) with the most matched columns.
+  let hdrIdx = -1, colMap = {}, best = 0;
+  for (let i = 0; i < Math.min(6, grid.length); i++) {
+    const map = {};
+    grid[i].forEach((cell, ci) => { const key = colByNorm.get(_norm(cell)); if (key && !(key in map)) map[key] = ci; });
+    if (Object.keys(map).length > best) { best = Object.keys(map).length; hdrIdx = i; colMap = map; }
+  }
+  let rows = [];
+  if (best >= 2) {
+    // Header matched: map named columns.
+    for (let i = hdrIdx + 1; i < grid.length; i++) {
+      const r = grid[i]; const o = {};
+      for (const c of tbl.cols) {
+        const ci = colMap[c.key];
+        let v = ci != null ? r[ci] : '';
+        o[c.key] = c.type === 'num' ? (v === '' ? '' : num(v)) : String(v == null ? '' : v).trim();
+      }
+      if (tbl.cols.some((c) => o[c.key] !== '' && o[c.key] != null)) rows.push(o);
+    }
+  } else {
+    // No header match — treat row 0 as header, map columns positionally.
+    for (let i = 1; i < grid.length; i++) {
+      const r = grid[i]; const o = {};
+      tbl.cols.forEach((c, ci) => {
+        let v = r[ci];
+        o[c.key] = c.type === 'num' ? (v === '' || v == null ? '' : num(v)) : String(v == null ? '' : v).trim();
+      });
+      if (tbl.cols.some((c) => o[c.key] !== '' && o[c.key] != null)) rows.push(o);
+    }
+  }
+  rows = rows.slice(0, 300);
+  res.json({ ok: true, rows, matched: best });
 }));
 
 // DELETE /api/letters/:id  (ADMIN ONLY — nobody else may delete or edit)

@@ -801,6 +801,8 @@ const T = {
   r_products_d: { ar: "كتالوج المنتجات — استيراد من ملف واستخدامه بالجداول.", en: "Product catalog — import from file, use in tables." },
   productsTitle: { ar: "المنتجات والباركود", en: "Products & barcodes" },
   importFile: { ar: "استيراد ملف", en: "Import file" },
+  importRowsBtn: { ar: "استيراد أصناف من ملف", en: "Import items from file" },
+  importRowsNone: { ar: "ما لقيت أصناف بالملف — تأكد من الأعمدة", en: "No items found in the file — check the columns" },
   importHint: { ar: "ارفع Excel/CSV فيه أعمدة: الباركود، اسم الصنف، الشد، الوزن، بلد المنشأ، العلامة التجارية، سعر المستهلك، سعر الجمعية، رقم التعميم، تاريخ التعميم — يُدمج حسب الباركود.", en: "Upload Excel/CSV with columns: barcode, name, pack, weight, origin, brand, consumer price, coop price, circular #, circular date — merged by barcode." },
   imported: { ar: "مستورد", en: "Imported" },
   skipped: { ar: "متجاوَز", en: "Skipped" },
@@ -2718,7 +2720,32 @@ function emptySpecRow(cols) { const o = {}; cols.forEach((c) => (o[c.key] = ""))
 function specTableEditor(tbl, which) {
   return `<div style="margin-top:14px"><label class="hint" style="font-weight:700">${esc(LANG === "en" ? tbl.title.en : tbl.title.ar)}</label>
     <div class="tbl-scroll"><table class="price-edit"><thead><tr>${tbl.cols.map((c) => `<th>${esc(colLabel(c))}</th>`).join("")}<th></th></tr></thead><tbody id="specRows${which}"></tbody></table></div>
-    <button class="btn ghost sm" style="margin-top:8px" onclick="addSpecRow(${which})">＋ ${t("addRow")}</button></div>`;
+    <div class="actions" style="margin-top:8px">
+      <button class="btn ghost sm" onclick="addSpecRow(${which})">＋ ${t("addRow")}</button>
+      <label class="btn gold sm filebtn">⬆ ${t("importRowsBtn")}<input type="file" accept=".csv,.xlsx,.xls" onchange="importSpecRows(this, ${which})"></label>
+      <span id="specImpMsg${which}" class="hint"></span>
+    </div></div>`;
+}
+// Import the letter's item table from an Excel/CSV file (fills the rows).
+function importSpecRows(input, which) {
+  const f = input.files[0]; if (!f) return;
+  const type = (document.getElementById("fType") || {}).value || "";
+  const msg = document.getElementById("specImpMsg" + which);
+  if (msg) msg.textContent = t("loading");
+  const rd = new FileReader();
+  rd.onload = async () => {
+    try {
+      const r = await api("/spec-rows/import", { method: "POST", body: { type, which, filename: f.name, contentB64: String(rd.result) } });
+      const rows = (r.rows || []);
+      if (!rows.length) { if (msg) msg.textContent = t("importRowsNone"); toast(t("importRowsNone")); input.value = ""; return; }
+      if (which === 2) draftSpecRows2 = rows; else draftSpecRows = rows;
+      renderSpecRows(which);
+      if (msg) msg.textContent = `${t("imported")}: ${rows.length}`;
+      toast(t("importDone") + " (" + rows.length + ")");
+    } catch (e) { if (msg) msg.textContent = e.message; toast(e.message); }
+    input.value = "";
+  };
+  rd.readAsDataURL(f);
 }
 function specFormHTML(spec) {
   let h = "";
