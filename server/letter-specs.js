@@ -363,7 +363,6 @@ const LETTER_SPECS = [
       title: { ar: 'الأصناف التكميلية', en: 'Items' },
       cols: [
         { key: 'item', ar: 'رقم الصنف', en: 'Item #', type: 'text' },
-        { key: 'brand', ar: 'العلامة التجارية', en: 'Brand', type: 'text' },
         { key: 'name', ar: 'وصف الصنف', en: 'Description', type: 'text', wide: true },
         { key: 'origin', ar: 'المنشأ', en: 'Origin', type: 'text' },
         { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
@@ -426,7 +425,6 @@ const LETTER_SPECS = [
       title: { ar: 'الأصناف الجديدة', en: 'New items' },
       cols: [
         { key: 'item', ar: 'رقم الصنف', en: 'Item #', type: 'text' },
-        { key: 'brand', ar: 'العلامة التجارية', en: 'Brand', type: 'text' },
         { key: 'name', ar: 'وصف الصنف', en: 'Description', type: 'text', wide: true },
         { key: 'origin', ar: 'المنشأ', en: 'Origin', type: 'text' },
         { key: 'pack', ar: 'الشد', en: 'Pack', type: 'text' },
