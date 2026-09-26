@@ -3013,9 +3013,10 @@ async function delLetter(id) {
   } else if (!confirm(t("confirmDel"))) { return; }
   try {
     const r = await api("/letters/" + id, { method: "DELETE" });
+    closeModal();
     await loadState();
     render();
-    if (r && r.voidedNotes) toast(t("letterCancelled"));
+    toast(r && r.voidedNotes ? t("letterCancelled") : (t("del") + " ✓"));
   } catch (e) { toast(e.message); }
 }
 /* ---------- doc/tracking ---------- */
@@ -3395,8 +3396,12 @@ function openDoc(rec, isLetter) {
       + `<button class="btn ghost sm no-print" onclick="openReturnPicker('${rec.id}')">↩ ${t("returnTo")}</button>`
       + `<button class="btn danger sm no-print" onclick="rejectLetter('${rec.id}')">${t("reject")}</button>`
     : "";
+  // Admin may permanently delete ANY letter from the system, at any stage.
+  const delCtrl = (isLetter && currentUser.role === "admin")
+    ? `<button class="btn danger sm no-print" onclick="delLetter('${rec.id}')">🗑 ${t("del")}</button>`
+    : "";
   modal(
-    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
+    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}${delCtrl}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
   );
 }
 // Download/print the open letter as a PDF via the browser's NATIVE print — this
