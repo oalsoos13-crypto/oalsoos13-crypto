@@ -68,11 +68,10 @@ router.put('/channels', requireRole('marketing_manager'), asyncH((req, res) => {
 }));
 
 /* ---------- Monthly budget plan (caps + supervisor allocation + spend) ---------- */
-// 'polypack' (الكوباج) and 'foc' (مجاني) are hidden for now — kept in the data
-// model (labels + validation in letter.routes) so past classifications survive
-// and they can be re-enabled by adding them back here.
-const CAPPED_TYPES = ['pallets', 'stands', 'pricediff'];
-const ALL_BUDGET_TYPES = CAPPED_TYPES.concat(['offinv']);
+// Active budget types: pallets, stands, price-diff, condition (كوديشن/polypack)
+// and free (FOC). 'offinv' (خارج الاستثمار) has been removed from the budget.
+const CAPPED_TYPES = ['pallets', 'stands', 'pricediff', 'polypack', 'foc'];
+const ALL_BUDGET_TYPES = CAPPED_TYPES.slice();
 function curMonth() { return nowIso().slice(0, 7); }
 function isMonth(m) { return /^\d{4}-\d{2}$/.test(String(m || '')); }
 // Authoritative salesman -> supervisor map (from the outlets master).

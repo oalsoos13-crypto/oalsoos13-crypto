@@ -514,7 +514,7 @@ const T = {
   bt_pallets: { ar: "الطبالي", en: "Pallets" },
   bt_stands: { ar: "الستاندات", en: "Stands" },
   bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
-  bt_polypack: { ar: "الكوباج", en: "Couponnage" },
+  bt_polypack: { ar: "الكوديشن", en: "Condition" },
   bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
@@ -1944,9 +1944,8 @@ async function submitQuickEntry() {
   } catch (e) { toast(e.message); }
 }
 /* ---------- budget-type classification ---------- */
-// 'polypack' (الكوباج) and 'foc' (مجاني) are hidden for now — add them back here
-// to restore them in the letter budget-type selector.
-const BUDGET_TYPE_KEYS = ["pallets", "stands", "pricediff", "offinv"];
+// Active budget types (offinv "خارج الاستثمار" removed; polypack shown as الكوديشن).
+const BUDGET_TYPE_KEYS = ["pallets", "stands", "pricediff", "polypack", "foc"];
 function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
 // A <select> to classify a letter's budget type (used by sales manager + admin).
 function budgetTypeSelect(L) {
@@ -2047,8 +2046,7 @@ function renderBudgetPlan() {
       <td><input id="cap_${bt}" type="number" step="0.001" value="${d.caps[bt] && d.caps[bt].amount != null ? d.caps[bt].amount : ""}" style="width:120px" ${dis}></td>
       <td><input id="capn_${bt}" value="${esc((d.caps[bt] && d.caps[bt].note) || "")}" style="width:160px" ${dis}></td>
       <td><button class="btn primary sm" onclick="bpSaveCap('${bt}')" ${dis}>${t("bp_save")}</button></td></tr>`).join("");
-    capsPanel = `<div class="panel"><header><h3>${t("bp_caps")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_note")}</th><th></th></tr></thead><tbody>${rows}
-      <tr><td>${budgetTypeLabel("offinv")}</td><td colspan="3"><span class="pill-info">${t("bp_openCap")}</span></td></tr></tbody></table></div></div>`;
+    capsPanel = `<div class="panel"><header><h3>${t("bp_caps")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_note")}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
   // Spend summary (all types)
   const sumRows = d.types.map((bt) => {
