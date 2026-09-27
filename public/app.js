@@ -2065,7 +2065,7 @@ function renderBudgetPlan() {
       const cap = d.caps[bt] && d.caps[bt].amount != null ? +d.caps[bt].amount : null;
       const sum = bpAllocSum(bt), over = cap != null && sum > cap;
       const rows = sups.length ? sups.map((sup) => `<tr><td>${esc(sup)}</td><td><input type="number" step="0.001" value="${bpAllocOf(bt, sup)}" onchange="bpSaveAlloc('${bt}',this.dataset.sup,this.value)" data-sup="${esc(sup)}" style="width:120px" ${isSM && !closed ? "" : "disabled"}></td></tr>`).join("") : `<tr><td colspan="2"><div class="empty">${t("noAssign")}</div></td></tr>`;
-      return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bp_allocated")}: <span class="mono ${over ? "" : ""}" style="${over ? "color:var(--danger)" : ""}">${KD(sum)}${cap != null ? " / " + KD(cap) : ""}</span>${over ? " ⚠" : ""}</summary><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("supervisor")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
+      return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bp_allocated")}: <span class="mono" id="bpAllocSum_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(sum)}${cap != null ? " / " + KD(cap) : ""}</span></summary><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("supervisor")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
     }).join("");
     allocPanel = `<div class="panel"><header><h3>${t("bp_alloc")}</h3></header><div class="body">${blocks}</div></div>`;
   }
@@ -2083,8 +2083,18 @@ async function bpCloseMonth(close) {
   catch (e) { toast(e.message); }
 }
 async function bpSaveAlloc(bt, sup, amount) {
-  try { await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } }); toast(t("saved")); vBudgetPlan(); }
-  catch (e) { toast(e.message); }
+  try {
+    await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } });
+    // Update in place — do NOT re-render (that collapses the open accordion).
+    const val = +amount || 0;
+    const row = bpData.alloc.find((x) => x.budgetType === bt && x.supervisor === sup);
+    if (row) row.amount = val; else bpData.alloc.push({ budgetType: bt, supervisor: sup, amount: val });
+    const sum = bpAllocSum(bt);
+    const cap = bpData.caps[bt] && bpData.caps[bt].amount != null ? +bpData.caps[bt].amount : null;
+    const el = document.getElementById("bpAllocSum_" + bt);
+    if (el) { el.textContent = KD(sum) + (cap != null ? " / " + KD(cap) : ""); el.style.color = (cap != null && sum > cap) ? "var(--danger)" : ""; }
+    toast(t("saved"));
+  } catch (e) { toast(e.message); }
 }
 /* ---- Supervisor: distribute the allocation to salesmen and their coops ---- */
 async function vBudgetDist() {
