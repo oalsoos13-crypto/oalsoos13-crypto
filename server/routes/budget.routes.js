@@ -165,14 +165,57 @@ router.get('/budget-plan', asyncH((req, res) => {
     .map((r) => ({ budgetType: r.budget_type, salesman: r.salesman, coop: r.coop, amount: r.amount }));
   const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month)
     .map((r) => ({ budgetType: r.budget_type, coop: r.coop, custId: r.cust_id, amount: r.amount }));
-  // The full structure (supervisor -> salesmen -> coops); a supervisor only
-  // needs their own branch but the payload is small, so send it whole.
-  const structure = distStructure();
+  // The distribution structure (supervisor -> salesmen -> coops -> outlets).
+  // SCOPING: a supervisor must only ever receive their OWN branch — never the
+  // other supervisors' salesmen / co-ops / outlets. A salesman has no budget
+  // screen and gets nothing here. Management (admin / sales_manager / marketing
+  // / sales_ops) sees the whole picture. Scoping the tree server-side is the
+  // authoritative fix: the client already renders only structure[me].
+  const fullStructure = distStructure();
+  const role = req.user ? req.user.role : null;
+  const isMgmt = role === 'admin' || role === 'sales_manager' || role === 'marketing_manager' || role === 'sales_ops';
+  const fullSpend = monthSpend(month);
+  let structure = fullStructure;
+  let outAlloc = alloc, outAllocSales = allocSales, outAllocCoop = allocCoop, outAllocOutlet = allocOutlet;
+  let outSupervisors = supervisors, outSpend = fullSpend;
+  if (role === 'supervisor') {
+    const me = req.user.name;
+    const myBranch = fullStructure[me] || {};
+    structure = { [me]: myBranch };
+    // Names within my own branch — used to filter every allocation / spend line
+    // so nothing about another team's numbers or people crosses over.
+    const mySales = new Set(Object.keys(myBranch));
+    const myCoops = new Set();
+    const myCust = new Set();
+    Object.values(myBranch).forEach((coops) => {
+      Object.keys(coops).forEach((c) => myCoops.add(c));
+      Object.values(coops).forEach((outs) => (outs || []).forEach((o) => myCust.add(String(o.custId))));
+    });
+    outSupervisors = [me];
+    outAlloc = alloc.filter((a) => a.supervisor === me);
+    outAllocSales = allocSales.filter((a) => a.supervisor === me || mySales.has(a.salesman));
+    outAllocCoop = allocCoop.filter((a) => mySales.has(a.salesman) || myCoops.has(a.coop));
+    outAllocOutlet = allocOutlet.filter((a) => myCoops.has(a.coop) || myCust.has(String(a.custId)));
+    outSpend = {
+      byType: fullSpend.byType,
+      bySup: (fullSpend.bySup || []).filter((r) => r.supervisor === me),
+      bySales: (fullSpend.bySales || []).filter((r) => mySales.has(r.salesman)),
+      byCoop: (fullSpend.byCoop || []).filter((r) => myCoops.has(r.coop)),
+      byOutlet: (fullSpend.byOutlet || []).filter((r) => myCust.has(String(r.custId))),
+    };
+  } else if (!isMgmt) {
+    // salesman (or any other non-management role): no distribution tree at all.
+    structure = {};
+    outSupervisors = [];
+    outAlloc = []; outAllocSales = []; outAllocCoop = []; outAllocOutlet = [];
+    outSpend = { byType: {}, bySup: [], bySales: [], byCoop: [], byOutlet: [] };
+  }
   res.json({
     month, closed: !!(m && m.closed), types: ALL_BUDGET_TYPES, capped: CAPPED_TYPES,
-    caps, alloc, allocSales, allocCoop, allocOutlet, supervisors, structure,
+    caps, alloc: outAlloc, allocSales: outAllocSales, allocCoop: outAllocCoop,
+    allocOutlet: outAllocOutlet, supervisors: outSupervisors, structure,
     me: req.user ? { name: req.user.name, role: req.user.role } : null,
-    spend: monthSpend(month),
+    spend: outSpend,
     months: db.prepare('SELECT month, closed FROM budget_months ORDER BY month DESC').all(),
   });
 }));

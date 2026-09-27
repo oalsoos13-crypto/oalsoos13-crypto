@@ -136,19 +136,41 @@ function buildState(user) {
   }
   // Archived letters/notes leave the active screens (a copy stays in the DB).
   const letters = letterRows.filter((r) => !r.archived_at).map((r) => mapLetter(r, nameOf));
-  const notes = db.prepare('SELECT * FROM notes WHERE archived_at IS NULL ORDER BY created_at ASC').all().map((r) => mapNote(r, nameOf));
+  // Notes follow the same scope as letters: a salesman sees only the debit notes
+  // for their own letters, a supervisor only those for co-ops in their scope,
+  // management all of them. This keeps another team's debit-note data off the
+  // client entirely.
+  let noteRows;
+  if (user && user.role === 'salesman') {
+    noteRows = db.prepare('SELECT * FROM notes WHERE archived_at IS NULL AND sales = ? ORDER BY created_at ASC').all(user.name);
+  } else if (user && user.role === 'supervisor') {
+    const allowedN = new Set((scope ? scope.coops : []).map((c) => c.coop));
+    noteRows = db.prepare('SELECT * FROM notes WHERE archived_at IS NULL ORDER BY created_at ASC').all().filter((r) => allowedN.has(r.coop));
+  } else {
+    noteRows = db.prepare('SELECT * FROM notes WHERE archived_at IS NULL ORDER BY created_at ASC').all();
+  }
+  const notes = noteRows.map((r) => mapNote(r, nameOf));
 
   const counter = db.prepare("SELECT value FROM counters WHERE name='lysal'").get();
 
   const coops = db.prepare('SELECT name, name_ar, code, mains, branches FROM coops ORDER BY mains DESC, name ASC')
     .all().map((c) => ({ n: c.name, ar: c.name_ar || '', p: c.code, m: c.mains, b: c.branches }));
 
+  // SCOPING: the manual distribution table (dist) and the salesman->supervisor
+  // map back the ADMIN monitoring / distribution screens only. A salesman must
+  // never receive other teams' salesmen through them, and a supervisor only
+  // their own rows. Management (admin / sales_manager / marketing / sales_ops)
+  // keeps the full set.
+  const mgmt = !user || ['admin', 'sales_manager', 'marketing_manager', 'sales_ops'].includes(user.role);
+  const distOut = mgmt ? dist : (user.role === 'supervisor' ? dist.filter((r) => r.sup === user.name) : []);
+  const salesSupOut = mgmt ? salesSup : {};
+
   return {
     year: require('./config').refYear,
     budgets,
     budget: { channels },
-    dist,
-    salesSup,
+    dist: distOut,
+    salesSup: salesSupOut,
     letters,
     notes,
     counter: counter ? counter.value : 0,
