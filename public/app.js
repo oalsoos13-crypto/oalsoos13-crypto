@@ -2581,9 +2581,9 @@ async function generateFromBudget() {
   if (!confirm(t("genConfirm"))) return;
   try {
     const r = await api("/letters/generate-from-budget", { method: "POST", body: {} });
-    if (!r.created) { toast(t("genNone")); return; }
+    if (!r.created) { toast(t("genNone") + (r.month ? " — " + r.month : "")); return; }
     await loadState(); render();
-    toast(t("genDone") + " (" + r.created + ")");
+    toast(t("genDone") + " (" + r.created + " — " + (r.month || "") + ")");
   } catch (e) { toast(e.message); }
 }
 function tblSalesLetters(list) {

@@ -361,9 +361,23 @@ function coopFullFromAr(ar, fallback) {
 
 // POST /api/letters/generate-from-budget  { month? }
 router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((req, res) => {
-  const month = /^\d{4}-\d{2}$/.test(String(req.body.month || '')) ? req.body.month : nowIso().slice(0, 7);
   const sales = req.user.name;
   const pf = req.user.username;
+  // Month: use the one passed, else auto-pick the ACTIVE (open, not closed) month
+  // that has a distribution for this salesman — the calendar month may be closed
+  // while the next month is the live one.
+  let month = /^\d{4}-\d{2}$/.test(String(req.body.month || '')) ? req.body.month : null;
+  if (!month) {
+    const open = db.prepare(`SELECT DISTINCT ac.month AS m FROM budget_alloc_coop ac
+        LEFT JOIN budget_months bm ON bm.month = ac.month
+        WHERE ac.salesman = ? AND COALESCE(bm.closed,0) = 0 AND ac.amount <> 0
+        ORDER BY ac.month DESC`).all(sales);
+    if (open.length) month = open[0].m;
+    else {
+      const om = db.prepare("SELECT month FROM budget_months WHERE COALESCE(closed,0)=0 ORDER BY month DESC LIMIT 1").get();
+      month = om ? om.month : nowIso().slice(0, 7);
+    }
+  }
 
   // If the month is closed, the distribution is final but still generatable.
   // Build the salesman's co-op structure from the outlets master.
