@@ -1878,7 +1878,7 @@ function bulkLetterWindow(ids, record) {
   const body = recs.map((r, i) => `<div${i ? ' style="page-break-before:always"' : ""}>${docHTML(r, true)}</div>`).join("");
   const w = window.open("", "_blank");
   if (!w) { toast(t("pdfErr")); return; }
-  w.document.write(`<!doctype html><html dir="${dir}" lang="${LANG}"><head><meta charset="utf-8"><title>Letters</title>${cssLinks}<style>body{margin:0;background:#fff}.no-print{display:none!important}@page{size:A4;margin:10mm}</style></head><body>${body}<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},600);};window.onafterprint=function(){window.close();};<\/script></body></html>`);
+  w.document.write(`<!doctype html><html dir="${dir}" lang="${LANG}"><head><meta charset="utf-8"><title>Letters</title>${cssLinks}<style>body{margin:0;background:#fff}body::before{display:none!important}.no-print{display:none!important}@page{size:A4;margin:0}@media print{body *{visibility:visible!important}}</style></head><body>${body}<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},600);};window.onafterprint=function(){window.close();};<\/script></body></html>`);
   w.document.close();
 }
 function lhBulkPdf() { if (!lhSel.size) { toast(t("noneSelected")); return; } bulkLetterWindow([...lhSel], false); }
@@ -3554,8 +3554,13 @@ function letterWindow(rec, isLetter, record) {
     .map((l) => `<link rel="stylesheet" href="${l.href}">`).join("");
   w.document.write(`<!doctype html><html dir="${dir}" lang="${LANG}"><head><meta charset="utf-8"><title>${esc(name)}</title>
     ${cssLinks}
-    <style>body{margin:0;background:#fff}.no-print{display:none!important}
-    @page{size:A4;margin:10mm}</style></head>
+    <style>body{margin:0;background:#fff}body::before{display:none!important}.no-print{display:none!important}
+    @page{size:A4;margin:0}
+    /* This standalone print window has no .overlay wrapper, so the app's
+       "@media print{ body *{visibility:hidden} }" rule (meant to isolate the
+       in-app modal) would hide the ENTIRE letter — only the body::before
+       watermark, a pseudo-element, survived it. Force everything visible. */
+    @media print{body *{visibility:visible!important}}</style></head>
     <body>${docHTML(rec, isLetter)}
     <script>window.onload=function(){setTimeout(function(){window.focus();window.print();},500);};window.onafterprint=function(){window.close();};<\/script>
     </body></html>`);
