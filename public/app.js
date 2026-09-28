@@ -617,6 +617,7 @@ const T = {
   selectAll: { ar: "تحديد الكل", en: "Select all" },
   selCount: { ar: "محدد", en: "selected" },
   qeBtn: { ar: "＋ إدخال كتاب مكتمل", en: "+ Add completed letter" },
+  newLetterAny: { ar: "＋ كتاب جديد", en: "+ New letter" },
   qeTitle: { ar: "إدخال كتاب مكتمل (معتمد + محسوب بالبتجيت)", en: "Add completed letter (approved + counted in budget)" },
   qeHint: { ar: "لإدخال كتاب ورقي/قديم دفعة واحدة: يتسجّل معتمداً ومطبوعاً مع إشعار الجمعية والمرفقات ويتحسب بالبتجيت مباشرة.", en: "Digitise a paper/old letter in one step: saved approved & printed with the co-op note and attachments, counted in budget." },
   qeRecipient: { ar: "المستلم (اختياري — يظهر بالكتاب)", en: "Recipient (optional)" },
@@ -1848,9 +1849,13 @@ function vLettersHistory() {
     <button class="btn gold sm" onclick="lhBulkPrint()">🖨 ${t("printSelected")}</button>
     ${isAdmin ? `<button class="btn danger sm" onclick="lhBulkDelete()">🗑 ${t("delSelected")}</button>` : ""}
   </div>`;
-  // Quick-entry button hidden for now (feature kept in code — re-enable by
-  // restoring the button below): ${isAdmin ? "..." : ""}
-  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3></header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
+  // Admin letter tools: "New letter" opens the standard form with every co-op /
+  // price letter type (Union letters are created from the الاتحاد page), and
+  // "Add completed letter" digitises a finished paper letter in one step.
+  const adminBtns = isAdmin
+    ? `<div class="actions" style="margin:0"><button class="btn gold sm" onclick="openLetterForm()">${t("newLetterAny")}</button><button class="btn ghost sm" onclick="openQuickEntry()">${t("qeBtn")}</button></div>`
+    : "";
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_lettersHistory")} (${list.length})</h3>${adminBtns}</header><div class="body">${list.length ? bulkBar : ""}</div><div class="tbl-wrap">${list.length ? `<table><thead><tr><th><input type="checkbox" title="${t("selectAll")}" onclick="lhToggleAll(this.checked)"></th><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("approve")}</th><th>${t("createdBy")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">${t("noLetters")}</div>`}</div></div>`;
   lhUpdateCount();
 }
 function lhUpdateCount() { const el = document.getElementById("lhSelCount"); if (el) el.textContent = lhSel.size + " " + t("selCount"); }
