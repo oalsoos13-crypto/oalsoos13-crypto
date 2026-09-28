@@ -296,6 +296,12 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
   // printable until it clears all stages (supervisor -> sales_manager ->
   // marketing_manager -> sales_ops -> print).
   const custId = String(req.body.custId || '').trim() || null;
+  // Optional branch name -> stored in meta, printed after the honorific line.
+  if (req.body.branch) {
+    let bm = {}; try { bm = metaJson ? JSON.parse(metaJson) : {}; } catch (e) { bm = {}; }
+    bm.branch = String(req.body.branch).slice(0, 120);
+    metaJson = toJson(bm);
+  }
   // Auto-classify by the learned letter-type -> budget-type map (only for
   // monetary letters, since only those feed the budget summary).
   const autoBt = (num(calc.value) > 0) ? autoBudgetType(type) : null;
@@ -880,8 +886,15 @@ router.post('/letters/:id/edit', requireRole(), asyncH((req, res) => {
     recipient = req.body.recipient ? String(req.body.recipient).trim() : recipient;
     calc = computeValue(type, req.body, coop, recipient);
     try { const lv = require('./tracking.routes').listingValue(coop, type, calc.items); if (lv != null) calc.value = lv; } catch (e) { /* */ }
-    if (mode === 'pricetable') { if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS'); }
-    else if (!calc.value) throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+    // Items optional for the price table; other classic types still need a value.
+    if (mode !== 'pricetable' && !calc.value) throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
+  }
+  // Optional branch name -> merged into meta, printed after the honorific line.
+  if (req.body.branch !== undefined) {
+    let mm = {}; try { mm = metaJson ? JSON.parse(metaJson) : {}; } catch (e) { mm = {}; }
+    const b = String(req.body.branch || '').trim();
+    if (b) mm.branch = b.slice(0, 120); else delete mm.branch;
+    metaJson = toJson(mm);
   }
   const now = nowIso();
   db.prepare(`UPDATE letters SET coop=@coop, recipient=@recipient, brand=@brand, principal=@principal,

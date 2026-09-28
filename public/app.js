@@ -842,6 +842,8 @@ const T = {
   pieceBarcode: { ar: "باركود الحبة", en: "Piece barcode" },
   letterNoOpt: { ar: "رقم الكتاب (LYSAL) — اختياري", en: "Letter no. (LYSAL) — optional" },
   letterNoAuto: { ar: "تلقائي إذا تركته فاضي", en: "auto if left blank" },
+  branchOpt: { ar: "اسم الفرع (يظهر بعد المحترمين) — اختياري", en: "Branch name (after honorific) — optional" },
+  branchPh: { ar: "مثال: فرع الجابرية", en: "e.g. Jabriya branch" },
   signatory: { ar: "التوقيع", en: "Signatory" },
   itemNameAr: { ar: "اسم / وصف الصنف", en: "Item name / description" },
   circularDate: { ar: "تاريخ التعميم", en: "Circular date" },
@@ -2513,6 +2515,7 @@ function prefillLetterForm(L) {
     if (spec.recipient === "coop" && g("spCoop")) { g("spCoop").value = L.coop || ""; onCoopChange("sp"); setTimeout(() => { if (g("spOutlet") && L.custId) g("spOutlet").value = L.custId; }, 60); }
     if (spec.recipient === "free" && g("spRecipient")) g("spRecipient").value = L.recipient || "";
     (spec.fields || []).forEach((f) => { const el = g("spf_" + f.key); if (el && meta[f.key] != null && meta[f.key] !== "") el.value = meta[f.key]; });
+    if (g("spBranch") && meta.branch) g("spBranch").value = meta.branch;
     if (g("spSignIdx") && meta.sign && Array.isArray(spec.signChoices)) {
       const i = spec.signChoices.findIndex((s) => s.name === meta.sign.name);
       if (i >= 0) g("spSignIdx").value = String(i);
@@ -2523,6 +2526,7 @@ function prefillLetterForm(L) {
     if (g("fCoop")) { g("fCoop").value = L.coop || ""; onCoopChange("f"); setTimeout(() => { if (g("fOutlet") && L.custId) g("fOutlet").value = L.custId; }, 60); }
     if (g("fBrand")) g("fBrand").value = L.brand || "";
     if (g("fPrin")) g("fPrin").value = L.principal || "";
+    if (g("fBranch") && meta.branch) g("fBranch").value = meta.branch;
     if (g("fSales") && !g("fSales").readOnly) g("fSales").value = L.sales || "";
     const mode = (DB.ref.letterTypes.find((x) => x.k === L.type) || {}).mode;
     if (mode === "items" && Array.isArray(L.items)) { draftItems = L.items.map((it) => ({ name: it.name, price: it.price })); if (typeof renderItems === "function") renderItems(); }
@@ -2837,6 +2841,7 @@ function openLetterForm(opts) {
      <div class="field"><label>${t("salesman")}</label><input id="fSales" ${scopeName() ? "" : 'list="sugSales"'} value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
      <div class="field"><label>${t("fPrin")}</label><select id="fPrin">${DB.ref.principals.map((p) => `<option>${p}</option>`).join("")}</select></div>
      <div class="field"><label>${t("letterNoOpt")}</label><input id="fLysalNo" type="number" inputmode="numeric" placeholder="${t("letterNoAuto")}"></div>
+     <div class="field"><label>${t("branchOpt")}</label><input id="fBranch" placeholder="${t("branchPh")}"></div>
    </div>
    <div id="typeArea" style="margin-top:16px"></div>
    <div class="field" style="margin-top:14px"><label>${t("fNote")}</label><textarea id="fNote"></textarea></div>
@@ -2884,7 +2889,7 @@ function importSpecRows(input, which) {
 function specFormHTML(spec) {
   let h = "";
   if (spec.recipient === "coop")
-    h += `<div class="grid g3"><div class="field"><label>${t("coop")}</label>${coopSelectHTML("spCoop", "onCoopChange('sp')")}</div><div class="field" id="spOutletWrap"${scopeCoops() ? "" : " hidden"}><label>${t("outlet")}</label><span id="spOutletBox"></span></div></div>`;
+    h += `<div class="grid g3"><div class="field"><label>${t("coop")}</label>${coopSelectHTML("spCoop", "onCoopChange('sp')")}</div><div class="field" id="spOutletWrap"${scopeCoops() ? "" : " hidden"}><label>${t("outlet")}</label><span id="spOutletBox"></span></div><div class="field"><label>${t("branchOpt")}</label><input id="spBranch" placeholder="${t("branchPh")}"></div></div>`;
   else if (spec.recipient === "fixed")
     h += `<div class="field" style="max-width:360px"><label>${t("recipient")}</label><input value="${esc(spec.recipientFixed)}" readonly></div>`;
   else
@@ -3057,6 +3062,7 @@ async function saveSpecLetter(spec) {
     spec.fields.forEach((f) => { const el = g("spf_" + f.key); body.fields[f.key] = el ? el.value : ""; });
   }
   const lysalEl = g("spLysalNo"); if (lysalEl && lysalEl.value.trim()) body.lysalNo = lysalEl.value.trim();
+  const brEl = g("spBranch"); if (brEl && brEl.value.trim()) body.branch = brEl.value.trim();
   const signEl = g("spSignIdx"); if (signEl) body.signIdx = signEl.value;
   const nonEmpty = (rows, cols) => rows.filter((r) => cols.some((c) => String(r[c.key] || "").trim() !== ""));
   // Items are optional: a spec letter may be issued with no table at all — the
@@ -3106,6 +3112,9 @@ async function saveLetter() {
   // Optional manual reference number (رقم الكتاب / LYSAL) for classic letters.
   const lysalEl = document.getElementById("fLysalNo");
   if (lysalEl && lysalEl.value.trim()) body.lysalNo = lysalEl.value.trim();
+  // Optional branch name printed after the honorific line.
+  const brEl = document.getElementById("fBranch");
+  if (brEl && brEl.value.trim()) body.branch = brEl.value.trim();
   const fo = document.getElementById("fOutlet");
   if (scopeCoops()) {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
@@ -3325,7 +3334,9 @@ function toBlock(rec) {
   // When a specific outlet was addressed (scoped salesman) show it directly;
   // otherwise fall back to the "جمعية … التعاونية" wrapper around the co-op name.
   const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
-  return `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  const branch = rec.meta && rec.meta.branch ? String(rec.meta.branch).trim() : "";
+  const branchLine = branch ? `<div class="to-branch">${esc(branch)}</div>` : "";
+  return `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div>${branchLine}<div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
 }
 
 // Price-update ("change price") letter body.
@@ -3404,9 +3415,12 @@ function specDocHTML(rec, spec) {
   const who = en
     ? (coopEnFull(rec) || rec.recipient || (spec.recipientFixed || ""))
     : (rec.recipient ? rec.recipient : (spec.recipient === "coop" ? `جمعيـة ${coopAr(rec.coop)} التعاونيـة` : (spec.recipientFixed || "")));
+  // Optional branch name, printed on its own line right after the honorific.
+  const branch = rec.meta && rec.meta.branch ? String(rec.meta.branch).trim() : "";
+  const branchLine = branch ? `<div class="to-branch">${esc(branch)}</div>` : "";
   const to = en
-    ? `<div class="to"><span>Messrs / ${esc(who)}</span></div><div class="greet">Dear Sir/Madam,</div>`
-    : `<div class="to"><span>السـادة / ${esc(who)}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+    ? `<div class="to"><span>Messrs / ${esc(who)}</span></div>${branchLine}<div class="greet">Dear Sir/Madam,</div>`
+    : `<div class="to"><span>السـادة / ${esc(who)}</span><span class="hon">المحتـرمين</span></div>${branchLine}<div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
   const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(en ? (rec.date || "") : fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
