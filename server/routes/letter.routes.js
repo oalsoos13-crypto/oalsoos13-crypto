@@ -168,7 +168,9 @@ function computeSpec(spec, body, coopName, recipient) {
     if (s && (s.name || s.role)) meta.sign = { role: String(s.role || ''), name: String(s.name || '') };
   }
   let value = 0;
-  if (spec.valueMode === 'direct') value = num(meta.value != null ? meta.value : body.value);
+  // 'direct' requires the amount; 'optional' reads the same manual value but the
+  // letter is valid with or without it (see the NO_VALUE guard, direct-only).
+  if (spec.valueMode === 'direct' || spec.valueMode === 'optional') value = num(meta.value != null ? meta.value : body.value);
   else if (spec.valueMode === 'listingdn') {
     // Per item: carton price, or consumer piece x pack; times the bonus ratio.
     // The listing consideration is one free carton per item per central market

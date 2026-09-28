@@ -3414,7 +3414,15 @@ function specDocHTML(rec, spec) {
   const closing = closingLines.map((l) => `<div class="close">${esc(l)}</div>`).join("");
   const sg = (rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role)) ? rec.meta.sign : spec.signatory;
   const sign = sg && (sg.name || sg.role) ? signBlock(rec, sg) : "";
-  const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
+  // Optional monetary value (valueMode 'optional', e.g. the data/price-update
+  // letter): print a debit-note value line only when an amount was entered.
+  const showVal = spec.valueMode === "optional" && (+rec.value || 0) > 0;
+  const valPara = showVal
+    ? `<div class="body">${en
+        ? `The total value is (KD ${KD(rec.value)}) ${esc(tafqitKD(rec.value))}.`
+        : `وبقيمـة إجماليـة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))}.`}</div>`
+    : "";
+  const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${valPara}${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
   return `<div class="doc lh-${LH_MODE}${en ? " ltr" : ""}"${en ? ' dir="ltr"' : ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;

@@ -44,12 +44,17 @@ const LETTER_SPECS = [
   /* ---------- 2) Price Updation (زيادة أسعار) ---------- */
   {
     k: 'priceupd', ar: 'تحديث بيانات / زيادة أسعار', en: 'Price Updation',
-    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'none',
+    group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'optional',
     subject: { ar: 'تحديـث بيانـات', en: 'Data / Price Update' },
     intro: {
       ar: 'بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على تحديث بيانات زيادة أسعار الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :',
       en: 'With reference to the above, kindly approve the price update for the items listed below:',
     },
+    // Optional monetary amount: leave blank for a plain data-update letter, or
+    // fill it to add a debit-note value line to the printed letter.
+    fields: [
+      { key: 'value', ar: 'القيمة (د.ك) — اختياري', en: 'Value (KD) — optional', type: 'number' },
+    ],
     table: {
       title: { ar: 'الأصناف', en: 'Items' },
       cols: [
