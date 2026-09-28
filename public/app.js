@@ -3330,10 +3330,17 @@ function coopAr(name) {
   const c = coop(name);
   return c && c.ar ? c.ar : name;
 }
+// The co-op recipient wrapped as "جمعيـة … التعاونيـة" — but only when the
+// stored Arabic name isn't already in that full form (some are "القادسية",
+// others are already "جمعية النزهة التعاونية"), to avoid doubling the words.
+function coopArFull(name) {
+  const a = String(coopAr(name) || name).trim();
+  return /جمعي/.test(a) ? a : `جمعيـة ${a} التعاونيـة`;
+}
 function toBlock(rec) {
   // When a specific outlet was addressed (scoped salesman) show it directly;
   // otherwise fall back to the "جمعية … التعاونية" wrapper around the co-op name.
-  const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
+  const who = rec.recipient ? esc(rec.recipient) : esc(coopArFull(rec.coop));
   const branch = rec.meta && rec.meta.branch ? String(rec.meta.branch).trim() : "";
   const branchLine = branch ? `<div class="to-branch">${esc(branch)}</div>` : "";
   return `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div>${branchLine}<div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
@@ -3414,7 +3421,7 @@ function specDocHTML(rec, spec) {
   if (market) intro = intro.replace(/\s*\.?\s*$/, "") + " - " + market + ".";
   const who = en
     ? (coopEnFull(rec) || rec.recipient || (spec.recipientFixed || ""))
-    : (rec.recipient ? rec.recipient : (spec.recipient === "coop" ? `جمعيـة ${coopAr(rec.coop)} التعاونيـة` : (spec.recipientFixed || "")));
+    : (rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopArFull(rec.coop) : (spec.recipientFixed || "")));
   // Optional branch name, printed on its own line right after the honorific.
   const branch = rec.meta && rec.meta.branch ? String(rec.meta.branch).trim() : "";
   const branchLine = branch ? `<div class="to-branch">${esc(branch)}</div>` : "";
@@ -3443,7 +3450,7 @@ function specDocHTML(rec, spec) {
 }
 // Two-copy listing debit note: page 1 = debit text, page 2 = items table.
 function listingDnHTML(rec, spec) {
-  const who = rec.recipient ? esc(rec.recipient) : `جمعيـة ${esc(coopAr(rec.coop))} التعاونيـة`;
+  const who = rec.recipient ? esc(rec.recipient) : esc(coopArFull(rec.coop));
   const meta = metaBlock(rec, true);
   const to = `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
