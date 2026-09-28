@@ -2836,6 +2836,7 @@ function openLetterForm(opts) {
      <div class="field"><label>${t("fBrand")}</label><select id="fBrand">${DB.ref.brands.map((b) => `<option>${esc(b)}</option>`).join("")}</select></div>
      <div class="field"><label>${t("salesman")}</label><input id="fSales" ${scopeName() ? "" : 'list="sugSales"'} value="${esc(scopeName() || "")}" ${scopeName() ? "readonly" : ""}></div>
      <div class="field"><label>${t("fPrin")}</label><select id="fPrin">${DB.ref.principals.map((p) => `<option>${p}</option>`).join("")}</select></div>
+     <div class="field"><label>${t("letterNoOpt")}</label><input id="fLysalNo" type="number" inputmode="numeric" placeholder="${t("letterNoAuto")}"></div>
    </div>
    <div id="typeArea" style="margin-top:16px"></div>
    <div class="field" style="margin-top:14px"><label>${t("fNote")}</label><textarea id="fNote"></textarea></div>
@@ -3058,9 +3059,10 @@ async function saveSpecLetter(spec) {
   const lysalEl = g("spLysalNo"); if (lysalEl && lysalEl.value.trim()) body.lysalNo = lysalEl.value.trim();
   const signEl = g("spSignIdx"); if (signEl) body.signIdx = signEl.value;
   const nonEmpty = (rows, cols) => rows.filter((r) => cols.some((c) => String(r[c.key] || "").trim() !== ""));
+  // Items are optional: a spec letter may be issued with no table at all — the
+  // printed letter simply omits the table when there are no rows.
   if (spec.table) body.rows = nonEmpty(draftSpecRows, spec.table.cols);
   if (spec.table2) body.rows2 = nonEmpty(draftSpecRows2, spec.table2.cols);
-  if (spec.table && (!body.rows || !body.rows.length)) { toast(t("addRowFirst")); return; }
   return submitLetterBody(body);
 }
 // Submit a built letter body — create, or (admin) edit in place when editing.
@@ -3101,6 +3103,9 @@ async function saveLetter() {
     principal: document.getElementById("fPrin").value,
     note: document.getElementById("fNote").value,
   };
+  // Optional manual reference number (رقم الكتاب / LYSAL) for classic letters.
+  const lysalEl = document.getElementById("fLysalNo");
+  if (lysalEl && lysalEl.value.trim()) body.lysalNo = lysalEl.value.trim();
   const fo = document.getElementById("fOutlet");
   if (scopeCoops()) {
     if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
@@ -3128,7 +3133,8 @@ async function saveLetter() {
         consOld: +r.consOld || 0, consNew: +r.consNew || 0,
         barcode: r.barcode,
       }));
-    if (!body.priceRows.length) { toast(t("addRowFirst")); return; }
+    // Items optional — an empty price table is allowed; the letter prints
+    // without the table.
   } else if (!calcVal()) {
     toast(t("enterVal"));
     return;
@@ -3325,11 +3331,12 @@ function toBlock(rec) {
 // Price-update ("change price") letter body.
 function priceLetterInner(rec) {
   const rows = Array.isArray(rec.items) ? rec.items : [];
-  const table = `<table class="pt"><thead>
+  // Items optional: omit the table entirely when there are no rows.
+  const table = rows.length ? `<table class="pt"><thead>
     <tr><th rowspan="2">م</th><th rowspan="2">رقم الصنف</th><th rowspan="2">أسم الصنف</th><th rowspan="2">الشـد</th>
         <th colspan="2">سعر البيع للجمعية</th><th colspan="2">سعر البيع للمستهلك</th><th rowspan="2">باركود الحبة</th></tr>
     <tr><th>القديم</th><th>الجديد</th><th>القديم</th><th>الجديد</th></tr></thead>
-    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.item)}</td><td class="nm">${esc(r.name)}</td><td>${esc(r.pack)}</td><td>${KD(r.coopOld)}</td><td>${KD(r.coopNew)}</td><td>${KD(r.consOld)}</td><td>${KD(r.consNew)}</td><td class="bc">${esc(r.barcode)}</td></tr>`).join("")}</tbody></table>`;
+    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.item)}</td><td class="nm">${esc(r.name)}</td><td>${esc(r.pack)}</td><td>${KD(r.coopOld)}</td><td>${KD(r.coopNew)}</td><td>${KD(r.consOld)}</td><td>${KD(r.consNew)}</td><td class="bc">${esc(r.barcode)}</td></tr>`).join("")}</tbody></table>` : "";
   return `${metaBlock(rec, true)}${toBlock(rec)}
   <div class="subj">الموضـوع : تحديـث بيانـات</div>
   <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على تحديث بيانات الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :</div>
@@ -3396,7 +3403,7 @@ function specDocHTML(rec, spec) {
   if (market) intro = intro.replace(/\s*\.?\s*$/, "") + " - " + market + ".";
   const who = en
     ? (coopEnFull(rec) || rec.recipient || (spec.recipientFixed || ""))
-    : (rec.recipient ? rec.recipient : (spec.recipient === "coop" ? coopAr(rec.coop) : (spec.recipientFixed || "")));
+    : (rec.recipient ? rec.recipient : (spec.recipient === "coop" ? `جمعيـة ${coopAr(rec.coop)} التعاونيـة` : (spec.recipientFixed || "")));
   const to = en
     ? `<div class="to"><span>Messrs / ${esc(who)}</span></div><div class="greet">Dear Sir/Madam,</div>`
     : `<div class="to"><span>السـادة / ${esc(who)}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;

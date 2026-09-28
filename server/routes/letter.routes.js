@@ -249,7 +249,8 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
     else if (spec.recipient === 'fixed') { recipient = spec.recipientFixed; coop = ''; }
     else { recipient = String(req.body.recipient || spec.recipientDefault || '').trim(); coop = ''; }
     const r = computeSpec(spec, req.body, coop, recipient);
-    if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
+    // Items are optional: a letter may be issued with no table (it just prints
+    // without one). Only a debit note's own value stays mandatory.
     if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
     calc = { value: r.value, items: r.items };
     // If this co-op + letter type has stored calc terms, they drive the value.
@@ -262,9 +263,9 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
     calc = computeValue(type, req.body, coop, recipient);
     // Stored co-op + letter-type calc terms override the value when configured.
     try { const lv = require('./tracking.routes').listingValue(coop, type, calc.items); if (lv != null) calc.value = lv; } catch (e) { /* keep computed value */ }
-    if (mode === 'pricetable') {
-      if (!calc.items || !calc.items.length) throw badRequest('أضف صنفًا واحدًا على الأقل للجدول', 'NO_ROWS');
-    } else if (!calc.value) {
+    if (mode !== 'pricetable' && !calc.value) {
+      // Price-table letters may have an empty table; other classic types still
+      // need a value.
       throw badRequest('أدخل القيمة / الأصناف', 'NO_VALUE');
     }
   }
@@ -864,7 +865,8 @@ router.post('/letters/:id/edit', requireRole(), asyncH((req, res) => {
     else if (spec.recipient === 'fixed') { recipient = spec.recipientFixed; coop = ''; }
     else recipient = String(req.body.recipient || recipient || '').trim();
     const r = computeSpec(spec, req.body, coop, recipient);
-    if (spec.table && (!r.items || !r.items.length)) throw badRequest('أضف صفًا واحدًا على الأقل للجدول', 'NO_ROWS');
+    // Items are optional: a letter may be issued with no table (it just prints
+    // without one). Only a debit note's own value stays mandatory.
     if (spec.valueMode === 'direct' && !r.value) throw badRequest('أدخل القيمة', 'NO_VALUE');
     calc = { value: r.value, items: r.items };
     try { const lv = require('./tracking.routes').listingValue(coop, type, r.items); if (lv != null) calc.value = lv; } catch (e) { /* */ }
