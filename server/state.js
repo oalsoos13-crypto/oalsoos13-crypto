@@ -127,7 +127,9 @@ function buildState(user) {
   const scope = buildScope(user);
   let letterRows;
   if (user && user.role === 'salesman') {
-    letterRows = db.prepare('SELECT * FROM letters WHERE created_by = ? ORDER BY created_at ASC').all(user.id);
+    // Own letters, plus those a supervisor generated on the salesman's behalf
+    // from the budget (the salesman still enters the co-op debit note for them).
+    letterRows = db.prepare('SELECT * FROM letters WHERE created_by = ? OR sales = ? ORDER BY created_at ASC').all(user.id, user.name);
   } else if (user && user.role === 'supervisor') {
     const allowed = new Set((scope ? scope.coops : []).map((c) => c.coop));
     letterRows = db.prepare('SELECT * FROM letters ORDER BY created_at ASC').all().filter((r) => allowed.has(r.coop));

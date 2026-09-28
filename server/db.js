@@ -574,6 +574,16 @@ function migrate() {
       updated_at  TEXT,
       PRIMARY KEY (month, budget_type, coop, cust_id)
     )`);
+  // FOC is a SETTLEMENT METHOD for pallets / stands / price differences: the
+  // supervisor splits each co-op's amount into a D.N part (becomes a debit-note
+  // letter) and a مجاني part (free goods). FOC and الكوديشن spend is entered by
+  // the admin by hand, so budget_caps carries a manual `spent` figure.
+  const acCols = db.prepare("PRAGMA table_info(budget_alloc_coop)").all().map((c) => c.name);
+  if (!acCols.includes('foc_amount')) db.exec('ALTER TABLE budget_alloc_coop ADD COLUMN foc_amount REAL NOT NULL DEFAULT 0');
+  const aoCols = db.prepare("PRAGMA table_info(budget_alloc_outlet)").all().map((c) => c.name);
+  if (!aoCols.includes('foc_amount')) db.exec('ALTER TABLE budget_alloc_outlet ADD COLUMN foc_amount REAL NOT NULL DEFAULT 0');
+  const bcCols = db.prepare("PRAGMA table_info(budget_caps)").all().map((c) => c.name);
+  if (!bcCols.includes('spent')) db.exec('ALTER TABLE budget_caps ADD COLUMN spent REAL');
   // The 'rental' budget type was split into 'pallets' and 'stands'. Migrate any
   // legacy 'rental' data to 'pallets' so nothing is orphaned (idempotent).
   try {

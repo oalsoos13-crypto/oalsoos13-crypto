@@ -524,6 +524,12 @@ const T = {
   r_budgetDist: { ar: "توزيع البتجيت", en: "Budget distribution" },
   r_budgetDist_d: { ar: "توزيع المخصّص على المناديب والجمعيات.", en: "Distribute your allocation to salesmen and coops." },
   bd_received: { ar: "المخصّص لك", en: "Your allocation" },
+  bd_dn: { ar: "D.N", en: "D.N" },
+  bd_foc: { ar: "مجاني", en: "FOC" },
+  bd_focDetail: { ar: "المجاني يُدخل داخل الطبالي / الستاند / فروق الأسعار — هنا تفصيله فقط", en: "FOC is entered inside pallets / stands / price diff — this is its breakdown" },
+  bd_against: { ar: "مقابل", en: "Against" },
+  bp_spent: { ar: "المصروف (يدوي)", en: "Spent (manual)" },
+  bp_focOrigin: { ar: "تفصيل المجاني المخصّص", en: "Allocated FOC breakdown" },
   bd_target: { ar: "المندوب / الجمعية", en: "Salesman / Coop" },
   bp_month: { ar: "الشهر", en: "Month" },
   bp_closed: { ar: "مسكّر", en: "Closed" },
@@ -2049,11 +2055,25 @@ function renderBudgetPlan() {
   // Caps (admin)
   let capsPanel = "";
   if (isAdmin) {
-    const rows = d.capped.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>
+    // المجاني / الكوديشن are not driven by letters: the admin enters their
+    // spend by hand. The FOC row also shows how the allocated FOC breaks down
+    // by the type it was given against (pallets / stands / price diff).
+    const MANUAL = ["foc", "polypack"];
+    const fo = focByOrigin();
+    const rows = d.capped.map((bt) => {
+      const spentCell = MANUAL.includes(bt)
+        ? `<input id="spent_${bt}" type="number" step="0.001" value="${d.caps[bt] && d.caps[bt].spent != null ? d.caps[bt].spent : ""}" onchange="bpSaveSpent('${bt}',this.value)" style="width:110px" ${dis}>`
+        : `<span class="hint">—</span>`;
+      const detail = bt === "foc"
+        ? `<div class="hint" style="margin-top:4px">${t("bp_focOrigin")}: ${DN_TYPES.map((k) => `${budgetTypeLabel(k)} <b class="mono">${KD(fo[k])}</b>`).join(" · ")} — <b class="mono">${KD(fo.total)}</b></div>`
+        : "";
+      return `<tr><td>${budgetTypeLabel(bt)}${detail}</td>
       <td><input id="cap_${bt}" type="number" step="0.001" value="${d.caps[bt] && d.caps[bt].amount != null ? d.caps[bt].amount : ""}" style="width:120px" ${dis}></td>
+      <td>${spentCell}</td>
       <td><input id="capn_${bt}" value="${esc((d.caps[bt] && d.caps[bt].note) || "")}" style="width:160px" ${dis}></td>
-      <td><button class="btn primary sm" onclick="bpSaveCap('${bt}')" ${dis}>${t("bp_save")}</button></td></tr>`).join("");
-    capsPanel = `<div class="panel"><header><h3>${t("bp_caps")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_note")}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+      <td><button class="btn primary sm" onclick="bpSaveCap('${bt}')" ${dis}>${t("bp_save")}</button></td></tr>`;
+    }).join("");
+    capsPanel = `<div class="panel"><header><h3>${t("bp_caps")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_spent")}</th><th>${t("bp_note")}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
   // Spend summary (all types)
   const sumRows = d.types.map((bt) => {
@@ -2082,6 +2102,11 @@ async function bpSaveCap(bt) {
   const amount = document.getElementById("cap_" + bt).value;
   const note = document.getElementById("capn_" + bt).value;
   try { await api("/budget-caps", { method: "POST", body: { month: bpMonth, budgetType: bt, amount, note } }); toast(t("saved")); vBudgetPlan(); }
+  catch (e) { toast(e.message); }
+}
+// Admin: the manually entered spend for المجاني / الكوديشن.
+async function bpSaveSpent(bt, amount) {
+  try { await api("/budget-spent", { method: "POST", body: { month: bpMonth, budgetType: bt, amount } }); toast(t("saved")); vBudgetPlan(); }
   catch (e) { toast(e.message); }
 }
 async function bpCloseMonth(close) {
@@ -2116,46 +2141,87 @@ function bdCoopAlloc(bt, sm, c) { const a = (bpData.allocCoop || []).find((x) =>
 function bdSalesSpend(bt, sm) { const a = (bpData.spend.bySales || []).find((x) => x.budgetType === bt && x.salesman === sm); return a ? a.note : 0; }
 function bdCoopSpend(bt, c) { const a = (bpData.spend.byCoop || []).find((x) => x.budgetType === bt && x.coop === c); return a ? a.note : 0; }
 function bdOutletAlloc(bt, coop, cid) { const a = (bpData.allocOutlet || []).find((x) => x.budgetType === bt && x.coop === coop && x.custId === cid); return a ? a.amount : ""; }
+// The مجاني (FOC) part of a co-op / outlet allocation. FOC is a settlement
+// method for the D.N-able types, entered beside the D.N part by the supervisor.
+const DN_TYPES = ["pallets", "stands", "pricediff"];
+function bdCoopFoc(bt, sm, c) { const a = (bpData.allocCoop || []).find((x) => x.budgetType === bt && x.salesman === sm && x.coop === c); return a && a.focAmount ? a.focAmount : ""; }
+function bdOutletFoc(bt, coop, cid) { const a = (bpData.allocOutlet || []).find((x) => x.budgetType === bt && x.coop === coop && x.custId === cid); return a && a.focAmount ? a.focAmount : ""; }
+// Allocated FOC summed by the type it was given against (over the allocation
+// rows the server already scoped to the viewer).
+function focByOrigin() {
+  const out = { total: 0 };
+  DN_TYPES.forEach((bt) => {
+    let s = 0;
+    (bpData.allocCoop || []).forEach((a) => { if (a.budgetType === bt && !coopHasOutlet(bt, a.coop)) s += +a.focAmount || 0; });
+    (bpData.allocOutlet || []).forEach((a) => { if (a.budgetType === bt) s += +a.focAmount || 0; });
+    out[bt] = s; out.total += s;
+  });
+  return out;
+}
 function bdOutletSpend(bt, cid) { const a = (bpData.spend.byOutlet || []).find((x) => x.budgetType === bt && x.custId === cid); return a ? a.note : 0; }
-function coopHasOutlet(bt, coop) { return (bpData.allocOutlet || []).some((x) => x.budgetType === bt && x.coop === coop && (+x.amount || 0) !== 0); }
-function coopOutletSum(bt, coop, outlets) { return (outlets || []).reduce((s, o) => s + (+bdOutletAlloc(bt, coop, o.custId) || 0), 0); }
+function coopHasOutlet(bt, coop) { return (bpData.allocOutlet || []).some((x) => x.budgetType === bt && x.coop === coop && ((+x.amount || 0) !== 0 || (+x.focAmount || 0) !== 0)); }
+// Totals count BOTH parts (D.N + مجاني) against the type's received allocation.
+function coopOutletSum(bt, coop, outlets) { return (outlets || []).reduce((s, o) => s + (+bdOutletAlloc(bt, coop, o.custId) || 0) + (+bdOutletFoc(bt, coop, o.custId) || 0), 0); }
 // A coop's effective allocation: the sum of its outlets when any is set,
 // otherwise the value entered directly at coop level.
-function coopEffective(bt, sm, coop, outlets) { return coopHasOutlet(bt, coop) ? coopOutletSum(bt, coop, outlets) : (+bdCoopAlloc(bt, sm, coop) || 0); }
+function coopEffective(bt, sm, coop, outlets) { return coopHasOutlet(bt, coop) ? coopOutletSum(bt, coop, outlets) : ((+bdCoopAlloc(bt, sm, coop) || 0) + (+bdCoopFoc(bt, sm, coop) || 0)); }
+// The allocation cell for a co-op: read-only rollup when its outlets are set;
+// a D.N + مجاني pair for the D.N-able types; a single input otherwise.
+function bdCoopCell(bt, sm, coop, outlets, gid, dis) {
+  const q = (s) => String(s).replace(/'/g, "\\'");
+  if (coopHasOutlet(bt, coop)) return `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`;
+  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}')" style="width:100px" ${dis || ""}>`;
+  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}')" style="width:88px" ${dis || ""}>
+    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdCoopFoc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','focAmount',this.value,'${gid}')" style="width:88px" ${dis || ""}></span>`;
+}
+function bdOutletCell(bt, sm, coop, o, gid, dis) {
+  const q = (s) => String(s).replace(/'/g, "\\'");
+  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}')" style="width:100px" ${dis || ""}>`;
+  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}')" style="width:88px" ${dis || ""}>
+    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdOutletFoc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','focAmount',this.value,'${gid}')" style="width:88px" ${dis || ""}></span>`;
+}
 function bdMeStruct() { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.structure && bpData.structure[me]) || {}; }
 function renderBudgetDist() {
   const d = bpData, me = (d.me && d.me.name) || currentUser.name;
   const closed = d.closed, dis = closed ? "disabled" : "";
   const struct = (d.structure && d.structure[me]) || {};
   const salesmen = Object.keys(struct).sort();
+  // The supervisor generates the D.N letters from here (short chain:
+  // supervisor -> sales manager -> print). The مجاني part never becomes a letter.
+  const genBtn = currentUser.role === "supervisor" ? `<button class="btn primary sm" onclick="generateFromBudget()">⚡ ${t("genFromBudget")}</button>` : "";
   const monthBar = `<div class="panel"><div class="body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <label>${t("bp_month")}:</label><input type="month" value="${esc(d.month)}" onchange="bpSetMonth2(this.value)">
-    <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span></div></div>`;
+    <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span>${genBtn}</div></div>`;
   if (!salesmen.length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
-  const q = (s) => String(s).replace(/'/g, "\\'");
-  // 'خارج الاستثمار' (offinv) is NOT distributed here — it is computed
-  // automatically from the letter type, and its per-coop spend shows in the
-  // monitoring screen. Only the capped types are distributed.
+  // Only the capped types are distributed. FOC is not distributed as its own
+  // block: it is entered as the مجاني part inside pallets / stands / price diff,
+  // and its block below is a read-only breakdown against what was received.
   const types = (d.capped || []);
   const smSumOf = (bt, sm) => { const coops = struct[sm] || {}; return Object.keys(coops).reduce((a, c) => a + coopEffective(bt, sm, c, coops[c]), 0); };
   const blocks = types.map((bt) => {
     const received = +bpAllocOf(bt, me) || 0;
+    if (bt === "foc") {
+      const fo = focByOrigin();
+      const over = received > 0 && fo.total > received;
+      return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_foc" style="${over ? "color:var(--danger)" : ""}">${KD(fo.total)}</span></summary>
+        <div class="hint" style="margin:8px 0 4px">${t("bd_focDetail")}</div>
+        <div class="tbl-wrap"><table><thead><tr><th>${t("bd_against")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>
+        ${DN_TYPES.map((k) => `<tr><td>${budgetTypeLabel(k)}</td><td class="mono" id="bdfoc_${k}">${KD(fo[k])}</td></tr>`).join("")}
+        </tbody></table></div></details></div>`;
+    }
     const distSum = salesmen.reduce((s, sm) => s + smSumOf(bt, sm), 0);
-    const over = bt !== "offinv" && received > 0 && distSum > received;
+    const over = received > 0 && distSum > received;
+    const isDn = DN_TYPES.includes(bt);
     const smRows = salesmen.map((sm, si) => {
       const coops = struct[sm] || {};
       const coopNames = Object.keys(coops).sort();
       const coopBlocks = coopNames.map((coop, ci) => {
         const outlets = coops[coop] || [];
         const gid = `${bt}_${si}_${ci}`;
-        const has = coopHasOutlet(bt, coop);
-        const coopCell = has
-          ? `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`
-          : `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}',this.value,'${gid}')" style="width:100px" ${dis}>`;
         const coopRow = `<tr><td style="padding-inline-start:24px"><button class="btn ghost sm out-toggle" style="padding:0 7px" onclick="bdToggleOut('${gid}',this)">▸</button> ${esc(coopAr(coop) || coop)}</td>
-          <td id="coopwrap_${gid}">${coopCell}</td><td class="mono">${KD(bdCoopSpend(bt, coop))}</td></tr>`;
+          <td id="coopwrap_${gid}">${bdCoopCell(bt, sm, coop, outlets, gid, dis)}</td><td class="mono">${KD(bdCoopSpend(bt, coop))}</td></tr>`;
         const outRows = outlets.map((o) => `<tr class="outrow og_${gid}" style="display:none"><td style="padding-inline-start:52px;font-size:12.5px;color:var(--muted)">${esc(o.name)}</td>
-          <td><input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}',this.value,'${gid}')" style="width:100px" ${dis}></td>
+          <td>${bdOutletCell(bt, sm, coop, o, gid, dis)}</td>
           <td class="mono">${KD(bdOutletSpend(bt, o.custId))}</td></tr>`).join("");
         return coopRow + outRows;
       }).join("");
@@ -2163,8 +2229,9 @@ function renderBudgetDist() {
         <td class="mono" id="smroll_${bt}_${si}" style="font-weight:700">${KD(smSumOf(bt, sm))}</td>
         <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopBlocks}`;
     }).join("");
-    return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${bt === "offinv" ? "—" : KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}</span></summary>
-      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("bd_target")}</th><th>${t("bp_allocated")}</th><th>${t("bp_noteSpend")}</th></tr></thead><tbody>${smRows}</tbody></table></div></details></div>`;
+    const allocHead = isDn ? `${t("bp_allocated")} (${t("bd_dn")} + ${t("bd_foc")})` : t("bp_allocated");
+    return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}</span></summary>
+      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("bd_target")}</th><th>${allocHead}</th><th>${t("bp_noteSpend")}</th></tr></thead><tbody>${smRows}</tbody></table></div></details></div>`;
   }).join("");
   document.getElementById("rv").innerHTML = monthBar + `<div class="panel"><header><h3>${t("r_budgetDist")}</h3></header><div class="body">${blocks}</div></div>`;
 }
@@ -2190,35 +2257,45 @@ function bdUpdateTotals(bt) {
   if (dcell) {
     dcell.textContent = KD(total);
     const received = +bpAllocOf(bt, me) || 0;
-    dcell.style.color = (bt !== "offinv" && received > 0 && total > received) ? "var(--danger)" : "";
+    dcell.style.color = (received > 0 && total > received) ? "var(--danger)" : "";
+  }
+  // A D.N-able type also feeds the FOC breakdown block — refresh it in place.
+  if (DN_TYPES.includes(bt)) {
+    const fo = focByOrigin();
+    DN_TYPES.forEach((k) => { const c = document.getElementById("bdfoc_" + k); if (c) c.textContent = KD(fo[k]); });
+    const fc = document.getElementById("bddist_foc");
+    if (fc) { fc.textContent = KD(fo.total); const r = +bpAllocOf("foc", me) || 0; fc.style.color = (r > 0 && fo.total > r) ? "var(--danger)" : ""; }
   }
 }
-async function bdSaveCoop(bt, sm, coop, amount, gid) {
+// `field` is 'amount' (the D.N part) or 'focAmount' (the مجاني part); the
+// server keeps the other part as stored.
+async function bdSaveCoop(bt, sm, coop, field, value, gid) {
   try {
-    await api("/budget-alloc-coop", { method: "POST", body: { month: bpMonth, budgetType: bt, salesman: sm, coop, amount } });
-    const v = +amount || 0;
+    const body = { month: bpMonth, budgetType: bt, salesman: sm, coop }; body[field] = value;
+    await api("/budget-alloc-coop", { method: "POST", body });
+    const v = +value || 0;
     const arr = bpData.allocCoop || (bpData.allocCoop = []);
-    const ex = arr.find((x) => x.budgetType === bt && x.salesman === sm && x.coop === coop);
-    if (ex) ex.amount = v; else arr.push({ budgetType: bt, salesman: sm, coop, amount: v });
+    let ex = arr.find((x) => x.budgetType === bt && x.salesman === sm && x.coop === coop);
+    if (!ex) { ex = { budgetType: bt, salesman: sm, coop, amount: 0, focAmount: 0 }; arr.push(ex); }
+    ex[field] = v;
     bdUpdateTotals(bt);
     toast(t("saved"));
   } catch (e) { toast(e.message); }
 }
-async function bdSaveOutlet(bt, sm, coop, custId, amount, gid) {
+async function bdSaveOutlet(bt, sm, coop, custId, field, value, gid) {
   try {
-    await api("/budget-alloc-outlet", { method: "POST", body: { month: bpMonth, budgetType: bt, coop, custId, amount } });
-    const v = +amount || 0;
+    const body = { month: bpMonth, budgetType: bt, coop, custId }; body[field] = value;
+    await api("/budget-alloc-outlet", { method: "POST", body });
+    const v = +value || 0;
     const arr = bpData.allocOutlet || (bpData.allocOutlet = []);
-    const ex = arr.find((x) => x.budgetType === bt && x.coop === coop && x.custId === custId);
-    if (ex) ex.amount = v; else arr.push({ budgetType: bt, coop, custId, amount: v });
+    let ex = arr.find((x) => x.budgetType === bt && x.coop === coop && x.custId === custId);
+    if (!ex) { ex = { budgetType: bt, coop, custId, amount: 0, focAmount: 0 }; arr.push(ex); }
+    ex[field] = v;
     // The coop now rolls up from its outlets: replace its cell with the sum
-    // (or restore the direct input if all outlets were cleared).
+    // (or restore the direct input(s) if all outlets were cleared).
     const outlets = (bdMeStruct()[sm] || {})[coop] || [];
     const wrap = document.getElementById("coopwrap_" + gid);
-    if (wrap) {
-      if (coopHasOutlet(bt, coop)) wrap.innerHTML = `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`;
-      else wrap.innerHTML = `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${String(sm).replace(/'/g, "\\'")}','${String(coop).replace(/'/g, "\\'")}',this.value,'${gid}')" style="width:100px">`;
-    }
+    if (wrap) wrap.innerHTML = bdCoopCell(bt, sm, coop, outlets, gid, "");
     bdUpdateTotals(bt);
     toast(t("saved"));
   } catch (e) { toast(e.message); }
@@ -2584,7 +2661,7 @@ function vSalesman() {
   const me = scopeName();
   const myLetters = me ? DB.letters.filter((l) => l.sales === me) : DB.letters;
   document.getElementById("rv").innerHTML = `
-  <div class="panel"><header><h3>${t("letters")} (${myLetters.length})</h3><div class="actions"><button class="btn primary sm" onclick="generateFromBudget()">⚡ ${t("genFromBudget")}</button><button class="btn gold sm" onclick="openLetterForm()">＋ ${t("newLetter")}</button></div></header><div class="tbl-wrap">${tblSalesLetters(myLetters.slice().reverse())}</div></div>`;
+  <div class="panel"><header><h3>${t("letters")} (${myLetters.length})</h3><div class="actions"><button class="btn gold sm" onclick="openLetterForm()">＋ ${t("newLetter")}</button></div></header><div class="tbl-wrap">${tblSalesLetters(myLetters.slice().reverse())}</div></div>`;
 }
 async function generateFromBudget() {
   if (!confirm(t("genConfirm"))) return;

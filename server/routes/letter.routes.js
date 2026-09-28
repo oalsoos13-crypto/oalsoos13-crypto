@@ -368,38 +368,29 @@ function coopFullFromAr(ar, fallback) {
   return `جمعية ${a} التعاونية`;
 }
 
-// POST /api/letters/generate-from-budget  { month? }
-router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((req, res) => {
-  const sales = req.user.name;
-  const pf = req.user.username;
-  // Month: use the one passed, else auto-pick the ACTIVE (open, not closed) month
-  // that has a distribution for this salesman — the calendar month may be closed
-  // while the next month is the live one.
-  let month = /^\d{4}-\d{2}$/.test(String(req.body.month || '')) ? req.body.month : null;
-  if (!month) {
-    const open = db.prepare(`SELECT DISTINCT ac.month AS m FROM budget_alloc_coop ac
-        LEFT JOIN budget_months bm ON bm.month = ac.month
-        WHERE ac.salesman = ? AND COALESCE(bm.closed,0) = 0 AND ac.amount <> 0
-        ORDER BY ac.month DESC`).all(sales);
-    if (open.length) month = open[0].m;
-    else {
-      const om = db.prepare("SELECT month FROM budget_months WHERE COALESCE(closed,0)=0 ORDER BY month DESC LIMIT 1").get();
-      month = om ? om.month : nowIso().slice(0, 7);
-    }
-  }
-
-  // If the month is closed, the distribution is final but still generatable.
-  // Build the salesman's co-op structure from the outlets master.
+// POST /api/letters/generate-from-budget  { month? }  (supervisor)
+// Creates one debit-note letter per co-op / outlet from the D.N part of the
+// supervisor's distribution (pallets / stands / price differences). The مجاني
+// (FOC) part never becomes a letter. Generated letters carry meta.genBudget and
+// so follow the short chain: supervisor -> sales manager -> print.
+router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((req, res) => {
+  const supPf = req.user.username;
+  // The supervisor's team from the outlets master: salesman -> coopsName -> info.
   const coopRows = db.prepare('SELECT code, name, name_ar FROM coops').all();
   const nameByCode = new Map(coopRows.map((c) => [String(c.code).toUpperCase(), c.name]));
   const arByCode = new Map(coopRows.map((c) => [String(c.code).toUpperCase(), c.name_ar || '']));
   const codeOf = (p) => { const m = String(p || '').match(/^(P\d+)/i); return m ? m[1].toUpperCase() : null; };
-  // coopsName -> { scopeCoop, recipient, outlets: [{custId, market}] }
-  const coops = new Map();
-  db.prepare('SELECT cust_id, name, parent FROM outlets WHERE salesman_pf = ? ORDER BY parent, name').all(pf).forEach((r) => {
+  const team = new Map(); // salesman -> Map(coopsName -> { scopeCoop, recipient, outlets: Map(custId -> name) })
+  const rows = req.user.role === 'admin'
+    ? db.prepare('SELECT cust_id, name, parent, salesman FROM outlets WHERE salesman IS NOT NULL ORDER BY parent, name').all()
+    : db.prepare('SELECT cust_id, name, parent, salesman FROM outlets WHERE fsm_pf = ? ORDER BY parent, name').all(supPf);
+  rows.forEach((r) => {
+    if (!r.salesman) return;
     const code = codeOf(r.parent);
     const coopsName = (code && nameByCode.get(code)) || cleanCoop(r.parent) || String(r.parent || '').trim();
     if (!coopsName) return;
+    if (!team.has(r.salesman)) team.set(r.salesman, new Map());
+    const coops = team.get(r.salesman);
     if (!coops.has(coopsName)) {
       coops.set(coopsName, {
         scopeCoop: cleanCoop(r.parent) || coopsName,
@@ -410,8 +401,27 @@ router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((re
     const outName = String(r.name || '').replace(/^\d+\s*-\s*/, '').trim() || r.name;
     coops.get(coopsName).outlets.set(String(r.cust_id), AR.outlets[outName] || outName);
   });
+  const mySales = [...team.keys()];
+  if (!mySales.length) throw badRequest('لا يوجد مناديب ضمن فريقك', 'NO_TEAM');
+  const ph = mySales.map(() => '?').join(',');
 
-  const allocCoop = db.prepare('SELECT budget_type, coop, amount FROM budget_alloc_coop WHERE month=? AND salesman=?').all(month, sales);
+  // Month: the one passed, else the latest OPEN month that has a D.N
+  // distribution for this team (the calendar month may already be closed).
+  let month = /^\d{4}-\d{2}$/.test(String(req.body.month || '')) ? req.body.month : null;
+  if (!month) {
+    const open = db.prepare(`SELECT DISTINCT ac.month AS m FROM budget_alloc_coop ac
+        LEFT JOIN budget_months bm ON bm.month = ac.month
+        WHERE ac.salesman IN (${ph}) AND COALESCE(bm.closed,0) = 0 AND ac.amount <> 0
+        ORDER BY ac.month DESC`).all(...mySales);
+    if (open.length) month = open[0].m;
+    else {
+      const om = db.prepare("SELECT month FROM budget_months WHERE COALESCE(closed,0)=0 ORDER BY month DESC LIMIT 1").get();
+      month = om ? om.month : nowIso().slice(0, 7);
+    }
+  }
+
+  // D.N parts only (`amount`) — the FOC part (`foc_amount`) is never a letter.
+  const allocCoop = db.prepare(`SELECT budget_type, salesman, coop, amount FROM budget_alloc_coop WHERE month=? AND salesman IN (${ph})`).all(month, ...mySales);
   const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month);
   const outletByKey = new Map(); // `${bt}|${coop}|${custId}` -> amount
   const coopHasOutlet = new Set(); // `${bt}|${coop}`
@@ -421,31 +431,34 @@ router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((re
     coopHasOutlet.add(`${o.budget_type}|${o.coop}`);
   }
 
-  // Already-generated letters for this month (dedupe): key by type|scopeCoop|custId.
+  // Dedupe against every letter already generated for this month, whoever
+  // generated it: key type|scopeCoop|custId.
   const doneKeys = new Set();
-  db.prepare("SELECT type, coop, cust_id, meta FROM letters WHERE created_by=?").all(req.user.id).forEach((L) => {
+  db.prepare("SELECT type, coop, cust_id, meta FROM letters WHERE meta LIKE '%genBudget%'").all().forEach((L) => {
     let mj = null; try { mj = L.meta ? JSON.parse(L.meta) : null; } catch (e) { mj = null; }
     if (mj && mj.genBudget === month) doneKeys.add(`${L.type}|${L.coop}|${L.cust_id || ''}`);
   });
 
-  const targets = []; // { type, bt, scopeCoop, recipient, custId, market, value }
+  const targets = []; // { type, bt, sales, scopeCoop, recipient, custId, market, value }
   for (const bt of Object.keys(GEN_TYPE_OF)) {
     const type = GEN_TYPE_OF[bt];
-    // Coop-level allocations for this type.
+    // Coop-level D.N allocations for this type.
     for (const row of allocCoop) {
       if (row.budget_type !== bt || !(num(row.amount) > 0)) continue;
-      const info = coops.get(row.coop);
-      if (!info) continue; // coop not in this salesman's scope
+      const coops = team.get(row.salesman);
+      const info = coops && coops.get(row.coop);
+      if (!info) continue; // coop not in this team
       if (coopHasOutlet.has(`${bt}|${row.coop}`)) continue; // outlets drive it instead
-      targets.push({ type, bt, scopeCoop: info.scopeCoop, recipient: info.recipient, custId: null, market: '', value: num(row.amount) });
+      targets.push({ type, bt, sales: row.salesman, scopeCoop: info.scopeCoop, recipient: info.recipient, custId: null, market: '', value: num(row.amount) });
     }
-    // Outlet-level allocations for this type.
+    // Outlet-level D.N allocations for this type — find the salesman serving it.
     for (const [key, amount] of outletByKey) {
       const [kbt, kcoop, kcust] = key.split('|');
       if (kbt !== bt) continue;
-      const info = coops.get(kcoop);
-      if (!info || !info.outlets.has(kcust)) continue; // not this salesman's outlet
-      targets.push({ type, bt, scopeCoop: info.scopeCoop, recipient: info.recipient, custId: kcust, market: marketLabelServer(info.outlets.get(kcust)), value: amount });
+      let hit = null;
+      for (const [sm, coops] of team) { const info = coops.get(kcoop); if (info && info.outlets.has(kcust)) { hit = { sm, info }; break; } }
+      if (!hit) continue; // not this team's outlet
+      targets.push({ type, bt, sales: hit.sm, scopeCoop: hit.info.scopeCoop, recipient: hit.info.recipient, custId: kcust, market: marketLabelServer(hit.info.outlets.get(kcust)), value: amount });
     }
   }
 
@@ -465,17 +478,17 @@ router.post('/letters/generate-from-budget', requireRole('salesman'), asyncH((re
       if (g.market) meta.market = g.market;
       insert.run({
         id, num: n, lysal: refNo(n), type: g.type, coop: g.scopeCoop,
-        sales, date: now.slice(0, 10), value: g.value,
+        sales: g.sales, date: now.slice(0, 10), value: g.value,
         recipient: g.recipient, meta: toJson(meta), custId: g.custId, bt: g.bt, by: req.user.id, now,
       });
-      created.push({ id, lysal: refNo(n), type: g.type, coop: g.scopeCoop, custId: g.custId, value: g.value });
+      created.push({ id, lysal: refNo(n), type: g.type, coop: g.scopeCoop, sales: g.sales, custId: g.custId, value: g.value });
     }
   });
   tx();
 
   audit.fromReq(req, 'letter.generate_budget', {
-    entityType: 'letter', summary: `Generated ${created.length} letters from budget (${month}, ${sales})`,
-    details: { month, sales, count: created.length },
+    entityType: 'letter', summary: `Generated ${created.length} D.N letters from budget (${month}, ${req.user.name})`,
+    details: { month, supervisor: req.user.name, count: created.length },
   });
   res.json({ ok: true, month, created: created.length, skipped: targets.length - created.length, letters: created });
 }));
@@ -701,7 +714,14 @@ function assertCanModerate(req, L) {
 // The linear approval chain. Each stage is owned by the role of the same name;
 // 'print' is the terminal ready-for-admin state.
 const CHAIN = ['supervisor', 'sales_manager', 'marketing_manager', 'sales_ops', 'print'];
-function nextStage(stage) { const i = CHAIN.indexOf(stage); return i < 0 ? null : CHAIN[i + 1] || null; }
+// Letters generated from the budget distribution (meta.genBudget) follow the
+// SHORT chain: supervisor -> sales manager -> print (no marketing / sales ops).
+const CHAIN_SHORT = ['supervisor', 'sales_manager', 'print'];
+function chainFor(L) {
+  try { const m = L && L.meta ? JSON.parse(L.meta) : null; if (m && m.genBudget) return CHAIN_SHORT; } catch (e) { /* */ }
+  return CHAIN;
+}
+function nextStage(stage, L) { const c = chainFor(L); const i = c.indexOf(stage); return i < 0 ? null : c[i + 1] || null; }
 // The signatory who e-signs at a given stage, if the letter is his to sign.
 // سائد الرمحي signs at the sales_manager stage; أحمد شوقي at the sales_ops stage.
 // Letters signed by others (راشد/عماد, Union) are approved only — signed on paper.
@@ -739,7 +759,7 @@ router.post('/letters/:id/approve', requireRole('supervisor', 'sales_manager', '
   const now = nowIso();
   meta.approvals[stage] = { by: req.user.name || req.user.username, at: now };
 
-  const next = nextStage(stage);
+  const next = nextStage(stage, L);
   const done = next === 'print';
   db.prepare(
     "UPDATE letters SET appr_stage=?, approval=?, meta=?, approved_by=?, approved_at=?, rejected_by=NULL, rejected_at=NULL, reject_reason=NULL, updated_at=? WHERE id=?"

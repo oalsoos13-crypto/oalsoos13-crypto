@@ -153,18 +153,19 @@ router.get('/budget-plan', asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const m = db.prepare('SELECT month, closed FROM budget_months WHERE month=?').get(month);
   const caps = {};
-  db.prepare('SELECT budget_type, amount, note FROM budget_caps WHERE month=?').all(month)
-    .forEach((r) => { caps[r.budget_type] = { amount: r.amount, note: r.note }; });
+  db.prepare('SELECT budget_type, amount, note, spent FROM budget_caps WHERE month=?').all(month)
+    .forEach((r) => { caps[r.budget_type] = { amount: r.amount, note: r.note, spent: r.spent }; });
   const alloc = db.prepare('SELECT budget_type, supervisor, amount FROM budget_alloc WHERE month=?').all(month)
     .map((r) => ({ budgetType: r.budget_type, supervisor: r.supervisor, amount: r.amount }));
   const supervisors = db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1 ORDER BY name").all().map((r) => r.name);
   // Second-level allocations (supervisor -> salesman, salesman -> coop).
   const allocSales = db.prepare('SELECT budget_type, supervisor, salesman, amount FROM budget_alloc_sales WHERE month=?').all(month)
     .map((r) => ({ budgetType: r.budget_type, supervisor: r.supervisor, salesman: r.salesman, amount: r.amount }));
-  const allocCoop = db.prepare('SELECT budget_type, salesman, coop, amount FROM budget_alloc_coop WHERE month=?').all(month)
-    .map((r) => ({ budgetType: r.budget_type, salesman: r.salesman, coop: r.coop, amount: r.amount }));
-  const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month)
-    .map((r) => ({ budgetType: r.budget_type, coop: r.coop, custId: r.cust_id, amount: r.amount }));
+  // `amount` is the D.N part (becomes a letter); `focAmount` the مجاني part.
+  const allocCoop = db.prepare('SELECT budget_type, salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, salesman: r.salesman, coop: r.coop, amount: r.amount, focAmount: r.foc_amount || 0 }));
+  const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, coop: r.coop, custId: r.cust_id, amount: r.amount, focAmount: r.foc_amount || 0 }));
   // The distribution structure (supervisor -> salesmen -> coops -> outlets).
   // SCOPING: a supervisor must only ever receive their OWN branch — never the
   // other supervisors' salesmen / co-ops / outlets. A salesman has no budget
@@ -175,6 +176,11 @@ router.get('/budget-plan', asyncH((req, res) => {
   const role = req.user ? req.user.role : null;
   const isMgmt = role === 'admin' || role === 'sales_manager' || role === 'marketing_manager' || role === 'sales_ops';
   const fullSpend = monthSpend(month);
+  // FOC and الكوديشن spend is entered by hand by the admin (no letters drive
+  // them): the manual figure replaces the letter-derived total for these types.
+  for (const mbt of ['foc', 'polypack']) {
+    if (caps[mbt] && caps[mbt].spent != null) fullSpend.byType[mbt] = { letter: 0, note: num(caps[mbt].spent), manual: true };
+  }
   let structure = fullStructure;
   let outAlloc = alloc, outAllocSales = allocSales, outAllocCoop = allocCoop, outAllocOutlet = allocOutlet;
   let outSupervisors = supervisors, outSpend = fullSpend;
@@ -314,14 +320,18 @@ router.post('/budget-alloc-coop', requireRole('supervisor'), asyncH((req, res) =
     const coops = mine[salesman] || {};
     if (!Object.prototype.hasOwnProperty.call(coops, coop)) throw forbidden('هذه الجمعية ليست ضمن مندوبك', 'NOT_MINE');
   }
-  const amount = num(req.body.amount);
+  // Partial update: the UI saves the D.N (`amount`) and مجاني (`focAmount`)
+  // parts from separate inputs, so a missing field keeps its stored value.
+  const prev = db.prepare('SELECT amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND salesman=? AND coop=?').get(month, bt, salesman, coop) || {};
+  const amount = req.body.amount != null ? num(req.body.amount) : num(prev.amount);
+  const focAmount = req.body.focAmount != null ? num(req.body.focAmount) : num(prev.foc_amount);
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-  db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, salesman, coop, amount, updated_at) VALUES (?,?,?,?,?,?)
-    ON CONFLICT(month, budget_type, salesman, coop) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
-    .run(month, bt, salesman, coop, amount, now);
-  audit.fromReq(req, 'budget.alloc.coop', { entityType: 'budget_alloc_coop', summary: `Alloc ${bt} ${month} ${salesman}->${coop} = ${amount}`, details: { month, bt, salesman, coop, amount } });
-  res.json({ ok: true });
+  db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, salesman, coop, amount, foc_amount, updated_at) VALUES (?,?,?,?,?,?,?)
+    ON CONFLICT(month, budget_type, salesman, coop) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
+    .run(month, bt, salesman, coop, amount, focAmount, now);
+  audit.fromReq(req, 'budget.alloc.coop', { entityType: 'budget_alloc_coop', summary: `Alloc ${bt} ${month} ${salesman}->${coop} = DN ${amount} / FOC ${focAmount}`, details: { month, bt, salesman, coop, amount, focAmount } });
+  res.json({ ok: true, amount, focAmount });
 }));
 
 // POST /api/budget-alloc-outlet (supervisor) — split a coop's share of a type
@@ -341,13 +351,34 @@ router.post('/budget-alloc-outlet', requireRole('supervisor'), asyncH((req, res)
     const ok = Object.values(mine).some((coops) => (coops[coop] || []).some((o) => o.custId === custId));
     if (!ok) throw forbidden('هذا الأوتلت ليس ضمن نطاقك', 'NOT_MINE');
   }
-  const amount = num(req.body.amount);
+  // Partial update (D.N `amount` / مجاني `focAmount` saved from separate inputs).
+  const prev = db.prepare('SELECT amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND coop=? AND cust_id=?').get(month, bt, coop, custId) || {};
+  const amount = req.body.amount != null ? num(req.body.amount) : num(prev.amount);
+  const focAmount = req.body.focAmount != null ? num(req.body.focAmount) : num(prev.foc_amount);
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-  db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, coop, cust_id, amount, updated_at) VALUES (?,?,?,?,?,?)
-    ON CONFLICT(month, budget_type, coop, cust_id) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
-    .run(month, bt, coop, custId, amount, now);
-  audit.fromReq(req, 'budget.alloc.outlet', { entityType: 'budget_alloc_outlet', summary: `Alloc ${bt} ${month} ${coop}/${custId} = ${amount}`, details: { month, bt, coop, custId, amount } });
+  db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, coop, cust_id, amount, foc_amount, updated_at) VALUES (?,?,?,?,?,?,?)
+    ON CONFLICT(month, budget_type, coop, cust_id) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
+    .run(month, bt, coop, custId, amount, focAmount, now);
+  audit.fromReq(req, 'budget.alloc.outlet', { entityType: 'budget_alloc_outlet', summary: `Alloc ${bt} ${month} ${coop}/${custId} = DN ${amount} / FOC ${focAmount}`, details: { month, bt, coop, custId, amount, focAmount } });
+  res.json({ ok: true, amount, focAmount });
+}));
+
+// POST /api/budget-spent (admin) — the month's manually entered spend for a
+// type that is not driven by letters (المجاني / الكوديشن). Body: { month, budgetType, amount }.
+router.post('/budget-spent', requireRole(), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  const bt = String(req.body.budgetType || '');
+  if (!ALL_BUDGET_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+  const closed = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month);
+  if (closed && closed.closed) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  const spent = req.body.amount === '' || req.body.amount == null ? null : num(req.body.amount);
+  const now = nowIso();
+  db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+  db.prepare(`INSERT INTO budget_caps (month, budget_type, amount, note, spent, updated_at) VALUES (?,?,NULL,'',?,?)
+    ON CONFLICT(month, budget_type) DO UPDATE SET spent=excluded.spent, updated_at=excluded.updated_at`)
+    .run(month, bt, spent, now);
+  audit.fromReq(req, 'budget.spent', { entityType: 'budget_cap', summary: `Manual spend ${bt} ${month} = ${spent == null ? '—' : spent}`, details: { month, bt, spent } });
   res.json({ ok: true });
 }));
 
