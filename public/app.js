@@ -2218,7 +2218,7 @@ function renderBudgetDist() {
       const coopBlocks = coopNames.map((coop, ci) => {
         const outlets = coops[coop] || [];
         const gid = `${bt}_${si}_${ci}`;
-        const coopRow = `<tr><td style="padding-inline-start:24px"><button class="btn ghost sm out-toggle" style="padding:0 7px" onclick="bdToggleOut('${gid}',this)">▸</button> ${esc(coopAr(coop) || coop)}</td>
+        const coopRow = `<tr><td style="padding-inline-start:24px"><button class="btn ghost sm out-toggle" style="padding:0 7px" onclick="bdToggleOut('${gid}',this)">▸</button> ${esc(LANG === "en" ? coop : (coopAr(coop) || coop))}</td>
           <td id="coopwrap_${gid}">${bdCoopCell(bt, sm, coop, outlets, gid, dis)}</td><td class="mono">${KD(bdCoopSpend(bt, coop))}</td></tr>`;
         const outRows = outlets.map((o) => `<tr class="outrow og_${gid}" style="display:none"><td style="padding-inline-start:52px;font-size:12.5px;color:var(--muted)">${esc(o.name)}</td>
           <td>${bdOutletCell(bt, sm, coop, o, gid, dis)}</td>
