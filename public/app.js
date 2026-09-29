@@ -2424,11 +2424,14 @@ function loadScriptOnce(src) {
 }
 async function ensureArchiveLibs() {
   const tryLoad = async (urls) => { for (const u of urls) { try { await loadScriptOnce(u); return; } catch (e) { /* next */ } } throw new Error("cdn"); };
+  // Bundled copies first (no CDN dependency), then the CDNs as fallback.
   if (!window.JSZip) await tryLoad([
+    "vendor/jszip.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
     "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
   ]);
   if (!window.html2pdf) await tryLoad([
+    "vendor/html2pdf.bundle.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
     "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js",
   ]);
