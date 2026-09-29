@@ -339,7 +339,7 @@ const LETTER_SPECS = [
     group: 'coop', lang: 'ar', recipient: 'coop', debitFlow: false, valueMode: 'direct',
     subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
     intro: {
-      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) وذلك القيمة إيجـارات عن الفتـرة من {from} حتى {to} وذلك بنـاءً على العقـد المبـرم بيننا.',
+      ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة إيجـارات عن الفتـرة من {from} حتى {to} وذلك بنـاءً على العقـد المبـرم بيننا.',
       en: 'With reference to the above, kindly approve a debit note against the account of United Distinctive General Trading & Foodstuff Co. for (KD {value}) being rent for the period from {from} to {to}, as per the contract concluded between us.',
     },
     fields: [
