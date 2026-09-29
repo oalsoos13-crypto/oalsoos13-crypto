@@ -2091,7 +2091,7 @@ function renderBudgetPlan() {
     const blocks = d.capped.map((bt) => {
       const cap = d.caps[bt] && d.caps[bt].amount != null ? +d.caps[bt].amount : null;
       const sum = bpAllocSum(bt), over = cap != null && sum > cap;
-      const rows = sups.length ? sups.map((sup) => `<tr><td>${esc(sup)}</td><td><input type="number" step="0.001" value="${bpAllocOf(bt, sup)}" onchange="bpSaveAlloc('${bt}',this.dataset.sup,this.value)" data-sup="${esc(sup)}" style="width:120px" ${isSM && !closed ? "" : "disabled"}></td></tr>`).join("") : `<tr><td colspan="2"><div class="empty">${t("noAssign")}</div></td></tr>`;
+      const rows = sups.length ? sups.map((sup) => `<tr><td>${esc(sup)}</td><td><input type="number" step="0.001" value="${bpAllocOf(bt, sup)}" onchange="bpSaveAlloc('${bt}',this.dataset.sup,this.value,this)" data-sup="${esc(sup)}" style="width:120px" ${isSM && !closed ? "" : "disabled"}></td></tr>`).join("") : `<tr><td colspan="2"><div class="empty">${t("noAssign")}</div></td></tr>`;
       return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bp_allocated")}: <span class="mono" id="bpAllocSum_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(sum)}${cap != null ? " / " + KD(cap) : ""}</span></summary><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("supervisor")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
     }).join("");
     allocPanel = `<div class="panel"><header><h3>${t("bp_alloc")}</h3></header><div class="body">${blocks}</div></div>`;
@@ -2114,7 +2114,7 @@ async function bpCloseMonth(close) {
   try { await api("/budget-month/close", { method: "POST", body: { month: bpMonth, closed: close } }); toast(t("saved")); vBudgetPlan(); }
   catch (e) { toast(e.message); }
 }
-async function bpSaveAlloc(bt, sup, amount) {
+async function bpSaveAlloc(bt, sup, amount, el) {
   try {
     await api("/budget-alloc", { method: "POST", body: { month: bpMonth, budgetType: bt, supervisor: sup, amount } });
     // Update in place — do NOT re-render (that collapses the open accordion).
@@ -2123,10 +2123,13 @@ async function bpSaveAlloc(bt, sup, amount) {
     if (row) row.amount = val; else bpData.alloc.push({ budgetType: bt, supervisor: sup, amount: val });
     const sum = bpAllocSum(bt);
     const cap = bpData.caps[bt] && bpData.caps[bt].amount != null ? +bpData.caps[bt].amount : null;
-    const el = document.getElementById("bpAllocSum_" + bt);
-    if (el) { el.textContent = KD(sum) + (cap != null ? " / " + KD(cap) : ""); el.style.color = (cap != null && sum > cap) ? "var(--danger)" : ""; }
+    const sumEl = document.getElementById("bpAllocSum_" + bt);
+    if (sumEl) { sumEl.textContent = KD(sum) + (cap != null ? " / " + KD(cap) : ""); sumEl.style.color = (cap != null && sum > cap) ? "var(--danger)" : ""; }
     toast(t("saved"));
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    if (el) el.value = bpAllocOf(bt, sup); // refused (over cap): revert
+    toast(e.message);
+  }
 }
 /* ---- Supervisor: distribute the allocation to salesmen and their coops ---- */
 async function vBudgetDist() {
@@ -2170,15 +2173,15 @@ function coopEffective(bt, sm, coop, outlets) { return coopHasOutlet(bt, coop) ?
 function bdCoopCell(bt, sm, coop, outlets, gid, dis) {
   const q = (s) => String(s).replace(/'/g, "\\'");
   if (coopHasOutlet(bt, coop)) return `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`;
-  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}')" style="width:100px" ${dis || ""}>`;
-  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}')" style="width:88px" ${dis || ""}>
-    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdCoopFoc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','focAmount',this.value,'${gid}')" style="width:88px" ${dis || ""}></span>`;
+  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}',this)" style="width:100px" ${dis || ""}>`;
+  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}>
+    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdCoopFoc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','focAmount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}></span>`;
 }
 function bdOutletCell(bt, sm, coop, o, gid, dis) {
   const q = (s) => String(s).replace(/'/g, "\\'");
-  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}')" style="width:100px" ${dis || ""}>`;
-  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}')" style="width:88px" ${dis || ""}>
-    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdOutletFoc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','focAmount',this.value,'${gid}')" style="width:88px" ${dis || ""}></span>`;
+  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}',this)" style="width:100px" ${dis || ""}>`;
+  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}>
+    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdOutletFoc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','focAmount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}></span>`;
 }
 function bdMeStruct() { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.structure && bpData.structure[me]) || {}; }
 function renderBudgetDist() {
@@ -2269,7 +2272,7 @@ function bdUpdateTotals(bt) {
 }
 // `field` is 'amount' (the D.N part) or 'focAmount' (the مجاني part); the
 // server keeps the other part as stored.
-async function bdSaveCoop(bt, sm, coop, field, value, gid) {
+async function bdSaveCoop(bt, sm, coop, field, value, gid, el) {
   try {
     const body = { month: bpMonth, budgetType: bt, salesman: sm, coop }; body[field] = value;
     await api("/budget-alloc-coop", { method: "POST", body });
@@ -2280,9 +2283,13 @@ async function bdSaveCoop(bt, sm, coop, field, value, gid) {
     ex[field] = v;
     bdUpdateTotals(bt);
     toast(t("saved"));
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    // Refused (e.g. over budget): put the stored value back in the input.
+    if (el) el.value = field === "amount" ? bdCoopAlloc(bt, sm, coop) : bdCoopFoc(bt, sm, coop);
+    toast(e.message);
+  }
 }
-async function bdSaveOutlet(bt, sm, coop, custId, field, value, gid) {
+async function bdSaveOutlet(bt, sm, coop, custId, field, value, gid, el) {
   try {
     const body = { month: bpMonth, budgetType: bt, coop, custId }; body[field] = value;
     await api("/budget-alloc-outlet", { method: "POST", body });
@@ -2298,7 +2305,10 @@ async function bdSaveOutlet(bt, sm, coop, custId, field, value, gid) {
     if (wrap) wrap.innerHTML = bdCoopCell(bt, sm, coop, outlets, gid, "");
     bdUpdateTotals(bt);
     toast(t("saved"));
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    if (el) el.value = field === "amount" ? bdOutletAlloc(bt, coop, custId) : bdOutletFoc(bt, coop, custId);
+    toast(e.message);
+  }
 }
 // Placeholder sections (content to be defined later).
 function vDailyReports() {
