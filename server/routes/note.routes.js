@@ -60,6 +60,9 @@ router.post('/notes', requireRole('salesman'), asyncH((req, res) => {
 
   const coopDN = String(req.body.coopDN || '').trim();
   if (!coopDN) throw badRequest('أدخل رقم الإشعار بالجمعية', 'NO_DN_NO');
+  // The brand is chosen on the note itself (mandatory) — it feeds the D.N register.
+  const brand = String(req.body.brand || '').trim();
+  if (!brand) throw badRequest('اختر البراند | Brand is required', 'NO_BRAND');
   const atts = sanitizeAttachments(req.body.attachments);
   if (!atts.length) throw badRequest('أرفق صورة الإشعار أو ملف PDF', 'NO_ATTACHMENT');
 
@@ -72,7 +75,7 @@ router.post('/notes', requireRole('salesman'), asyncH((req, res) => {
       VALUES (@id,@num,@lysal,@letterId,@coopDN,@type,@coop,@brand,@sales,@value,@date,@items,@note,@att,'pending',@by,@now)`)
     .run({
       id, num: L.num, lysal: L.lysal, letterId: L.id, coopDN,
-      type: L.type, coop: L.coop, brand: L.brand, sales: L.sales, value,
+      type: L.type, coop: L.coop, brand, sales: L.sales, value,
       date: req.body.date || L.date || now.slice(0, 10),
       items: L.items, note: L.note || '',
       att: toJson(atts),

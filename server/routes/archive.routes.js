@@ -160,7 +160,7 @@ function registerRows(month, ids) {
       fsm: o ? `${o.fsm_pf || ''}-${fsmName}`.replace(/^-/, '') : '',
       customer: o ? o.name : '',
       classification: o ? (/MAIN/i.test(o.name) ? 'Main' : 'Branch') : '',
-      dn: n.coop_dn || '', value: Number(n.value) || 0, brand: L.brand || n.brand || '',
+      dn: n.coop_dn || '', value: Number(n.value) || 0, brand: n.brand || L.brand || '',
       date: fmtDMY(n.date), reason, note: n.note || L.note || '', letterRef: L.lysal || n.lysal || '',
     };
   });

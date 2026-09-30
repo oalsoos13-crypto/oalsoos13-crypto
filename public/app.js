@@ -602,6 +602,7 @@ const T = {
   r_archive_d: { ar: "أرشفة إشعارات الخصم للجهاز عند تسكيرة الشهر.", en: "Archive debit notes to the device at month close." },
   archiveMonth: { ar: "الشهر", en: "Month" },
   dnRegister: { ar: "شيت الإشعارات (Excel)", en: "D.N register (Excel)" },
+  errDNBrand: { ar: "اختر البراند (إجباري)", en: "Choose the brand (required)" },
   dnRegisterHint: { ar: "الإشعارات المعتمدة من الأدمن لأي شهر — بنفس أعمدة الشيت اليدوي + رقم الكتاب. يُضاف تلقائياً داخل ZIP الأرشفة.", en: "Admin-approved debit notes for any month — same columns as the manual sheet + letter ref. Also added inside the archive ZIP." },
   archiveReady: { ar: "إشعارات جاهزة للأرشفة", en: "Debit notes ready to archive" },
   archiveBtn: { ar: "⤓ أرشفة الشهر (ZIP)", en: "⤓ Archive month (ZIP)" },
@@ -2743,6 +2744,7 @@ function openDNForm(id) {
      <div class="field"><label>${t("coopDN")}</label><input id="dnNo" placeholder="مثال: 111"></div>
      <div class="field"><label>${t("th_value")} (${t("kd")})</label><input id="dnVal" type="number" step="0.001" value="${L.value}"></div>
      <div class="field"><label>${t("fDate")}</label><input id="dnDate" type="date" value="${L.date || new Date().toISOString().slice(0, 10)}"></div>
+     <div class="field"><label>${t("fBrand")} *</label><select id="dnBrand"><option value="">${t("choose")}</option>${(DB.ref.brands || []).map((b) => `<option ${L.brand === b ? "selected" : ""}>${esc(b)}</option>`).join("")}</select></div>
    </div>
    <div class="field" style="margin-top:14px"><label>${t("attachments")}</label>
      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -2789,6 +2791,8 @@ async function saveDN(letterId) {
   const coopDN = (dnNo.value || "").trim();
   const val = +document.getElementById("dnVal").value || undefined;
   const date = document.getElementById("dnDate").value;
+  const brandEl = document.getElementById("dnBrand");
+  const brand = brandEl ? (brandEl.value || "").trim() : "";
   // Clear any previous error state.
   const box = document.getElementById("dnErr");
   if (box) box.style.display = "none";
@@ -2796,13 +2800,14 @@ async function saveDN(letterId) {
   // Client-side validation with an inline, visible message (a toast alone can
   // sit behind the modal on mobile, so the user thinks nothing happened).
   if (!coopDN) return dnShowErr(t("errDNNo"), "dnNo");
+  if (!brand) return dnShowErr(t("errDNBrand"), "dnBrand");
   if (!dnAttach.length) return dnShowErr(t("errDNAtt"));
   const btn = document.getElementById("dnSaveBtn");
   if (btn) { btn.disabled = true; btn.textContent = t("saving"); }
   try {
     await api("/notes", {
       method: "POST",
-      body: { letterId, coopDN, value: val, date, attachments: dnAttach.slice() },
+      body: { letterId, coopDN, value: val, date, brand, attachments: dnAttach.slice() },
     });
     dnAttach = [];
     await loadState();
