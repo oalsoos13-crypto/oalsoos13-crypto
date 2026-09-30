@@ -29,7 +29,9 @@
     phraseKeys.sort(function (a, b) { return b.length - a.length; });
     var phrases = {};
     for (k in glossary.phrases || {}) phrases[norm(k)] = glossary.phrases[k];
-    var phraseRe = phraseKeys.length ? new RegExp("(^|[^\\u0600-\\u06FF])(" + phraseKeys.map(escRe).join("|") + ")(?![\\u0600-\\u06FF])", "g") : null;
+    // A phrase may carry a glued conjunction/preposition prefix ("وإيجار طبلية").
+    var PH_PRE = { "\u0648": "and ", "\u0641": "then ", "\u0628": "with ", "\u0644": "for ", "\u0644\u0644": "for the ", "\u0648\u0628": "and with ", "\u0648\u0644": "and for " };
+    var phraseRe = phraseKeys.length ? new RegExp("(^|[^\\u0600-\\u06FF])(\u0648\u0628|\u0648\u0644|\u0644\u0644|[\u0648\u0641\u0628\u0644])??(" + phraseKeys.map(escRe).join("|") + ")(?![\\u0600-\\u06FF])", "g") : null;
     function word(w) {
       if (words[w] != null) return words[w];
       // strip a trailing punctuation mark glued to the word
@@ -45,7 +47,7 @@
       s = norm(s);
       if (!s || !AR.test(s)) return s;
       if (exact[s] != null) return exact[s];
-      var out = phraseRe ? s.replace(phraseRe, function (_, pre, ph) { return pre + "\u0001" + phrases[ph] + "\u0001"; }) : s;
+      var out = phraseRe ? s.replace(phraseRe, function (_, pre, gl, ph) { return pre + "\u0001" + (gl ? PH_PRE[gl] || "" : "") + phrases[ph] + "\u0001"; }) : s;
       out = out.split(/(\s+)/).map(function (tok) {
         if (!AR.test(tok)) return tok;
         // token may carry brackets or slashes: translate the Arabic runs inside

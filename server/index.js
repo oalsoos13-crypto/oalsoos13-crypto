@@ -48,6 +48,7 @@ app.use('/api', require('./routes/letter.routes'));
 app.use('/api', require('./routes/note.routes'));
 app.use('/api', require('./routes/archive.routes'));
 app.use('/api', require('./routes/structure.routes'));
+app.use('/api', require('./routes/glossary.routes'));
 app.use('/api', require('./routes/audit.routes'));
 app.use('/api', require('./routes/master.routes'));
 app.use('/api', require('./routes/products.routes'));

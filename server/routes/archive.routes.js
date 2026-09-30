@@ -126,9 +126,8 @@ router.get('/archive/list', requireRole(), asyncH((req, res) => {
 // One row per ADMIN-APPROVED debit note of the month (entry month, same rule as
 // archiving), in the columns of the existing manual sheet plus the letter ref.
 const XLSX = require('xlsx');
-let GLOSS = null;
-try { GLOSS = require('../../public/ar-en.js').make(require('../../public/glossary_en.json')); } catch (e) { /* optional */ }
-const tEn = (v) => (GLOSS && v ? GLOSS.translate(String(v)) : v);
+// Shipped glossary + the admin's own entries (see glossary.routes.js).
+const tEn = (v) => { if (!v) return v; try { return require('./glossary.routes').translator().translate(String(v)); } catch (e) { return v; } };
 const REG_REASON = {
   palletdn: 'pallets', pallet: 'pallets', standdn: 'stands', stand: 'stands', rentstand: 'stand rent',
   pricediff: 'price diff', priceoff: 'price diff', listing_dn: 'listing', listing: 'listing', listing_supp: 'listing',

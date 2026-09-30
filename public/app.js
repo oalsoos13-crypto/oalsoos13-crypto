@@ -691,6 +691,16 @@ const T = {
   r_audit: { ar: "سجل التدقيق", en: "Audit Log" },
   r_audit_d: { ar: "استعراض كل العمليات وتصديرها للمراجعة.", en: "Review and export every action." },
   r_users: { ar: "المستخدمون", en: "Users" },
+  r_glossary: { ar: "قاموس الترجمة (عربي ← إنجليزي)", en: "Translation glossary (Arabic → English)" },
+  r_glossary_d: { ar: "أي كلمة عربية جديدة ما إلها ترجمة تظهر هنا — ترجمها مرة وحدة وتنطبق على كل النظام.", en: "Every new Arabic word without a translation shows up here — translate it once and it applies everywhere." },
+  gl_pending: { ar: "كلمات بدون ترجمة", en: "Untranslated words" }, gl_pendingHint: { ar: "مأخوذة من كل النصوص المخزّنة (أصناف، ملاحظات، عقود، منتجات…). اكتب الترجمة واضغط حفظ.", en: "Collected from every stored text (items, notes, contracts, products…). Type the translation and press Save." },
+  gl_none: { ar: "🎉 كل النصوص المخزّنة مترجمة", en: "🎉 Every stored text is translated" }, gl_word: { ar: "الكلمة / النص العربي", en: "Arabic word / text" }, gl_en: { ar: "الترجمة الإنجليزية", en: "English translation" },
+  gl_count: { ar: "التكرار", en: "Count" }, gl_examples: { ar: "أمثلة", en: "Examples" }, gl_saveAll: { ar: "حفظ كل الترجمات المكتوبة", en: "Save all typed translations" }, gl_saved: { ar: "تم حفظ {n} ترجمة", en: "{n} translation(s) saved" },
+  gl_entries: { ar: "القاموس الخاص بك", en: "Your dictionary" }, gl_entriesHint: { ar: "ترجماتك بتغلب ترجمات القاموس المدمج ({shipped} مدخل).", en: "Your entries override the built-in glossary ({shipped} entries)." },
+  gl_kind: { ar: "النوع", en: "Type" }, gl_k_word: { ar: "كلمة", en: "Word" }, gl_k_phrase: { ar: "عبارة (أكثر من كلمة)", en: "Phrase (several words)" }, gl_k_exact: { ar: "نص كامل كما هو", en: "Whole text, as is" },
+  gl_add: { ar: "＋ إضافة ترجمة", en: "＋ Add translation" }, gl_search: { ar: "بحث بالقاموس…", en: "Search the dictionary…" }, gl_try: { ar: "جرّب الترجمة", en: "Try a translation" },
+  gl_tryPh: { ar: "اكتب أي نص عربي لتشوف كيف بيطلع بالإنجليزي", en: "Type any Arabic text to see how it renders in English" }, gl_stats: { ar: "{t} من {s} نص مخزّن مترجم بالكامل", en: "{t} of {s} stored texts fully translated" },
+  gl_refresh: { ar: "تحديث", en: "Refresh" }, gl_delete: { ar: "حذف", en: "Delete" }, gl_confirmDel: { ar: "حذف هذه الترجمة؟", en: "Delete this translation?" },
   r_users_d: { ar: "إدارة الحسابات والأدوار وكلمات المرور.", en: "Manage accounts, roles and passwords." },
   r_structure: { ar: "بناء الهيكل (مشرفين ← مناديب ← جمعيات ← أوتليت)", en: "Structure builder (supervisors → salesmen → co-ops → outlets)" },
   r_structure_d: { ar: "المصدر الوحيد للهيكل — أي تعديل هنا ينعكس على كل الشاشات فورًا.", en: "Single source of truth — any change here is reflected on every screen." },
@@ -1187,7 +1197,7 @@ const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrac
 // Top-level sections (two-level sidebar): each groups a set of screens.
 const SECTIONS = [
   { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "budgetDist", "printQueue", "archive", "lettersHistory"] },
-  { k: "settings", screens: ["structure", "users", "backup", "audit", "methodology"] },
+  { k: "settings", screens: ["structure", "glossary", "users", "backup", "audit", "methodology"] },
   { k: "contracts", screens: ["contracts"] },
   { k: "sales", screens: ["sales", "salesMonthly"] },
   { k: "dailyreports", screens: ["dailyReports"] },
@@ -1289,7 +1299,7 @@ function render() {
     supervisor: ["budgetDist", "lettersHistory"],
     salesman: [],
   };
-  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "structure", "users", "backup", "audit", "methodology", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
+  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "structure", "glossary", "users", "backup", "audit", "methodology", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
   const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
     .filter((k) => !HIDDEN_ROUTES.has(k));
   // No default screen: the content stays empty until the user picks a section.
@@ -1345,6 +1355,7 @@ function render() {
     budgetDist: vBudgetDist,
     methodology: vMethodology,
     structure: vStructure,
+    glossary: vGlossary,
     union: vUnion,
     dailyReports: vDailyReports,
     orders: vOrders,
@@ -1511,6 +1522,7 @@ const ADMIN_ROLES = [
   { k: "backup", ic: "💾" },
   { k: "methodology", ic: "📐" },
   { k: "structure", ic: "🧩" },
+  { k: "glossary", ic: "🔤" },
 ];
 function renderHome() {
   const cards = ROLES.concat(currentUser.role === "admin" ? ADMIN_ROLES : []).filter((r) => !HIDDEN_ROUTES.has(r.k));
@@ -2436,6 +2448,72 @@ function vOrders() {
 }
 /* ---------- Structure builder (admin, settings) ---------- */
 let STR = null, STR_OPEN = new Set(), STR_Q = "";
+/* ---------- admin translation glossary ---------- */
+let glData = null;
+async function vGlossary() {
+  const box = document.getElementById("rv");
+  box.innerHTML = `<div class="panel"><div class="empty">${t("loading")}</div></div>`;
+  try {
+    const [p, e] = await Promise.all([api("/glossary/pending"), api("/glossary/entries")]);
+    glData = { pending: p, entries: e };
+  } catch (err) { box.innerHTML = `<div class="empty">${esc(err.message)}</div>`; return; }
+  renderGlossary();
+}
+function renderGlossary(q) {
+  const box = document.getElementById("rv"); if (!box || !glData) return;
+  const p = glData.pending, e = glData.entries;
+  const pendRows = p.pending.map((w, i) => `<tr><td dir="rtl" style="font-weight:700">${esc(w.ar)}</td><td class="mono">${w.count}</td><td class="mono-sm" dir="rtl" style="color:#666">${w.examples.map(esc).join("<br>")}</td><td><input class="gl-en" id="glEn_${i}" data-ar="${esc(w.ar)}" dir="ltr" placeholder="English…" onkeydown="if(event.key==='Enter')glSaveOne(this)" style="min-width:180px"></td><td><button class="btn primary sm" onclick="glSaveOne(document.getElementById('glEn_${i}'))">💾</button></td></tr>`).join("");
+  const kindOpt = (k) => `<option value="${k}">${t("gl_k_" + k)}</option>`;
+  const entRows = e.entries.map((r) => `<tr><td dir="rtl">${esc(r.ar)}</td><td dir="ltr">${esc(r.en)}</td><td><span class="pill-info" style="padding:1px 7px">${t("gl_k_" + r.kind)}</span></td><td class="mono-sm">${fmtTs(r.updated_at)}</td><td><div class="actions"><button class="btn ghost sm" onclick="glEdit(${r.id})">${t("edit")}</button><button class="btn ghost sm" onclick="glDelete(${r.id})">${t("gl_delete")}</button></div></td></tr>`).join("");
+  box.innerHTML = `
+  <div class="panel"><header><h3>${t("gl_pending")} <span class="pill-info">${p.pending.length}</span></h3><div class="actions" style="margin:0"><button class="btn ghost sm" onclick="vGlossary()">↻ ${t("gl_refresh")}</button><button class="btn primary sm" onclick="glSaveAll()">💾 ${t("gl_saveAll")}</button></div></header>
+    <div class="hint" style="padding:6px 12px">${t("gl_pendingHint")} · ${t("gl_stats").replace("{t}", p.translated).replace("{s}", p.strings)}</div>
+    <div class="tbl-wrap">${p.pending.length ? `<table><thead><tr><th>${t("gl_word")}</th><th>${t("gl_count")}</th><th>${t("gl_examples")}</th><th>${t("gl_en")}</th><th></th></tr></thead><tbody>${pendRows}</tbody></table>` : `<div class="empty">${t("gl_none")}</div>`}</div></div>
+  <div class="panel"><header><h3>${t("gl_try")}</h3></header><div style="padding:10px 12px" class="grid g2"><div class="field"><input id="glTryIn" dir="rtl" placeholder="${t("gl_tryPh")}" oninput="glTry()"></div><div class="field"><input id="glTryOut" dir="ltr" readonly style="background:var(--bg)"></div></div></div>
+  <div class="panel"><header><h3>${t("gl_entries")} <span class="pill-info">${e.total}</span></h3><div class="actions" style="margin:0"><input id="glQ" placeholder="${t("gl_search")}" value="${esc(q || "")}" onkeydown="if(event.key==='Enter')glSearch()" style="min-width:200px"><button class="btn gold sm" onclick="glEdit(0)">${t("gl_add")}</button></div></header>
+    <div class="hint" style="padding:6px 12px">${t("gl_entriesHint").replace("{shipped}", e.shipped)}</div>
+    <div class="tbl-wrap">${e.entries.length ? `<table><thead><tr><th>${t("gl_word")}</th><th>${t("gl_en")}</th><th>${t("gl_kind")}</th><th>${t("th_date")}</th><th></th></tr></thead><tbody>${entRows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>`;
+}
+let glTryTimer = null;
+function glTry() {
+  clearTimeout(glTryTimer);
+  glTryTimer = setTimeout(async () => {
+    const v = document.getElementById("glTryIn").value;
+    try { const r = await api("/glossary/try", { method: "POST", body: { text: v } }); document.getElementById("glTryOut").value = r.en; } catch (e) { /* ignore */ }
+  }, 250);
+}
+async function glAfterSave(n) {
+  await loadGlossary(true);
+  toast(t("gl_saved").replace("{n}", n));
+  await vGlossary();
+}
+async function glSaveOne(inp) {
+  if (!inp || !inp.value.trim()) return;
+  try { await api("/glossary", { method: "POST", body: { ar: inp.dataset.ar, en: inp.value.trim() } }); await glAfterSave(1); } catch (e) { toast(e.message); }
+}
+async function glSaveAll() {
+  const entries = [...document.querySelectorAll("input.gl-en")].filter((i) => i.value.trim()).map((i) => ({ ar: i.dataset.ar, en: i.value.trim() }));
+  if (!entries.length) return;
+  try { const r = await api("/glossary/bulk", { method: "POST", body: { entries } }); await glAfterSave(r.saved); } catch (e) { toast(e.message); }
+}
+async function glSearch() { try { glData.entries = await api("/glossary/entries?q=" + encodeURIComponent(document.getElementById("glQ").value.trim())); renderGlossary(document.getElementById("glQ").value); } catch (e) { toast(e.message); } }
+function glEdit(id) {
+  const r = id ? glData.entries.entries.find((x) => x.id === id) : null;
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${r ? t("edit") : t("gl_add")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  <div style="padding:20px 24px"><div class="grid">
+    <div class="field"><label>${t("gl_word")}</label><input id="glAr" dir="rtl" value="${r ? esc(r.ar) : ""}"></div>
+    <div class="field"><label>${t("gl_en")}</label><input id="glEn" dir="ltr" value="${r ? esc(r.en) : ""}"></div>
+    <div class="field"><label>${t("gl_kind")}</label><select id="glKind">${["word", "phrase", "exact"].map((k) => `<option value="${k}" ${r && r.kind === k ? "selected" : ""}>${t("gl_k_" + k)}</option>`).join("")}</select></div>
+  </div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="glSaveForm()">${t("save")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
+}
+async function glSaveForm() {
+  const g = (i) => document.getElementById(i).value;
+  try { await api("/glossary", { method: "POST", body: { ar: g("glAr"), en: g("glEn"), kind: g("glKind") } }); closeModal(); await glAfterSave(1); } catch (e) { toast(e.message); }
+}
+async function glDelete(id) {
+  if (!confirm(t("gl_confirmDel"))) return;
+  try { await api("/glossary/" + id, { method: "DELETE" }); await glAfterSave(0); } catch (e) { toast(e.message); }
+}
 async function vStructure() {
   const box = document.getElementById("rv");
   box.innerHTML = `<div class="panel"><div class="empty">${t("loading")}</div></div>`;
@@ -3702,10 +3780,16 @@ function latinDigits(s) { return String(s || "").replace(/[٠-٩]/g, (d) => Stri
 // public/ar-en.js). Loaded once at start-up; stored free text (item names,
 // notes, contract descriptions …) is rendered through it in the English UI.
 let GLOSS = null;
-async function loadGlossary() {
-  if (GLOSS || typeof ArEn === "undefined") return;
-  try { const r = await fetch("glossary_en.json", { cache: "force-cache" }); if (r.ok) GLOSS = ArEn.make(await r.json()); } catch (e) { /* fall back to the built-in word list */ }
-  if (GLOSS && LANG === "en" && currentUser) render();
+let GLOSS_VER = null;
+async function loadGlossary(force) {
+  if (typeof ArEn === "undefined" || (GLOSS && !force)) return;
+  try {
+    const r = await api("/glossary");
+    if (r && r.glossary) { GLOSS = ArEn.make(r.glossary); GLOSS_VER = r.version; }
+  } catch (e) {
+    if (!GLOSS) { try { const r = await fetch("glossary_en.json", { cache: "force-cache" }); if (r.ok) GLOSS = ArEn.make(await r.json()); } catch (e2) { /* keep the built-in word list */ } }
+  }
+  if (GLOSS && LANG === "en" && currentUser && !force) render();
 }
 // Stored free text in the UI language.
 function td(s) { return LANG === "en" ? arToEn(s) : String(s == null ? "" : s); }

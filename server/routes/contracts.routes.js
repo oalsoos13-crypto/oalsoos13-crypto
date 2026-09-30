@@ -199,9 +199,8 @@ const kindEn = { rent: 'Rent', support: 'Support', cda: 'CDA commercial support'
 // Exports follow the UI language (?lang=en): English headers and labels.
 const isEn = (req) => String(req.query.lang || '').toLowerCase() === 'en';
 // Stored Arabic free text rendered in English through the shared glossary.
-let GLOSS = null;
-try { GLOSS = require('../../public/ar-en.js').make(require('../../public/glossary_en.json')); } catch (e) { /* optional */ }
-const tEn = (v) => (GLOSS && v != null && v !== '' ? GLOSS.translate(String(v)) : v);
+// Shipped glossary + the admin's own entries (see glossary.routes.js).
+const tEn = (v) => { if (v == null || v === '') return v; try { return require('./glossary.routes').translator().translate(String(v)); } catch (e) { return v; } };
 const coopNameEn = (name) => String(name || '').replace(/^P\d+\s*-\s*/i, '').replace(/\s*(PARENT|CO[- ]?OP\.?|COOP|SOCIETY)\s*/gi, ' ').replace(/\s+/g, ' ').trim();
 
 // One row per contract (header level).

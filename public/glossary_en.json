@@ -607,7 +607,12 @@
 "جندولة ليز": "Lay's gondola",
 "رف متر صن بايتس": "one metre SunBites shelf",
 "الجبنة والهالابينو": "cheese & jalapeño",
-"بالجبنة الكثيفة": "thick cheese"
+"بالجبنة الكثيفة": "thick cheese",
+"بالسوق المركزي الجديد": "in the new main market",
+"بالسوق المركزي القديم": "in the old main market",
+"السوق المركزي الجديد": "the new main market",
+"السوق المركزي القديم": "the old main market",
+"إيجار طبلية بالسوق المركزي الجديد": "pallet rent in the new main market"
 },
 "words": {
 "متر": "metre",
