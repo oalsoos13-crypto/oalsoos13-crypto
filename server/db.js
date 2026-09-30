@@ -614,6 +614,9 @@ function migrate() {
   // Salesmen & supervisors can no longer self-change their password (admin-only),
   // so clear any pending forced-change flag that would otherwise deadlock them.
   db.exec("UPDATE users SET must_change_password = 0 WHERE role IN ('salesman','supervisor') AND must_change_password = 1");
+  // English display name per user (shown wherever the UI language is English).
+  const uCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+  if (!uCols.includes('name_en')) db.exec('ALTER TABLE users ADD COLUMN name_en TEXT');
   // coop_terms redesign: per (coop + letter_type). Recreate the table if it
   // predates the letter_type column (config-only, safe to rebuild).
   const ctInfo = db.prepare("PRAGMA table_info(coop_terms)").all();

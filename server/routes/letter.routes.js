@@ -39,8 +39,8 @@ function itemPriceWarnings(items) {
     checked++;
     if (price > 0 && u.carton > 0 && price > u.carton * 1.02) above++;
   }
-  if (above) out.push({ code: 'PRICE_ABOVE_CEILING', msg: `${above} صنف بسعر أعلى من سقف تعميم الاتحاد` });
-  if (unreg) out.push({ code: 'ITEM_UNREGISTERED', msg: `${unreg} صنف غير مسجّل بتعميم الاتحاد` });
+  if (above) out.push({ code: 'PRICE_ABOVE_CEILING', msg: `${above} صنف بسعر أعلى من سقف تعميم الاتحاد | ${above} item(s) priced above the Union circular ceiling` });
+  if (unreg) out.push({ code: 'ITEM_UNREGISTERED', msg: `${unreg} صنف غير مسجّل بتعميم الاتحاد | ${unreg} item(s) not registered in the Union circular` });
   return out;
 }
 
@@ -82,14 +82,14 @@ function contractWarnings(coopName, type, body, value, dateStr) {
   const c = getCoop.get(coopName);
   if (!c || !c.code) return out;
   const rows = getCoopContracts.all(c.code);
-  if (!rows.length) { out.push({ code: 'NO_CONTRACT', msg: 'لا يوجد عقد مسجّل لهذه الجمعية' }); return out; }
+  if (!rows.length) { out.push({ code: 'NO_CONTRACT', msg: 'لا يوجد عقد مسجّل لهذه الجمعية | No contract on file for this co-op' }); return out; }
   const date = String(dateStr || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
   // Governing contract: one whose period covers the letter date, else the most
   // recent by end date.
   const covering = rows.filter((r) => (!r.period_from || r.period_from <= date) && (!r.period_to || r.period_to >= date));
   const gov = covering[0] || rows.slice().sort((a, b) => String(b.period_to || '').localeCompare(String(a.period_to || '')))[0];
   if (!covering.length && gov && gov.period_to) {
-    out.push({ code: 'EXPIRED_CONTRACT', msg: `العقد الحاكم منتهٍ (انتهى ${gov.period_to}) — يُفوتَر بلا عقد ساري` });
+    out.push({ code: 'EXPIRED_CONTRACT', msg: `العقد الحاكم منتهٍ (انتهى ${gov.period_to}) — يُفوتَر بلا عقد ساري | The governing contract has expired (ended ${gov.period_to}) — billed without a valid contract` });
   }
   const pctContract = rows.find((r) => r.value_mode === 'pct' && r.pct > 0);
   if (pctContract) {
@@ -97,10 +97,10 @@ function contractWarnings(coopName, type, body, value, dateStr) {
     if (REBATE_TYPES.has(type)) {
       const asked = num(body.pct);
       if (asked > 0 && asked > pctContract.pct + 0.001) {
-        out.push({ code: 'RATE_OVERCLAIM', msg: `النسبة المطلوبة ${asked}% أعلى من نسبة العقد ${pctContract.pct}%` });
+        out.push({ code: 'RATE_OVERCLAIM', msg: `النسبة المطلوبة ${asked}% أعلى من نسبة العقد ${pctContract.pct}% | Requested rate ${asked}% exceeds the contract rate ${pctContract.pct}%` });
       }
     } else if (BUNDLED_TYPES.has(type)) {
-      out.push({ code: 'BUNDLED_IN_PCT', msg: `هذا البند مغطّى بنسبة العقد (${pctContract.pct}%) — احذر الدفع المزدوج` });
+      out.push({ code: 'BUNDLED_IN_PCT', msg: `هذا البند مغطّى بنسبة العقد (${pctContract.pct}%) — احذر الدفع المزدوج | This item is covered by the contract percentage (${pctContract.pct}%) — beware of double payment` });
     }
   }
   return out;

@@ -20,7 +20,7 @@ const ROLES = ['admin', 'sales_ops', 'marketing_manager', 'sales_manager', 'supe
 // GET /api/admin/users
 router.get('/admin/users', guard, asyncH((req, res) => {
   const rows = db.prepare(
-    `SELECT id, username, name, role, active, must_change_password, last_login_at, created_at
+    `SELECT id, username, name, name_en, role, active, must_change_password, last_login_at, created_at
      FROM users ORDER BY role, name`
   ).all();
   res.json({ users: rows });
@@ -30,6 +30,7 @@ router.get('/admin/users', guard, asyncH((req, res) => {
 router.post('/admin/users', guard, asyncH((req, res) => {
   const username = String(req.body.username || '').trim().toLowerCase();
   const name = String(req.body.name || '').trim();
+  const nameEn = String(req.body.nameEn || req.body.name_en || '').trim() || null;
   const role = String(req.body.role || '');
   if (!username || !name) throw badRequest('اسم المستخدم والاسم مطلوبان');
   if (!ROLES.includes(role)) throw badRequest('دور غير صحيح');
@@ -39,9 +40,9 @@ router.post('/admin/users', guard, asyncH((req, res) => {
   const pw = req.body.password ? String(req.body.password) : config.defaultPassword;
   const now = nowIso();
   const info = db.prepare(
-    `INSERT INTO users (username, password_hash, name, role, active, must_change_password, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 1, 1, ?, ?)`
-  ).run(username, hashPassword(pw), name, role, now, now);
+    `INSERT INTO users (username, password_hash, name, name_en, role, active, must_change_password, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)`
+  ).run(username, hashPassword(pw), name, nameEn, role, now, now);
   audit.fromReq(req, 'user.create', {
     entityType: 'user', entityId: username, summary: `Created user ${username} (${role})`,
     details: { username, name, role },
@@ -54,6 +55,8 @@ router.patch('/admin/users/:id', guard, asyncH((req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!u) throw notFound('المستخدم غير موجود');
   const name = req.body.name != null ? String(req.body.name).trim() : u.name;
+  const nameEnRaw = req.body.nameEn != null ? req.body.nameEn : req.body.name_en;
+  const nameEn = nameEnRaw != null ? (String(nameEnRaw).trim() || null) : u.name_en;
   const role = req.body.role != null ? String(req.body.role) : u.role;
   if (!ROLES.includes(role)) throw badRequest('دور غير صحيح');
   let active = req.body.active != null ? (req.body.active ? 1 : 0) : u.active;
@@ -62,8 +65,8 @@ router.patch('/admin/users/:id', guard, asyncH((req, res) => {
     const admins = db.prepare("SELECT COUNT(*) n FROM users WHERE role='admin' AND active=1").get().n;
     if (admins <= 1) throw badRequest('لا يمكن تعطيل أو تنزيل آخر مدير نظام', 'LAST_ADMIN');
   }
-  db.prepare('UPDATE users SET name=?, role=?, active=?, updated_at=? WHERE id=?')
-    .run(name, role, active, nowIso(), u.id);
+  db.prepare('UPDATE users SET name=?, name_en=?, role=?, active=?, updated_at=? WHERE id=?')
+    .run(name, nameEn, role, active, nowIso(), u.id);
   audit.fromReq(req, 'user.update', {
     entityType: 'user', entityId: u.username,
     summary: `Updated user ${u.username}`, details: { name, role, active },

@@ -28,10 +28,10 @@
  */
 
 const SIGN = {
-  coop: { role: 'مدير المبيعات', name: 'سائد الرمحي' },
-  salesops: { role: 'مدير عمليات البيع والتسويق', name: 'أحمد شوقي' },
-  gm: { role: 'المدير العام', name: 'راشد المنيع' },
-  execadmin: { role: 'المدير التنفيذي الإداري', name: 'عماد فايز الرفاعي' },
+  coop: { role: 'مدير المبيعات', name: 'سائد الرمحي', roleEn: 'Sales Manager', nameEn: 'Saed Al-Ramhi' },
+  salesops: { role: 'مدير عمليات البيع والتسويق', name: 'أحمد شوقي', roleEn: 'Sales & Marketing Operations Manager', nameEn: 'Ahmed Shawky' },
+  gm: { role: 'المدير العام', name: 'راشد المنيع', roleEn: 'General Manager', nameEn: 'Rashed Al-Manea' },
+  execadmin: { role: 'المدير التنفيذي الإداري', name: 'عماد فايز الرفاعي', roleEn: 'Executive Administrative Director', nameEn: 'Emad Fayez Al-Rifai' },
 };
 // Selectable signatories for the Union letters: the GM or the executive
 // administrative director (each choice carries its own role + name).
@@ -125,7 +125,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل اعتماد أصناف جديدة.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the listing of new items.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being the listing of new items.',
     },
     // Number of central markets the listing fee is billed against. Leave blank
     // to use the co-op's stored listing_markets (or its main-outlet count);
@@ -159,7 +159,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل فروق اسعار{reason}.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being price differences{reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being price differences{reason}.',
     },
     fields: [
       { key: 'reason', ar: 'تفصيل إضافي (مهرجان / السوق) — اختياري', en: 'Qualifier (festival / outlet)', type: 'text' },
@@ -177,7 +177,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل {reason}.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being {reason}.',
     },
     fields: [
       {
@@ -197,7 +197,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل {reason}.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being {reason}.',
     },
     fields: [
       {
@@ -220,7 +220,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل {reason}.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being {reason}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being {reason}.',
     },
     fields: [
       {
@@ -254,7 +254,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل تحديث بيانات{brand}.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being the item-data update{brand}.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being the item-data update{brand}.',
     },
     fields: [
       { key: 'brand', ar: 'البيان (اختياري: فريتولي الامريكي / ليز السعودي …)', en: 'Qualifier', type: 'text' },
@@ -272,7 +272,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمــل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه ، يرجـى من سيادتكم التكرم بالموافقـة على عمل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة مقابل خصم ({pct}%) على اجمالي مبيعات {brand} عن {period} وذلك حسب العقد المبرم بيننا.',
-      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) being a {pct}% rebate on total {brand} sales for {period}, as per the contract.',
+      en: 'With reference to the above, kindly approve a debit note against United Distinctive Co. for (KD {value}) {tafqit} being a {pct}% rebate on total {brand} sales for {period}, as per the contract.',
     },
     fields: [
       { key: 'pct', ar: 'النسبة %', en: 'Rate %', type: 'number' },
@@ -340,7 +340,7 @@ const LETTER_SPECS = [
     subject: { ar: 'عمـل إشعـار خصـم', en: 'Debit Note' },
     intro: {
       ar: 'بالاشـارة الى الموضـوع اعـلاه، يرجـى من سيادتكم التكرم بالموافقـة على عمـل إشعـار خصم من حسـاب الشـركة المتحـدة المتميـزة للتجـارة العامـه للمـواد الغـذائية لديكـم بقيمـة ({value} د.ك) {tafqit} وذلك القيمة إيجـارات عن الفتـرة من {from} حتى {to} وذلك بنـاءً على العقـد المبـرم بيننا.',
-      en: 'With reference to the above, kindly approve a debit note against the account of United Distinctive General Trading & Foodstuff Co. for (KD {value}) being rent for the period from {from} to {to}, as per the contract concluded between us.',
+      en: 'With reference to the above, kindly approve a debit note against the account of United Distinctive General Trading & Foodstuff Co. for (KD {value}) {tafqit} being rent for the period from {from} to {to}, as per the contract concluded between us.',
     },
     fields: [
       { key: 'from', ar: 'الفترة من', en: 'From', type: 'text' },

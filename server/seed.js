@@ -225,21 +225,25 @@ function seedCounter() {
 function seedUsers() {
   const exists = db.prepare('SELECT 1 FROM users WHERE username = ?');
   const insert = db.prepare(`
-    INSERT INTO users (username, password_hash, name, role, active, must_change_password, created_at, updated_at)
-    VALUES (@username, @hash, @name, @role, 1, @mc, @now, @now)
+    INSERT INTO users (username, password_hash, name, name_en, role, active, must_change_password, created_at, updated_at)
+    VALUES (@username, @hash, @name, @nameEn, @role, 1, @mc, @now, @now)
   `);
+  // English display name for accounts that have one in the seed (idempotent
+  // backfill for rows created before the column existed; a name set later via
+  // the Users screen is never overwritten).
+  const backfillEn = db.prepare("UPDATE users SET name_en = ? WHERE username = ? AND (name_en IS NULL OR name_en = '')");
   const now = nowIso();
   let created = 0;
   const tx = db.transaction((rows) => {
     for (const u of rows) {
-      if (exists.get(u.u)) continue;
+      if (exists.get(u.u)) { if (u.nameEn) backfillEn.run(u.nameEn, u.u); continue; }
       // Explicit per-user password (u.pw) wins; otherwise fall back to the role default.
       const pw = u.pw || (u.role === 'admin' ? config.adminPassword : config.defaultPassword);
       // must_change_password: 1 (force change on first login) unless the row opts
       // out (mc: 0). Salesmen & supervisors never self-change (admin-only), so they
       // default to 0 to avoid a first-login deadlock.
       const mc = u.mc === 0 ? 0 : (u.role === 'salesman' || u.role === 'supervisor' ? 0 : 1);
-      insert.run({ username: u.u, hash: hashPassword(pw), name: u.name, role: u.role, mc, now });
+      insert.run({ username: u.u, hash: hashPassword(pw), name: u.name, nameEn: u.nameEn || null, role: u.role, mc, now });
       created++;
     }
   });

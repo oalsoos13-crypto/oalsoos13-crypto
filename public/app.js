@@ -65,6 +65,35 @@ function tafqitKD(value) {
   if (fils) s += " و" + _intWords(fils) + " فلس";
   return s + " لا غير";
 }
+// English amount-in-words for the English documents ("Kuwaiti Dinars … Only").
+function _enBelow1000(n) {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const parts = []; const h = Math.floor(n / 100), r = n % 100;
+  if (h) parts.push(ones[h] + " Hundred");
+  if (r) parts.push(r < 20 ? ones[r] : tens[Math.floor(r / 10)] + (r % 10 ? "-" + ones[r % 10] : ""));
+  return parts.join(" and ");
+}
+function _enIntWords(n) {
+  if (n === 0) return "Zero";
+  const parts = [];
+  const mil = Math.floor(n / 1000000); n %= 1000000;
+  const th = Math.floor(n / 1000); const rest = n % 1000;
+  if (mil) parts.push(_enBelow1000(mil) + " Million");
+  if (th) parts.push(_enBelow1000(th) + " Thousand");
+  if (rest) parts.push((parts.length && rest < 100 ? "and " : "") + _enBelow1000(rest));
+  return parts.join(" ");
+}
+function tafqitEN(value) {
+  const v = Math.round((Number(value) || 0) * 1000);
+  const dinars = Math.floor(v / 1000), fils = v % 1000;
+  if (!dinars && fils) return "Only " + _enIntWords(fils) + " Fils";
+  let s = "Kuwaiti Dinars " + _enIntWords(dinars);
+  if (fils) s += " and " + _enIntWords(fils) + " Fils";
+  return s + " Only";
+}
+// Amount in words in the document language.
+function tafqitDisp(value) { return LANG === "en" ? tafqitEN(value) : tafqitKD(value); }
 /* ---------- i18n ---------- */
 let LANG = "ar";
 const T = {
@@ -73,7 +102,7 @@ const T = {
     en: "UDC · United Distinctive Co. for Gen. Trad. for Foodstuffs",
   },
   barSub: { ar: "", en: "" },
-  langBtn: { ar: "EN", en: "ع" },
+  langBtn: { ar: "EN", en: "AR" },
   menu: { ar: "القائمة", en: "Menu" },
   pickSection: { ar: "اختر قسمًا من القائمة للبدء", en: "Choose a section from the menu to begin" },
   // Top-level sections.
@@ -602,6 +631,14 @@ const T = {
   r_archive_d: { ar: "أرشفة إشعارات الخصم للجهاز عند تسكيرة الشهر.", en: "Archive debit notes to the device at month close." },
   archiveMonth: { ar: "الشهر", en: "Month" },
   dnRegister: { ar: "شيت الإشعارات (Excel)", en: "D.N register (Excel)" },
+  theUnion: { ar: "الاتحاد", en: "The Union" }, theUnionFull: { ar: "إتحاد الجمعيات التعاونية الاستهلاكية", en: "Union of Consumer Co-operative Societies" },
+  qeRecipientPh: { ar: "السادة / جمعية … التعاونية", en: "Messrs / … Co-operative Society" }, qeReason: { ar: "السبب", en: "Reason" }, qeReasonPh: { ar: "مثال: إيجار — العقد المبرم", en: "e.g. rent — per contract" },
+  marketOpt: { ar: "السوق (اختياري)", en: "Market (optional)" }, autoByType: { ar: "تلقائي حسب النوع", en: "Automatic by type" }, qeCoopDNPh: { ar: "رقم D.N بالجمعية", en: "Co-op D.N number" },
+  qMark: { ar: "؟", en: "?" }, egNo: { ar: "مثال: 111", en: "e.g. 111" }, letterWord: { ar: "كتاب", en: "Letter" }, dnWord: { ar: "إشعار خصم", en: "Debit note" }, noteWord: { ar: "إشعار", en: "Note" },
+  originDefault: { ar: "السعودية", en: "Saudi Arabia" }, packPh: { ar: "16 * 85 جرام", en: "16 * 85 g" }, batchFileName: { ar: "كتب الجمعيات - اعتماد أصناف تكميلية", en: "Co-op letters - Supplementary listing" },
+  cxNotStarted: { ar: "لم يبدأ", en: "Not started" }, cxBonusPh: { ar: "1+1 مرة واحدة", en: "1+1 once" }, cxDimPh: { ar: "110×240×65 سم", en: "110×240×65 cm" }, cxCatPh: { ar: "شيبس / خبز", en: "chips / bread" },
+  cxLocPh: { ar: "من أول الرف لأسفله", en: "top of shelf to bottom" }, cxDescPh: { ar: "غرفة للشيبس ...", en: "chips room ..." }, contractWord: { ar: "عقد", en: "Contract" },
+  dnSummaryTitle: { ar: "ملخّص إشعار الخصم", en: "Debit Note Summary" },
   errDNBrand: { ar: "اختر البراند (إجباري)", en: "Choose the brand (required)" },
   dnRegisterHint: { ar: "الإشعارات المعتمدة من الأدمن لأي شهر — بنفس أعمدة الشيت اليدوي + رقم الكتاب. يُضاف تلقائياً داخل ZIP الأرشفة.", en: "Admin-approved debit notes for any month — same columns as the manual sheet + letter ref. Also added inside the archive ZIP." },
   archiveReady: { ar: "إشعارات جاهزة للأرشفة", en: "Debit notes ready to archive" },
@@ -758,6 +795,7 @@ const T = {
   userMgmt: { ar: "إدارة المستخدمين", en: "User management" },
   addUser: { ar: "مستخدم جديد", en: "New user" },
   name: { ar: "الاسم", en: "Name" },
+  nameEn: { ar: "الاسم بالإنجليزية (يظهر عند تحويل الواجهة للإنجليزية)", en: "English name (shown when the UI is in English)" },
   active: { ar: "مُفعّل", en: "Active" },
   inactive: { ar: "معطّل", en: "Disabled" },
   pwPending: { ar: "بانتظار تغيير كلمة المرور", en: "password change pending" },
@@ -914,6 +952,41 @@ function applyDir() {
   document.getElementById("langBtn").textContent = t("langBtn");
 }
 /* ---------- API client + server-backed state ---------- */
+// Server messages are Arabic (some "AR | EN"): show the UI language's version.
+const MSG_EN = {
+  "إشعار مندوب آخر": "Another salesman's debit note", "اسم المستخدم والاسم مطلوبان": "Username and name are required", "الأوتلت غير موجود": "Outlet not found",
+  "الإشعار غير موجود": "Debit note not found", "الكتاب غير موجود": "Letter not found", "المستخدم غير موجود": "User not found", "الميزانية غير موجودة": "Budget not found",
+  "دور غير صحيح": "Invalid role", "كتاب مندوب آخر": "Another salesman's letter", "الطباعة والرفض النهائي للمدير فقط": "Printing and final rejection are admin-only",
+  "الجمعية ونوع الكتاب مطلوبين": "Co-op and letter type are required", "الجمعية مطلوبة": "Co-op is required", "بيانات ناقصة": "Missing data", "المنفذ مطلوب لعقد المنفذ": "Outlet is required for an outlet contract",
+  "اسم المساحة مطلوب": "Space name is required", "باركود غير صحيح": "Invalid barcode", "نوع باجت غير صحيح": "Invalid budget type", "اسم المستخدم أو كلمة المرور غير صحيحة": "Wrong username or password",
+  "كلمة المرور الحالية غير صحيحة": "Current password is wrong", "تاريخ نهاية غير صحيح": "Invalid end date", "تاريخ بداية غير صحيح": "Invalid start date", "تعذّر قراءة الملف": "Could not read the file",
+  "الكتاب ليس بانتظار اعتماد": "Letter is not awaiting approval", "مرحلة غير صحيحة": "Invalid stage", "الإشعار ليس بانتظار الاعتماد": "Debit note is not awaiting approval",
+  "لا يمكن رفض إشعار في هذه الحالة": "This debit note cannot be rejected in its state", "حالة غير صحيحة": "Invalid status", "نوع الكتاب غير صحيح": "Invalid letter type",
+  "لا يمكنك تغيير كلمة المرور — يقوم بها المدير فقط": "You cannot change the password — the admin does", "اسم المستخدم مستخدم مسبقًا": "Username already in use", "الملف فارغ": "The file is empty",
+  "المجاني يحتاج جمعية/أوتليت": "FOC needs a co-op/outlet", "غير مصرّح": "Not allowed", "غير مصرح": "Not allowed", "يوجد إشعار خصم فعّال لهذا الكتاب": "This letter already has an active debit note",
+  "لا يمكن تعطيل أو تنزيل آخر مدير نظام": "Cannot deactivate or demote the last admin", "الشهر مقفل (مسكّر)": "The month is closed", "لا يمكن الأرشفة قبل تسكيرة الشهر": "Cannot archive before the month is closed",
+  "غير موجود": "Not found", "العقد غير موجود": "Contract not found", "الملف غير موجود": "File not found", "هذا الأوتلت ليس ضمن نطاقك": "This outlet is outside your scope",
+  "هذا المندوب ليس ضمن فريقك": "This salesman is not in your team", "هذه الجمعية ليست ضمن مندوبك": "This co-op is not under your salesman", "هذا الكتاب غير مالي — لا يحتاج إشعار خصم": "This letter is non-monetary — no debit note needed",
+  "لا يمكن إدخال الإشعار قبل طباعة الكتاب": "The debit note cannot be entered before the letter is printed", "الكتاب لم يكتمل اعتماده بعد": "The letter is not fully approved yet", "أدخل قيمة الميزانية": "Enter the budget amount",
+  "أرفق صورة الإشعار أو ملف PDF": "Attach a photo of the debit note or a PDF", "لم يتم العثور على عمود الباركود": "Barcode column not found",
+  "يجب أن يحوي الملف عمودي الباركود وكود المنفذ (Barcode, Cust ID)": "The file must contain Barcode and Cust ID columns", "لم يتم العثور على أعمدة الباركود/الصنف في الملف": "Barcode/item columns not found in the file",
+  "لم يتم العثور على أعمدة الباركود/الصنف": "Barcode/item columns not found", "أدخل رقم الإشعار بالجمعية": "Enter the co-op's debit note number", "لم يتم إرفاق ملف": "No file attached",
+  "لا توجد إشعارات للأرشفة": "No debit notes to archive", "عدد أسواق الإدراج غير محدد لهذه الجمعية — أدخله يدويًا": "Listing markets not set for this co-op — enter it manually",
+  "اختر شهرًا محددًا للأرشفة": "Choose a specific month to archive", "لا يوجد ملف": "No file", "اختر الفترة أولاً": "Choose the period first", "أدخل سبب الرفض": "Enter the rejection reason",
+  "أدخل الجمعية أو المستلم": "Enter the co-op or recipient", "اختر المندوب": "Choose the salesman", "اختر المشرف": "Choose the supervisor", "هذا الكتاب لا يحتوي جدول أصناف": "This letter has no items table",
+  "اختر المندوب والجمعية": "Choose the salesman and co-op", "اختر الجمعية والأوتلت": "Choose the co-op and outlet", "لا يوجد مناديب ضمن فريقك": "No salesmen in your team",
+  "أدخل القيمة / الأصناف": "Enter the value / items", "أدخل القيمة": "Enter the value", "هذا المنفذ خارج نطاقك": "This outlet is outside your scope",
+  "لا يمكنك إصدار كتاب لجمعية خارج نطاقك": "You cannot issue a letter to a co-op outside your scope", "لا يمكنك اعتماد كتاب خارج نطاقك": "You cannot approve a letter outside your scope",
+  "التوقيع الإلكتروني مطلوب لهذا الكتاب": "An e-signature is required for this letter", "حجم التوقيع كبير جدًا": "Signature image too large", "كتب الاتحاد يصدرها المدير فقط": "Union letters are issued by the admin only",
+  "الجمعية غير معروفة — لا يمكن حساب عدد الأسواق": "Unknown co-op — cannot compute the markets", "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل": "New password must be at least 8 characters",
+  "هذه المرحلة ليست من صلاحيتك": "This stage is not yours to act on", "أدخل رقم الإشعار بالجمعية.": "Enter the co-op's debit note number",
+};
+function errDisp(raw) {
+  const s = String(raw || "");
+  if (s.includes(" | ")) { const p = s.split(" | "); return LANG === "en" ? p[p.length - 1].trim() : p[0].trim(); }
+  if (LANG === "en" && MSG_EN[s.trim()]) return MSG_EN[s.trim()];
+  return s;
+}
 async function api(path, opts) {
   opts = opts || {};
   const headers = {};
@@ -930,7 +1003,7 @@ async function api(path, opts) {
   try { data = await res.json(); } catch (e) {}
   if (!res.ok) {
     if (res.status === 401) { TOKEN = null; currentUser = null; }
-    const err = new Error((data && data.error) || "HTTP " + res.status);
+    const err = new Error(errDisp((data && data.error) || "HTTP " + res.status));
     err.code = data && data.code;
     err.status = res.status;
     throw err;
@@ -979,6 +1052,16 @@ function refNo(n) {
 function coop(n) {
   return DB.ref.coops.find((c) => c.n === n);
 }
+// A person's display name in the UI language: the English name set on the
+// user account (or the known signatory map) when the UI is English.
+function pn(name) {
+  const k = String(name == null ? "" : name).trim();
+  if (LANG !== "en" || !k) return k;
+  if (DB && DB.people && DB.people[k]) return DB.people[k];
+  if (typeof SIGN_EN !== "undefined" && SIGN_EN[k]) return SIGN_EN[k].name;
+  return k;
+}
+const escN = (v) => esc(pn(v));
 function esc(s) {
   return String(s == null ? "" : s).replace(
     /[&<>"]/g,
@@ -1021,8 +1104,8 @@ function coopSelectHTML(id, onchange) {
   const oc = onchange ? ` onchange="${onchange}"` : "";
   const sc = scopeCoops();
   if (sc)
-    return `<select id="${id}"${oc}><option value="">${t("choose")}</option>${sc.map((c) => `<option value="${esc(c.coop)}">${esc(c.coopAr || c.coop)}</option>`).join("")}</select>`;
-  return `<select id="${id}"${oc}>${DB.ref.coops.map((c) => `<option value="${esc(c.n)}">${esc(c.n)} — ${c.m} ${t("mainOut")}</option>`).join("")}</select>`;
+    return `<select id="${id}"${oc}><option value="">${t("choose")}</option>${sc.map((c) => `<option value="${esc(c.coop)}">${esc(LANG === "en" ? (coopEn(c.coop) || c.coop) : (c.coopAr || c.coop))}</option>`).join("")}</select>`;
+  return `<select id="${id}"${oc}>${DB.ref.coops.map((c) => `<option value="${esc(c.n)}">${esc(coopNameDisp(c.n))} — ${c.m} ${t("mainOut")}</option>`).join("")}</select>`;
 }
 function scopeCoopEntry(coopName) {
   const sc = scopeCoops();
@@ -1079,7 +1162,7 @@ function outletSelectHTML(id, coopName) {
   if (outs == null) return "";
   // Outlet is optional; option value is the cust_id (links the letter to the
   // price tracker), the visible text is the Arabic name shown on the letter.
-  return `<select id="${id}"><option value="">${t("choose")} (${t("optional")})</option>${outs.map((o) => { const nm = o.nameAr || o.name; return `<option value="${esc(o.custId)}">${esc(nm)}</option>`; }).join("")}</select>`;
+  return `<select id="${id}"><option value="">${t("choose")} (${t("optional")})</option>${outs.map((o) => { const nm = LANG === "en" ? o.name : (o.nameAr || o.name); return `<option value="${esc(o.custId)}">${esc(nm)}</option>`; }).join("")}</select>`;
 }
 function onCoopChange(prefix) {
   const coopSel = document.getElementById(prefix === "sp" ? "spCoop" : "fCoop");
@@ -1187,7 +1270,7 @@ function render() {
   const bell = `<button class="lang notif-btn" title="${t("notifTitle")}" onclick="openNotifs()">🔔${nCount ? `<span class="notif-badge">${nCount > 99 ? "99+" : nCount}</span>` : ""}</button>`;
   const gear = currentUser.role === "admin" ? `<button class="lang" title="${t("settingsBtn")}" onclick="openSettings()">⚙️</button>` : "";
   document.getElementById("userBox").innerHTML =
-    `<span class="userN">${esc(currentUser.name)}</span>${bell}<button class="lang" title="${t("changePw")}" onclick="openChangePw()">🔑</button>${gear}<button class="lang" onclick="logout()">${t("logout")}</button>`;
+    `<span class="userN">${escN(currentUser.name)}</span>${bell}<button class="lang" title="${t("changePw")}" onclick="openChangePw()">🔑</button>${gear}<button class="lang" onclick="logout()">${t("logout")}</button>`;
   // Force a password change on first login.
   if (currentUser.mustChangePassword) {
     document.getElementById("roleChip").innerHTML = "";
@@ -1805,8 +1888,8 @@ function renderDistRows() {
         const newSup = i === 0 || DB.dist[i - 1].sup !== r.sup;
         const repSales = !newSup && DB.dist[i - 1].sales === r.sales;
         return `<tr class="${newSup ? "grp" : ""}">
-   <td class="${newSup ? "" : "rep"}"><select onchange="DB.dist[${i}].sup=this.value"><option value="">${t("choose")}</option>${DB.ref.supervisors.map((s) => `<option ${r.sup === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></td>
-   <td class="${repSales ? "rep" : ""}"><input value="${esc(r.sales)}" oninput="DB.dist[${i}].sales=this.value" style="min-width:110px"></td>
+   <td class="${newSup ? "" : "rep"}"><select onchange="DB.dist[${i}].sup=this.value"><option value="">${t("choose")}</option>${DB.ref.supervisors.map((s) => `<option value="${esc(s)}" ${r.sup === s ? "selected" : ""}>${escN(s)}</option>`).join("")}</select></td>
+   <td class="${repSales ? "rep" : ""}"><input value="${escN(r.sales)}" oninput="DB.dist[${i}].sales=this.value" style="min-width:110px"></td>
    <td><select onchange="DB.dist[${i}].coop=this.value"><option value="">${t("choose")}</option>${DB.ref.coops.map((c) => `<option ${r.coop === c.n ? "selected" : ""}>${esc(c.n)}</option>`).join("")}</select></td>
    <td><input value="${esc(r.outlet)}" list="outletDL" onchange="pickDistOutlet(${i},this.value)" oninput="DB.dist[${i}].outlet=this.value" style="min-width:120px"></td>
    <td><input type="number" step="0.01" value="${r.wob}" oninput="DB.dist[${i}].wob=+this.value||0;refreshDistAmts()" style="max-width:85px"></td>
@@ -1865,7 +1948,7 @@ async function vSupervisor() {
   const recv = plan ? (plan.alloc || []).filter((a) => a.supervisor === me).reduce((s, a) => s + (+a.amount || 0), 0) : 0;
   const rows = salesmen.map((sm) => {
     const coops = struct[sm] || {}; const names = Object.keys(coops).sort();
-    return names.map((c, i) => `<tr>${i === 0 ? `<td rowspan="${names.length}"><b>${esc(sm)}</b></td>` : ""}<td>${esc(LANG === "en" ? c : (coopAr(c) || c))}</td><td class="mono">${(coops[c] || []).length}</td></tr>`).join("");
+    return names.map((c, i) => `<tr>${i === 0 ? `<td rowspan="${names.length}"><b>${escN(sm)}</b></td>` : ""}<td>${esc(LANG === "en" ? c : (coopAr(c) || c))}</td><td class="mono">${(coops[c] || []).length}</td></tr>`).join("");
   }).join("");
   rv.innerHTML =
     `<div class="cards">${card("accent", t("c_recv") + (plan ? " · " + esc(plan.month) : ""), KD(recv), 1)}${card("", t("salesman"), salesmen.length, 0)}${card("", t("coopsN"), coopSet.size, 0)}${card("", t("st_outlets"), outN, 0)}</div>
@@ -1881,7 +1964,7 @@ function vLettersHistory() {
   lhSel.forEach((id) => { if (!ids.has(id)) lhSel.delete(id); });
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
   const isAdmin = currentUser && currentUser.role === "admin";
-  const rows = list.map((L) => `<tr><td><input type="checkbox" class="lhchk" ${lhSel.has(L.id) ? "checked" : ""} onclick="lhToggle('${L.id}',this.checked)"></td><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${esc(L.approvedByName || L.rejectedByName || "")}</td><td>${esc(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
+  const rows = list.map((L) => `<tr><td><input type="checkbox" class="lhchk" ${lhSel.has(L.id) ? "checked" : ""} onclick="lhToggle('${L.id}',this.checked)"></td><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${escN(L.approvedByName || L.rejectedByName || "")}</td><td>${escN(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
   const bulkBar = `<div class="actions" style="margin-bottom:10px;align-items:center">
     <span class="pill-info" id="lhSelCount">0 ${t("selCount")}</span>
     <button class="btn primary sm" onclick="lhBulkPdf()">⬇ ${t("dlSelected")}</button>
@@ -1944,14 +2027,14 @@ function openQuickEntry() {
     <div class="grid g2">
       ${fld(t("th_type"), `<select id="qeType">${types}</select>`)}
       ${fld(t("coop"), `<select id="qeCoop"><option value="">—</option>${coops}</select>`)}
-      ${fld(t("qeRecipient"), `<input id="qeRecipient" placeholder="السادة / جمعية … التعاونية">`)}
-      ${fld(t("th_value") + " (د.ك)", `<input id="qeValue" type="number" step="0.001">`)}
+      ${fld(t("qeRecipient"), `<input id="qeRecipient" placeholder="${t("qeRecipientPh")}">`)}
+      ${fld(t("th_value") + " (" + t("kd") + ")", `<input id="qeValue" type="number" step="0.001">`)}
       ${fld(t("th_date"), `<input id="qeDate" type="date" value="${new Date().toISOString().slice(0, 10)}">`)}
       ${fld(t("qeLysalNo"), `<input id="qeLysalNo" type="number">`)}
-      ${fld(t("reasonField") || "السبب", `<input id="qeReason" placeholder="مثال: إيجار — العقد المبرم">`)}
-      ${fld("السوق (اختياري)", `<input id="qeMarket">`)}
-      ${fld(t("budgetType"), `<select id="qeBt"><option value="">تلقائي حسب النوع</option>${bts}</select>`)}
-      ${fld(t("qeCoopDN"), `<input id="qeCoopDN" placeholder="رقم D.N بالجمعية">`)}
+      ${fld(t("qeReason"), `<input id="qeReason" placeholder="${t("qeReasonPh")}">`)}
+      ${fld(t("marketOpt"), `<input id="qeMarket">`)}
+      ${fld(t("budgetType"), `<select id="qeBt"><option value="">${t("autoByType")}</option>${bts}</select>`)}
+      ${fld(t("qeCoopDN"), `<input id="qeCoopDN" placeholder="${t("qeCoopDNPh")}">`)}
     </div>
     <div class="field" style="margin-top:10px"><label>${t("qeAtt")}</label><input id="qeAtt" type="file" accept="image/*,.pdf" multiple></div>
     <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="submitQuickEntry()">💾 ${t("qeSave")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div>
@@ -2014,8 +2097,8 @@ function supOfSales(sales) {
 }
 function monVal(L) { const n = noteActiveOf(L); return n ? (+n.value || 0) : (+L.value || 0); }
 function monDimValue(L) {
-  if (monitorDim === "coop") return coopAr(L.coop) || L.coop || "—";
-  if (monitorDim === "outlet") return L.recipient || coopAr(L.coop) || "—";
+  if (monitorDim === "coop") return coopNameDisp(L.coop) || "—";
+  if (monitorDim === "outlet") return coopDisp(L) || "—";
   if (monitorDim === "budget") return budgetTypeLabel(L.budgetType);
   return L.sales || "—";
 }
@@ -2037,7 +2120,7 @@ function vMonitor() {
     const n = noteActiveOf(L);
     const dnBtn = n ? `<button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>` : "";
     const btCell = isAdmin ? budgetTypeSelect(L) : budgetTypeLabel(L.budgetType);
-    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopAr(L.coop) || L.coop || "")}</td><td>${esc(L.recipient || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopNameDisp(L.coop))}</td><td>${esc(L.recipient || "")}</td><td>${escN(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
   };
   const letterTbl = (arr) => `<table><thead><tr><th>${t("letterNo")}</th><th>${t("budgetType")}</th><th>${t("coop")}</th><th>${t("outlet")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_status")}</th><th></th></tr></thead><tbody>${arr.map(rowFor).join("")}</tbody></table>`;
   const sups = Object.keys(tree).sort();
@@ -2050,7 +2133,7 @@ function vMonitor() {
       const sub = arr.reduce((a, L) => a + monVal(L), 0);
       return `<details class="mon-node"><summary><b>${esc(dimLabel)}:</b> ${esc(dv)} — <span class="mono">${KD(sub)} ${t("kd")}</span> <span class="pill-info" style="padding:0 7px">${arr.length}</span></summary><div class="tbl-wrap" style="margin:8px 0 4px">${letterTbl(arr.slice().reverse())}</div></details>`;
     }).join("");
-    return `<details class="mon-node mon-sup"><summary><b>${t("mon_sup")}:</b> ${esc(s)} — <span class="mono">${KD(supTotal)} ${t("kd")}</span> <span class="pill-info" style="padding:0 7px">${supCount}</span></summary><div style="padding:6px 0 6px 14px">${inner}</div></details>`;
+    return `<details class="mon-node mon-sup"><summary><b>${t("mon_sup")}:</b> ${escN(s)} — <span class="mono">${KD(supTotal)} ${t("kd")}</span> <span class="pill-info" style="padding:0 7px">${supCount}</span></summary><div style="padding:6px 0 6px 14px">${inner}</div></details>`;
   }).join("") : `<div class="empty">${t("noLetters")}</div>`;
   const grand = classified.reduce((a, L) => a + monVal(L), 0);
   const toggle = (d, lbl) => `<button class="btn ${monitorDim === d ? "primary" : "ghost"} sm" onclick="setMonitorDim('${d}')">${lbl}</button>`;
@@ -2122,7 +2205,7 @@ function renderBudgetPlan() {
     const blocks = d.capped.map((bt) => {
       const cap = d.caps[bt] && d.caps[bt].amount != null ? +d.caps[bt].amount : null;
       const sum = bpAllocSum(bt), over = cap != null && sum > cap;
-      const rows = sups.length ? sups.map((sup) => `<tr><td>${esc(sup)}</td><td><input type="number" step="0.001" value="${bpAllocOf(bt, sup)}" onchange="bpSaveAlloc('${bt}',this.dataset.sup,this.value,this)" data-sup="${esc(sup)}" style="width:120px" ${isSM && !closed ? "" : "disabled"}></td></tr>`).join("") : `<tr><td colspan="2"><div class="empty">${t("noAssign")}</div></td></tr>`;
+      const rows = sups.length ? sups.map((sup) => `<tr><td>${escN(sup)}</td><td><input type="number" step="0.001" value="${bpAllocOf(bt, sup)}" onchange="bpSaveAlloc('${bt}',this.dataset.sup,this.value,this)" data-sup="${esc(sup)}" style="width:120px" ${isSM && !closed ? "" : "disabled"}></td></tr>`).join("") : `<tr><td colspan="2"><div class="empty">${t("noAssign")}</div></td></tr>`;
       return `<div class="mon-node"><details><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bp_allocated")}: <span class="mono" id="bpAllocSum_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(sum)}${cap != null ? " / " + KD(cap) : ""}</span></summary><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("supervisor")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
     }).join("");
     allocPanel = `<div class="panel"><header><h3>${t("bp_alloc")}</h3></header><div class="body">${blocks}</div></div>`;
@@ -2141,7 +2224,7 @@ async function bpSaveSpent(bt, amount) {
   catch (e) { toast(e.message); }
 }
 async function bpCloseMonth(close) {
-  if (!confirm(close ? t("bp_close") + "؟" : t("bp_reopen") + "؟")) return;
+  if (!confirm((close ? t("bp_close") : t("bp_reopen")) + t("qMark"))) return;
   try { await api("/budget-month/close", { method: "POST", body: { month: bpMonth, closed: close } }); toast(t("saved")); vBudgetPlan(); }
   catch (e) { toast(e.message); }
 }
@@ -2259,7 +2342,7 @@ function renderBudgetDist() {
           <td class="mono">${KD(bdOutletSpend(bt, o.custId))}</td></tr>`).join("");
         return coopRow + outRows;
       }).join("");
-      return `<tr style="background:var(--bg)"><td><b>${esc(sm)}</b></td>
+      return `<tr style="background:var(--bg)"><td><b>${escN(sm)}</b></td>
         <td class="mono" id="smroll_${bt}_${si}" style="font-weight:700">${KD(smSumOf(bt, sm))}</td>
         <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopBlocks}`;
     }).join("");
@@ -2422,7 +2505,7 @@ function vUnion() {
   const rows = list.length ? list.map((L) => {
     const canPrint = currentUser.role === "admin" && L.apprStage === "print";
     const printBtn = canPrint ? `<button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button>` : "";
-    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || "الاتحاد")}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`;
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(LANG === "en" ? t("theUnionFull") : (L.recipient || t("theUnion")))}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`;
   }).join("") : `<tr><td colspan="6"><div class="empty">${t("noLetters")}</div></td></tr>`;
   document.getElementById("rv").innerHTML =
     `<div class="panel"><header><h3>${t("unionLetters")} (${list.length})</h3><button class="btn gold sm" onclick="openLetterForm({union:true})">${t("newUnionLetter")}</button></header>
@@ -2435,7 +2518,7 @@ function vPrintQueue() {
   const ready = DB.letters.filter((l) => l.apprStage === "print");
   const pendingPrint = ready.filter((l) => !l.printedAt);
   const rowsHtml = (list) => list.length
-    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button></td></tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noLetters")}</div>`;
   const printed = ready.filter((l) => l.printedAt);
   document.getElementById("rv").innerHTML =
@@ -2445,7 +2528,7 @@ function vPrintQueue() {
 function vBudgetHistory() {
   const b = DB.budgets.slice().reverse();
   const ch = DB.budget.channels || {};
-  const brows = b.map((x) => `<tr><td>${esc(x.from || "")} → ${esc(x.to || "")}</td><td>${esc(x.preset || "")}</td><td class="mono">${KD(x.amount)}</td><td>${esc(x.created || "")}</td><td>${esc(x.createdByName || "")}</td></tr>`).join("");
+  const brows = b.map((x) => `<tr><td>${esc(x.from || "")} → ${esc(x.to || "")}</td><td>${esc(x.preset || "")}</td><td class="mono">${KD(x.amount)}</td><td>${esc(x.created || "")}</td><td>${escN(x.createdByName || "")}</td></tr>`).join("");
   const crows = Object.keys(ch).map((k) => `<tr><td>${esc(k)}</td><td class="mono">${KD(ch[k])}</td></tr>`).join("");
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>${t("r_budgetHistory")} (${b.length})</h3></header><div class="tbl-wrap">${b.length ? `<table><thead><tr><th>${t("period")}</th><th>${t("preset")}</th><th>${t("amount")}</th><th>${t("createdOn")}</th><th>${t("createdBy")}</th></tr></thead><tbody>${brows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>
   <div class="panel"><header><h3>${t("channelsTitle")}</h3></header><div class="tbl-wrap">${crows ? `<table><thead><tr><th>${t("channel")}</th><th>${t("amount")}</th></tr></thead><tbody>${crows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>`;
@@ -2514,10 +2597,10 @@ async function vArchive() {
     ${hist.notes.length ? `<div class="panel"><header><h3>${t("archiveHistory")} (${hist.notes.length})</h3></header><div class="tbl-wrap">${tblArchiveHistory(hist.notes)}</div></div>` : ""}`;
 }
 function tblArchivePending(notes) {
-  return `<div class="tbl-wrap"><table><thead><tr><th>${t("mon_sup")}</th><th>${t("salesman")}</th><th>${t("coop")}</th><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th></tr></thead><tbody>${notes.map((n) => `<tr><td>${esc(n.supervisor)}</td><td>${esc(n.sales)}</td><td>${esc(coopAr(n.coop) || n.coop)}</td><td class="mono">${esc(n.lysal)}</td><td class="mono">${esc(n.coopDN)}</td><td class="mono">${KD(n.value)}</td><td>${esc(n.entryDate)}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="tbl-wrap"><table><thead><tr><th>${t("mon_sup")}</th><th>${t("salesman")}</th><th>${t("coop")}</th><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th></tr></thead><tbody>${notes.map((n) => `<tr><td>${escN(n.supervisor === "بدون مشرف" ? t("noSup") : n.supervisor)}</td><td>${escN(n.sales)}</td><td>${esc(coopNameDisp(n.coop))}</td><td class="mono">${esc(n.lysal)}</td><td class="mono">${esc(n.coopDN)}</td><td class="mono">${KD(n.value)}</td><td>${esc(n.entryDate)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function tblArchiveHistory(notes) {
-  return `<table><thead><tr><th>${t("archiveMonth")}</th><th>${t("coop")}</th><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("th_value")}</th></tr></thead><tbody>${notes.map((n) => `<tr><td class="mono">${esc(n.archivedMonth || "")}</td><td>${esc(coopAr(n.coop) || n.coop)}</td><td class="mono">${esc(n.lysal)}</td><td class="mono">${esc(n.coopDN)}</td><td class="mono">${KD(n.value)}</td></tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr><th>${t("archiveMonth")}</th><th>${t("coop")}</th><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("th_value")}</th></tr></thead><tbody>${notes.map((n) => `<tr><td class="mono">${esc(n.archivedMonth || "")}</td><td>${esc(coopNameDisp(n.coop))}</td><td class="mono">${esc(n.lysal)}</td><td class="mono">${esc(n.coopDN)}</td><td class="mono">${KD(n.value)}</td></tr>`).join("")}</tbody></table>`;
 }
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
@@ -2560,15 +2643,15 @@ function downloadBlob(blob, name) {
 }
 function archiveSummaryHTML(meta, note) {
   const row = (k, v) => `<tr><td style="font-weight:700;padding:6px 10px;border:1px solid #ccc">${k}</td><td style="padding:6px 10px;border:1px solid #ccc">${esc(v)}</td></tr>`;
-  return `<div style="page-break-before:always;padding:26px" dir="rtl">
-    <h2 style="text-align:center;color:#0b1f3a">ملخّص إشعار الخصم</h2>
+  return `<div style="page-break-before:always;padding:26px" dir="${LANG === "en" ? "ltr" : "rtl"}">
+    <h2 style="text-align:center;color:#0b1f3a">${t("dnSummaryTitle")}</h2>
     <table style="width:100%;border-collapse:collapse;margin-top:14px;font-size:14px">
-      ${row(t("coop"), coopAr(meta.coop) || meta.coop)}
+      ${row(t("coop"), coopNameDisp(meta.coop))}
       ${row(t("letterNo"), meta.lysal)}
       ${row(t("coopDN"), meta.coopDN)}
-      ${row(t("th_value") + " (د.ك)", KD(meta.value))}
+      ${row(t("th_value") + " (" + t("kd") + ")", KD(meta.value))}
       ${row(t("salesman"), meta.sales)}
-      ${row(t("mon_sup"), meta.supervisor)}
+      ${row(t("mon_sup"), meta.supervisor === "بدون مشرف" ? t("noSup") : meta.supervisor)}
       ${row(t("th_date"), meta.entryDate)}
       ${row(t("attachments"), (note.attachments || []).length)}
     </table></div>`;
@@ -2602,10 +2685,10 @@ async function archiveRun() {
   try {
     for (let i = 0; i < pending.notes.length; i++) {
       const meta = pending.notes[i];
-      setP(`${t("archiveBuilding")} ${i + 1}/${pending.notes.length} — ${coopAr(meta.coop) || meta.coop}`);
+      setP(`${t("archiveBuilding")} ${i + 1}/${pending.notes.length} — ${coopNameDisp(meta.coop)}`);
       let full; try { full = await api("/notes/" + meta.id); } catch (e) { full = { attachments: [] }; }
       const letter = DB.letters.find((l) => l.id === meta.letterId);
-      const letterHTML = letter ? docHTML(letter, true) : `<div class="doc"><div class="lh-body" dir="rtl" style="padding:30px">${esc(meta.lysal)} — ${esc(coopAr(meta.coop) || meta.coop)}</div></div>`;
+      const letterHTML = letter ? docHTML(letter, true) : `<div class="doc"><div class="lh-body" dir="rtl" style="padding:30px">${esc(meta.lysal)} — ${esc(coopNameDisp(meta.coop))}</div></div>`;
       const attHTML = (full.attachments || []).map((a) => (a.url && a.url.startsWith("data:image"))
         ? `<div style="page-break-before:always;padding:14px;text-align:center"><img src="${a.url}" style="max-width:100%;max-height:1000px"></div>` : "").join("");
       stage.innerHTML = `<div>${letterHTML}${attHTML}${archiveSummaryHTML(meta, full)}</div>`;
@@ -2616,7 +2699,7 @@ async function archiveRun() {
         jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["css", "legacy"] },
       }).from(stage.firstChild).outputPdf("blob");
-      const coopN = safeName(coopAr(meta.coop) || meta.coop);
+      const coopN = safeName(coopNameDisp(meta.coop));
       const fname = safeName(`${coopN} - ${meta.lysal.replace(/\//g, "-")} - ${meta.entryDate}`) + ".pdf";
       const path = `${safeName(meta.supervisor)}/D.N/${safeName(meta.sales)}/${coopN}/${fname}`;
       zip.file(path, blob);
@@ -2654,7 +2737,7 @@ function stageLettersPanel(stage) {
     ? `<table><thead>${head}</thead><tbody>${pend.slice().reverse().map((L) => {
         const sig = stageNeedsSig(stage, L) ? ` <span class="pill-info" style="padding:1px 7px">✍ ${t("needsSign")}</span>` : "";
         const btCell = showBudget ? `<td>${(+L.value || 0) > 0 ? budgetTypeSelect(L) : "—"}</td>` : "";
-        return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}${sig}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) && !((+L.value || 0) > 0) ? "—" : KD(L.value)}</td>${btCell}<td>${esc(L.date || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}','${stage}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div></td></tr>`;
+        return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}${sig}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) && !((+L.value || 0) > 0) ? "—" : KD(L.value)}</td>${btCell}<td>${esc(L.date || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}','${stage}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div></td></tr>`;
       }).join("")}</tbody></table>`
     : `<div class="empty">${t("noLetters")}</div>`;
   return `<div class="panel"><header><h3>${t("lettersToApprove")} (${pend.length})</h3></header><div class="tbl-wrap">${body}</div></div>`;
@@ -2826,7 +2909,7 @@ function tblSalesLetters(list) {
         if (active) dnBtn = `<button class="btn primary sm" onclick="openDocById('${active.id}')">${t("viewDN")}</button>`;
         else if (printed) dnBtn = `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
       }
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(L.recipient || coopAr(L.coop) || "")}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -2837,7 +2920,7 @@ function openDNForm(id) {
   modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("enterDN")} — ${esc(L.coop)}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
   <div style="padding:22px 24px;max-height:74vh;overflow:auto">
    <div class="grid g3">
-     <div class="field"><label>${t("coopDN")}</label><input id="dnNo" placeholder="مثال: 111"></div>
+     <div class="field"><label>${t("coopDN")}</label><input id="dnNo" placeholder="${t("egNo")}"></div>
      <div class="field"><label>${t("th_value")} (${t("kd")})</label><input id="dnVal" type="number" step="0.001" value="${L.value}"></div>
      <div class="field"><label>${t("fDate")}</label><input id="dnDate" type="date" value="${L.date || new Date().toISOString().slice(0, 10)}"></div>
      <div class="field"><label>${t("fBrand")} *</label><select id="dnBrand"><option value="">${t("choose")}</option>${(DB.ref.brands || []).map((b) => `<option ${L.brand === b ? "selected" : ""}>${esc(b)}</option>`).join("")}</select></div>
@@ -3122,14 +3205,14 @@ function specFormHTML(spec) {
       const listId = hasPresets ? `pf_${f.key}` : `sugf_${f.key}`;
       const listAttr = f.type === "text" ? ` list="${listId}"` : "";
       const inlineDL = hasPresets
-        ? `<datalist id="pf_${f.key}">${f.presets.map((p) => `<option value="${esc(p)}"></option>`).join("")}</datalist>`
+        ? `<datalist id="pf_${f.key}">${f.presets.map((p) => `<option value="${esc(LANG === "en" ? arToEn(p) : p)}"></option>`).join("")}</datalist>`
         : "";
       return `<div class="field"><label>${lbl}</label><input id="spf_${f.key}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" ${f.type === "number" ? 'step="0.001"' : ""}${listAttr}${def}>${inlineDL}</div>`;
     }).join("")}</div>`;
   // Optional manual reference number + selectable signatory (e.g. GM name).
   let extra = `<div class="field"><label>${t("letterNoOpt")}</label><input id="spLysalNo" type="number" inputmode="numeric" placeholder="${t("letterNoAuto")}"></div>`;
   if (Array.isArray(spec.signChoices) && spec.signChoices.length) {
-    extra += `<div class="field"><label>${t("signatory")}</label><select id="spSignIdx">${spec.signChoices.map((s, i) => `<option value="${i}">${esc(s.role)} — ${esc(s.name)}</option>`).join("")}</select></div>`;
+    extra += `<div class="field"><label>${t("signatory")}</label><select id="spSignIdx">${spec.signChoices.map((s, i) => { const d = signDisp(s); return `<option value="${i}">${esc(d.role)} — ${esc(d.name)}</option>`; }).join("")}</select></div>`;
   }
   h += `<div class="grid g3" style="margin-top:10px">${extra}</div>`;
   if (spec.table) h += specTableEditor(spec.table, 1);
@@ -3307,7 +3390,7 @@ async function submitLetterBody(body) {
 function flashWarnings(warnings) {
   if (!Array.isArray(warnings) || !warnings.length) return;
   // Stagger so each advisory is readable (the toast is a single shared element).
-  warnings.forEach((w, i) => setTimeout(() => toast("⚠️ " + (w && w.msg ? w.msg : w), 3200), 2200 + 2600 * i));
+  warnings.forEach((w, i) => setTimeout(() => toast("⚠️ " + errDisp(w && w.msg ? w.msg : w), 3200), 2200 + 2600 * i));
 }
 async function saveLetter() {
   const type = document.getElementById("fType").value;
@@ -3397,7 +3480,7 @@ function noteStatusTag(n) {
 // Debit notes awaiting ADMIN approval, with attachments viewer + approve/reject.
 function tblApprovals(list) {
   if (!list.length) return `<div class="empty">${t("noPending")}</div>`;
-  return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>📎</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(n.coop)}</td><td>${esc(n.sales || "")}</td><td class="mono">${KD(n.value)}</td><td>${(n.attachments && n.attachments.length) || 0}</td><td><div class="actions"><button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveNote('${n.id}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectNote('${n.id}')">${t("reject")}</button></div></td></tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>📎</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(coopNameDisp(n.coop))}</td><td>${escN(n.sales || "")}</td><td class="mono">${KD(n.value)}</td><td>${(n.attachments && n.attachments.length) || 0}</td><td><div class="actions"><button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveNote('${n.id}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectNote('${n.id}')">${t("reject")}</button></div></td></tr>`).join("")}</tbody></table>`;
 }
 // Admin-only debit-note approval queue.
 function dnApprovalsPanel() {
@@ -3490,7 +3573,7 @@ async function loadDocAudit() {
     const r = await api("/audit?limit=25");
     if (!r.rows.length) { box.innerHTML = `<div class="empty">${t("noAudit")}</div>`; return; }
     box.innerHTML = `<table><thead><tr><th>${t("th_time")}</th><th>${t("username")}</th><th>${t("action")}</th><th>${t("th_detail")}</th></tr></thead><tbody>${r.rows
-      .map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${esc(a.name || a.username || "-")}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(a.summary || "")}</td></tr>`)
+      .map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${escN(a.name || a.username || "-")}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(a.summary || "")}</td></tr>`)
       .join("")}</tbody></table>`;
   } catch (e) {
     box.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -3513,6 +3596,14 @@ function tblNotes(list) {
 /* ---------- printable (Arabic official, on company letterhead) ---------- */
 // Sales manager who signs the official letters (change here if it differs).
 const SIGNATORY = { role: "مدير المبيعات", name: "سائد الرمحي" };
+// English role/name of the known signatories (letters in English mode).
+const SIGN_EN = {
+  "سائد الرمحي": { role: "Sales Manager", name: "Saed Al-Ramhi" },
+  "أحمد شوقي": { role: "Sales & Marketing Operations Manager", name: "Ahmed Shawky" },
+  "راشد المنيع": { role: "General Manager", name: "Rashed Al-Manea" },
+  "عماد فايز الرفاعي": { role: "Executive Administrative Director", name: "Emad Fayez Al-Rifai" },
+};
+function signDisp(sg) { const k = String((sg && sg.name) || "").trim(); const e = SIGN_EN[k]; return (LANG === "en" && e) ? e : { role: (sg && sg.role) || "", name: k }; }
 // Print mode: 'preprinted' = leave blank top/bottom margins for pre-printed
 // letterhead paper (no logo printed); 'full' = render the full letterhead.
 let LH_MODE = "preprinted";
@@ -3531,18 +3622,101 @@ function sigImgOf(rec) {
 function signBlock(rec, sg) {
   sg = sg || (rec && rec.meta && rec.meta.sign && (rec.meta.sign.name || rec.meta.sign.role) ? rec.meta.sign : SIGNATORY);
   const img = sigImgOf(rec);
-  return `<div class="sign"><div class="role">${esc(sg.role)}</div><div class="who">${esc(sg.name)}</div>${img ? `<img class="sig-img" src="${img}" alt="">` : ""}</div>`;
+  const sd = signDisp(sg);
+  return `<div class="sign"><div class="role">${esc(sd.role)}</div><div class="who">${esc(sd.name)}</div>${img ? `<img class="sig-img" src="${img}" alt="">` : ""}</div>`;
 }
 function metaBlock(rec, isLetter) {
   // Date, then the LYSAL reference directly beneath it, both flush to the left.
-  return `<div class="meta"><div>التاريخ : <b>${esc(fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div>${
-    !isLetter && rec.coopDN ? `<div class="mono">رقم الإشعار بالجمعية: <b>${esc(rec.coopDN)}</b></div>` : ""
+  const en = LANG === "en";
+  return `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div>${
+    !isLetter && rec.coopDN ? `<div class="mono">${en ? "Co-op D.N No." : "رقم الإشعار بالجمعية"}: <b>${esc(rec.coopDN)}</b></div>` : ""
   }</div>`;
 }
 // Arabic co-op name when available (falls back to the stored name).
 function coopAr(name) {
   const c = coop(name);
   return c && c.ar ? c.ar : name;
+}
+// Arabic-insensitive normaliser (hamza / taa-marbuta / tatweel / the words
+// "جمعية" and "التعاونية") for matching stored Arabic co-op names.
+function normAr(s) { return String(s || "").replace(/[ـ]/g, "").replace(/[إأآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/جمعيه|التعاونيه|التعاونيات|الاستهلاكيه/g, " ").replace(/\s+/g, " ").trim(); }
+// English display name for a co-op key: coops.name, a "X PARENT" scope name,
+// or a stored Arabic name (matched through coops.name_ar).
+// English names for co-ops that exist only under an Arabic name (imported with
+// the contracts). Matched on the normalised Arabic; the admin can still give
+// them a proper English name in the structure builder.
+const COOP_AR_EN = [
+  ["جمعية العبدلي التعاونية", "Abdali"], ["جمعية الشرق التعاونية", "Sharq"], ["جمعية الصليبية التعاونية", "Sulaibiya"], ["جمعية النزهة التعاونية", "Nuzha"],
+  ["جمعية غرناطة التعاونية", "Granada"], ["جمعية جليب الشيوخ التعاونية", "Jleeb Al-Shuyoukh"], ["جمعية الثروة الحيوانية التعاونية", "Livestock (Al-Tharwa Al-Haywaniya)"],
+  ["جمعية شمال غرب الصليبيخات", "North West Sulaibikhat"], ["جمعية ضاحية عبد الله السالم والمنصورية التعاونية", "Abdullah Al-Salem & Mansouriya"], ["الصليبيخات", "Sulaibikhat"],
+].map(([a, e]) => [normAr(a), e]);
+function coopEn(name) {
+  const list = DB.ref && DB.ref.coops ? DB.ref.coops : [];
+  const key = String(name || "").trim(); if (!key) return "";
+  const nk = normAr(key);
+  if (/[\u0600-\u06FF]/.test(key)) { const f = COOP_AR_EN.find(([a]) => a === nk); if (f) return f[1]; }
+  const c = list.find((x) => x.n === key || x.p === key) || list.find((x) => x.ar && normAr(x.ar) === nk) || list.find((x) => x.ar && nk.includes(normAr(x.ar)) && normAr(x.ar).length > 3);
+  let n = c ? c.n : key.replace(/\s*(PARENT|CO[- ]?OP\.?|COOP|SOCIETY)\s*/gi, " ").replace(/\s+/g, " ").trim();
+  if (/[\u0600-\u06FF]/.test(n)) return n; // no English name on file — the admin can set one in the structure builder
+  return n.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+// Curated Arabic reason presets (letter-specs) and their English wording. The
+// map works both ways so a reason picked in either language prints correctly
+// in the other.
+const REASON_PAIRS = [
+  ["إيجار طبلية", "Pallet rent"], ["إيجار طبلية بالسوق المركزي", "Pallet rent at the main market"], ["1 طبلية بالسوق المركزي", "1 pallet at the main market"],
+  ["1 طبلية بالسوق المركزي القديم", "1 pallet at the old main market"], ["عدد (1) طبلية", "One (1) pallet"], ["إيجار طبالي بالسوق المركزي الجديد", "Pallet rent at the new main market"],
+  ["طبلية بالسوق المركزي", "Pallet at the main market"], ["إيجار استاند", "Stand rent"], ["إيجار 2 استاند", "Rent of 2 stands"], ["استاند فريتولي", "Frito-Lay stand"],
+  ["إيجار استاند أمريكي", "American stand rent"], ["إيجار استاند بالسوق المركزي", "Stand rent at the main market"], ["بدل توالف", "Damaged goods allowance"],
+  ["دعم سعر لمنتجات الشركة", "Price support for the company's products"], ["فرق دعم سعر", "Price support difference"], ["توريد الفواتير", "Invoice supply"],
+  ["اعتماد أصناف", "Listing of items"], ["مساحة عرض", "Display space"], ["مهرجان", "Festival"], ["دعم للجمعية", "Support for the co-op"],
+  ["إيجار — العقد المبرم", "Rent — per the signed contract"], ["السوق الرئيسي", "Main market"], ["السوق الجديد", "New market"], ["السوق القديم", "Old market"], ["السوق المركزي", "Central market"],
+];
+const REASON_AR2EN = new Map(REASON_PAIRS.map(([a, e]) => [a, e]));
+const REASON_EN2AR = new Map(REASON_PAIRS.map(([a, e]) => [e.toLowerCase(), a]));
+// Word-level fallback for free-typed Arabic qualifiers (reason / place / period).
+const AR_WORDS_EN = [
+  // contract titles / references (longest phrases first)
+  [/عقد إيجار\/استثمار مساحات/g, "Space rental/investment contract"], [/عقد إيجار مساحات/g, "Space rental contract"], [/عقد أنشطة تسويقية/g, "Marketing activities contract"],
+  [/عقد دعم تجاري/g, "Commercial support contract"], [/ملحق عقد/g, "Contract addendum"], [/تجديد عقد/g, "Contract renewal"], [/عقد رقم/g, "Contract No."], [/رقم الملف/g, "File No."],
+  [/طلب تجديد/g, "Renewal request"], [/خطاب دعم/g, "Support letter"], [/خطاب/g, "letter"], [/تجديد/g, "Renewal"], [/المنتجات العامة/g, "general products"], [/المنتج الأمريكي/g, "American product"],
+  [/منتجات أمريكية/g, "American products"], [/منتجات سعودية/g, "Saudi products"], [/منتجات/g, "products"], [/المنتج/g, "product"], [/عام$/g, "general"], [/— عام/g, "— general"], [/عقد/g, "contract"],
+  [/بالسوق المركزي الجديد/g, "at the new main market"], [/بالسوق المركزي القديم/g, "at the old main market"], [/بالسوق المركزي/g, "at the main market"],
+  [/السوق المركزي/g, "the main market"], [/السوق الرئيسي/g, "the main market"], [/السوق الجديد/g, "the new market"], [/السوق القديم/g, "the old market"],
+  [/بالسوق/g, "at the market"], [/السوق/g, "the market"], [/سوق/g, "market"], [/إيجار|ايجار/g, "rent"], [/طبالي/g, "pallets"], [/طبلية/g, "pallet"],
+  [/استاندات/g, "stands"], [/استاند/g, "stand"], [/مهرجان/g, "festival"], [/فرع/g, "branch"], [/شهر/g, "month"], [/أشهر|اشهر/g, "months"], [/سنة/g, "year"],
+  [/يوم/g, "day"], [/أسبوع|اسبوع/g, "week"], [/عدد/g, "qty"], [/الجديد/g, "new"], [/القديم/g, "old"], [/الرئيسي/g, "main"], [/المركزي/g, "central"],
+  [/يوليو/g, "July"], [/يناير/g, "January"], [/فبراير/g, "February"], [/مارس/g, "March"], [/أبريل|ابريل/g, "April"], [/مايو/g, "May"], [/يونيو/g, "June"],
+  [/أغسطس|اغسطس/g, "August"], [/سبتمبر/g, "September"], [/أكتوبر|اكتوبر/g, "October"], [/نوفمبر/g, "November"], [/ديسمبر/g, "December"],
+  [/الربع الأول|الربع الاول/g, "Q1"], [/الربع الثاني/g, "Q2"], [/الربع الثالث/g, "Q3"], [/الربع الرابع/g, "Q4"], [/النصف الأول|النصف الاول/g, "H1"], [/النصف الثاني/g, "H2"],
+  [/رمضان/g, "Ramadan"], [/العيد/g, "Eid"], [/أمريكي|امريكي/g, "American"], [/فريتولي/g, "Frito-Lay"], [/ليز/g, "Lay's"], [/السعودي/g, "Saudi"],
+];
+const AR_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+function latinDigits(s) { return String(s || "").replace(/[٠-٩]/g, (d) => String(AR_DIGITS.indexOf(d))); }
+// A free-text Arabic qualifier rendered in English (exact preset first, then
+// word-level substitution; anything still Arabic is left as typed).
+function arToEn(s) {
+  s = String(s || "").trim(); if (!s) return "";
+  if (!/[\u0600-\u06FF]/.test(s)) return s;
+  if (REASON_AR2EN.has(s)) return REASON_AR2EN.get(s);
+  let o = s; for (const [re, en] of AR_WORDS_EN) o = o.replace(re, en);
+  // Word-order touch-ups: "festival July" -> "July festival", "rent 2 stand" -> "rent of 2 stands".
+  o = o.replace(/\bfestival (January|February|March|April|May|June|July|August|September|October|November|December|Ramadan|Eid)\b/g, "$1 festival")
+       .replace(/\brent (\d+) (stand|pallet)\b/g, (m, q, w) => "rent of " + q + " " + w + (q === "1" ? "" : "s"));
+  return latinDigits(o).replace(/\s+/g, " ").trim();
+}
+// The inverse for a preset picked while the UI was English.
+function enToAr(s) { const k = String(s || "").trim().toLowerCase(); return REASON_EN2AR.get(k) || String(s || ""); }
+// Qualifier text (reason / market / place) in the document language.
+function qualDisp(s, en) { return en ? arToEn(s) : enToAr(s); }
+// A co-op name for tables/lists in the current UI language.
+function coopNameDisp(name) { return LANG === "en" ? (coopEn(name) || String(name || "")) : (coopAr(name) || String(name || "")); }
+// A letter/note's addressee for tables: the stored recipient in Arabic, the
+// English co-op name (or the Union) in English.
+function coopDisp(rec) {
+  if (!rec) return "";
+  if (LANG === "en") { if (typeof isUnionType === "function" && isUnionType(rec.type)) return t("theUnionFull"); return coopEn(rec.coop) || rec.recipient || ""; }
+  return rec.recipient || coopAr(rec.coop) || "";
 }
 // The co-op recipient wrapped as "جمعيـة … التعاونيـة" — but only when the
 // stored Arabic name isn't already in that full form (some are "القادسية",
@@ -3554,21 +3728,40 @@ function coopArFull(name) {
 function toBlock(rec) {
   // When a specific outlet was addressed (scoped salesman) show it directly;
   // otherwise fall back to the "جمعية … التعاونية" wrapper around the co-op name.
-  const who = rec.recipient ? esc(rec.recipient) : esc(coopArFull(rec.coop));
+  const en = LANG === "en";
+  const who = en
+    ? esc(coopEnFull(rec) || rec.recipient || "")
+    : (rec.recipient ? esc(rec.recipient) : esc(coopArFull(rec.coop)));
   const branch = rec.meta && rec.meta.branch ? String(rec.meta.branch).trim() : "";
-  const branchLine = branch ? `<div class="to-branch">${esc(branch)}</div>` : "";
+  const branchLine = branch ? `<div class="to-branch">${esc(en ? arToEn(branch) : branch)}</div>` : "";
+  if (en) return `<div class="to"><span>Messrs / ${who}</span></div>${branchLine}<div class="greet">Dear Sir/Madam,</div>`;
   return `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div>${branchLine}<div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
 }
+// English closing lines for the classic (non-spec) documents.
+const CLOSE_EN = { thanks: "Thanking you for your kind cooperation,", regards: "Yours faithfully," };
 
 // Price-update ("change price") letter body.
 function priceLetterInner(rec) {
   const rows = Array.isArray(rec.items) ? rec.items : [];
   // Items optional: omit the table entirely when there are no rows.
+  const en = LANG === "en";
   const table = rows.length ? `<table class="pt"><thead>
-    <tr><th rowspan="2">م</th><th rowspan="2">رقم الصنف</th><th rowspan="2">أسم الصنف</th><th rowspan="2">الشـد</th>
+    ${en
+      ? `<tr><th rowspan="2">#</th><th rowspan="2">Item No.</th><th rowspan="2">Item Name</th><th rowspan="2">Pack</th>
+        <th colspan="2">Co-op Price</th><th colspan="2">Consumer Price</th><th rowspan="2">Unit Barcode</th></tr>
+    <tr><th>Old</th><th>New</th><th>Old</th><th>New</th></tr>`
+      : `<tr><th rowspan="2">م</th><th rowspan="2">رقم الصنف</th><th rowspan="2">أسم الصنف</th><th rowspan="2">الشـد</th>
         <th colspan="2">سعر البيع للجمعية</th><th colspan="2">سعر البيع للمستهلك</th><th rowspan="2">باركود الحبة</th></tr>
-    <tr><th>القديم</th><th>الجديد</th><th>القديم</th><th>الجديد</th></tr></thead>
+    <tr><th>القديم</th><th>الجديد</th><th>القديم</th><th>الجديد</th></tr>`}</thead>
     <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.item)}</td><td class="nm">${esc(r.name)}</td><td>${esc(r.pack)}</td><td>${KD(r.coopOld)}</td><td>${KD(r.coopNew)}</td><td>${KD(r.consOld)}</td><td>${KD(r.consNew)}</td><td class="bc">${esc(r.barcode)}</td></tr>`).join("")}</tbody></table>` : "";
+  if (en) return `${metaBlock(rec, true)}${toBlock(rec)}
+  <div class="subj">Subject: Data / Price Update</div>
+  <div class="body">With reference to the above subject, we kindly request your approval to update the data of the items listed in the table below and link them to the branches, as follows:</div>
+  ${table}
+  ${rec.note ? `<div class="body">Notes: ${esc(arToEn(rec.note))}</div>` : ""}
+  <div class="close">${CLOSE_EN.thanks}</div>
+  <div class="close">${CLOSE_EN.regards}</div>
+  ${signBlock(rec)}`;
   return `${metaBlock(rec, true)}${toBlock(rec)}
   <div class="subj">الموضـوع : تحديـث بيانـات</div>
   <div class="body">بالإشـارة إلى الموضـوع أعـلاه، يرجـى من سيادتكـم التكـرم بالموافقـة على تحديث بيانات الأصنـاف المذكـورة بالجـدول أدنـاه وربطهـا بالفـروع وهي كالتالـي :</div>
@@ -3583,10 +3776,28 @@ function priceLetterInner(rec) {
 function debitLetterInner(rec, isLetter) {
   const c = coop(rec.coop),
     out = c ? c.m : 0;
+  const en = LANG === "en";
+  const sum = rec.items && rec.items.length ? rec.items.reduce((s, i) => s + i.price, 0) : 0;
   const items =
     rec.items && rec.items.length
-      ? `<table class="items"><thead><tr><th>السعر</th><th>اسم الصنف</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(rec.items.reduce((s, i) => s + i.price, 0))}</b></td><td><b>الإجمالي للأوتليت الواحد</b></td></tr></tbody></table><div class="body">وذلك مقابل اعتماد الأصناف أعلاه في <b>${out}</b> أوتليت (${KD(rec.items.reduce((s, i) => s + i.price, 0))} × ${out} = <span class="val-big">${KD(rec.value)} د.ك</span>).</div>`
+      ? (en
+        ? `<table class="items"><thead><tr><th>Price</th><th>Item Name</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(sum)}</b></td><td><b>Total per outlet</b></td></tr></tbody></table><div class="body">Against the listing of the above items in <b>${out}</b> outlets (${KD(sum)} × ${out} = <span class="val-big">KD ${KD(rec.value)}</span>).</div>`
+        : `<table class="items"><thead><tr><th>السعر</th><th>اسم الصنف</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(sum)}</b></td><td><b>الإجمالي للأوتليت الواحد</b></td></tr></tbody></table><div class="body">وذلك مقابل اعتماد الأصناف أعلاه في <b>${out}</b> أوتليت (${KD(sum)} × ${out} = <span class="val-big">${KD(rec.value)} د.ك</span>).</div>`)
       : "";
+  if (en) {
+    const reasonEn =
+      rec.type === "listing" ? "the listing of the following items:"
+      : rec.type === "pallet" ? "display pallets."
+      : rec.type === "priceoff" ? "price differences."
+      : rec.type === "stand" ? "display stands."
+      : "commercial support (CDA).";
+    return `${metaBlock(rec, isLetter)}${toBlock(rec)}
+  <div class="subj">Subject: Debit Note</div>
+  <div class="body">With reference to the above subject, we kindly request your approval to issue a debit note against the account of United Distinctive Co. for General Trading of Foodstuffs held with you, for the amount of (<span class="val-big">KD ${KD(rec.value)}</span>) ${esc(tafqitEN(rec.value))}, against ${reasonEn}</div>
+  ${items}${rec.note ? `<div class="body">Notes: ${esc(arToEn(rec.note))}</div>` : ""}
+  <div class="close">${CLOSE_EN.regards}</div>
+  ${signBlock(rec)}`;
+  }
   const reason =
     rec.type === "listing" ? "اعتماد الأصناف التالية :"
     : rec.type === "pallet" ? "طبالي عرض."
@@ -3602,16 +3813,23 @@ function debitLetterInner(rec, isLetter) {
 }
 
 // Substitute {placeholders} in spec subject/intro from the record.
-function specSubst(str, rec) {
+function specSubst(str, rec, en) {
   const m = rec.meta || {};
-  return String(str || "").replace(/\{(\w+)\}/g, (_, k) => {
+  return String(str || "").replace(/\{(\w+)\}/g, (_, k, off, full) => {
     if (k === "value") return KD(rec.value);
-    if (k === "tafqit") return tafqitKD(rec.value);
-    if (k === "coop") return rec.coop || "";
+    if (k === "tafqit") return en ? tafqitEN(rec.value) : tafqitKD(rec.value);
+    // A qualifier glued to the preceding word in the template ("فروق اسعار{reason}")
+    // gets a separator when it's filled in, so the words don't run together.
+    const glued = off > 0 && !/[\s(]/.test(full[off - 1]);
+    const sep = (v) => (v && glued && !/^[\s\-—،,(]/.test(v) ? " - " + v : v);
+    if (k === "coop") return en ? (coopEn(rec.coop) || rec.coop || "") : (rec.coop || "");
     if (k === "recipient") return rec.recipient || "";
-    if (k === "date") return rec.date || "";
+    if (k === "date") return en ? (rec.date || "") : fmtDateAr(rec.date);
     if (k === "lysal") return rec.lysal || "";
-    return m[k] != null ? m[k] : "";
+    const v = m[k] != null ? String(m[k]) : "";
+    // Free-text qualifiers (reason / place / duration / period …) follow the
+    // document language; numbers and brand names pass through untouched.
+    return sep(["reason", "place", "duration", "period", "size", "from", "to", "brand"].includes(k) ? qualDisp(v, !!en) : v);
   });
 }
 function specTablePrint(tbl, rows) {
@@ -3628,10 +3846,10 @@ function specDocHTML(rec, spec) {
   // own lang (e.g. an English-only Union letter) still forces English.
   const en = spec.lang === "en" || (LANG === "en" && spec.intro && spec.intro.en && spec.subject && spec.subject.en);
   const lg = en ? "en" : "ar";
-  const subject = specSubst(spec.subject[lg] || spec.subject.ar, rec);
-  let intro = specSubst(spec.intro[lg] || spec.intro.ar, rec);
+  const subject = specSubst(spec.subject[lg] || spec.subject.ar, rec, en);
+  let intro = specSubst(spec.intro[lg] || spec.intro.ar, rec, en);
   // The chosen market (السوق الرئيسي/…) goes at the end of the body sentence.
-  const market = rec.meta && rec.meta.market ? String(rec.meta.market).trim() : "";
+  const market = rec.meta && rec.meta.market ? qualDisp(String(rec.meta.market).trim(), en) : "";
   if (market) intro = intro.replace(/\s*\.?\s*$/, "") + " - " + market + ".";
   const who = en
     ? (coopEnFull(rec) || rec.recipient || (spec.recipientFixed || ""))
@@ -3642,7 +3860,7 @@ function specDocHTML(rec, spec) {
   const to = en
     ? `<div class="to"><span>Messrs / ${esc(who)}</span></div>${branchLine}<div class="greet">Dear Sir/Madam,</div>`
     : `<div class="to"><span>السـادة / ${esc(who)}</span><span class="hon">المحتـرمين</span></div>${branchLine}<div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
-  const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(en ? (rec.date || "") : fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
+  const meta = `<div class="meta"><div>${en ? "Date" : "التاريخ"} : <b>${esc(fmtDateAr(rec.date))}</b></div><div class="mono">${esc(rec.lysal || "")}</div></div>`;
   const t1 = spec.table ? specTablePrint(spec.table, rec.items) : "";
   const t2 = spec.table2 ? specTablePrint(spec.table2, (rec.meta && rec.meta.rows2) || []) : "";
   const closingLines = en ? ["Yours faithfully,"] : (spec.closing || []);
@@ -3654,22 +3872,34 @@ function specDocHTML(rec, spec) {
   const showVal = spec.valueMode === "optional" && (+rec.value || 0) > 0;
   const valPara = showVal
     ? `<div class="body">${en
-        ? `The total value is (KD ${KD(rec.value)}) ${esc(tafqitKD(rec.value))}.`
+        ? `The total value is (KD ${KD(rec.value)}) ${esc(tafqitEN(rec.value))}.`
         : `وبقيمـة إجماليـة (<span class="val-big">${KD(rec.value)} د.ك</span>) ${esc(tafqitKD(rec.value))}.`}</div>`
     : "";
-  const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${valPara}${t1}${t2}${rec.note ? `<div class="body">${esc(rec.note)}</div>` : ""}${closing}${sign}`;
+  const inner = `${meta}${to}<div class="subj">${en ? "Subject: " : "الموضـوع : "}${esc(subject)}</div><div class="body">${esc(intro)}</div>${valPara}${t1}${t2}${rec.note ? `<div class="body">${esc(en ? arToEn(rec.note) : rec.note)}</div>` : ""}${closing}${sign}`;
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
   return `<div class="doc lh-${LH_MODE}${en ? " ltr" : ""}"${en ? ' dir="ltr"' : ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
 }
 // Two-copy listing debit note: page 1 = debit text, page 2 = items table.
 function listingDnHTML(rec, spec) {
-  const who = rec.recipient ? esc(rec.recipient) : esc(coopArFull(rec.coop));
+  const en = LANG === "en";
   const meta = metaBlock(rec, true);
-  const to = `<div class="to"><span>السـادة / ${who}</span><span class="hon">المحتـرمين</span></div><div class="greet">تحيـة طيبـة وبعـد،،،</div>`;
+  const to = toBlock(rec);
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
-  const wrap = (inner, extra) => `<div class="doc lh-${LH_MODE}"${extra || ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
+  const wrap = (inner, extra) => `<div class="doc lh-${LH_MODE}${en ? " ltr" : ""}"${en ? ' dir="ltr"' : ""}${extra || ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
+  if (en) {
+    const p1e = `${meta}${to}
+    <div class="subj">Subject: Debit Note</div>
+    <div class="body">With reference to the above subject, we kindly request your approval to issue a debit note against the account of United Distinctive Co. for General Trading of Foodstuffs held with you, for the amount of (<span class="val-big">KD ${KD(rec.value)}</span>) ${esc(tafqitEN(rec.value))}, against the listing of new items.</div>
+    <div class="close">${CLOSE_EN.regards}</div>${signBlock(rec)}`;
+    const p2e = `${meta}${to}
+    <div class="subj">Subject: Data Update</div>
+    <div class="body">With reference to the above subject, we kindly request your approval to list the items mentioned in the table below and link them to the branches, as follows:</div>
+    ${specTablePrint(spec.table, rec.items)}
+    <div class="close">${CLOSE_EN.regards}</div>${signBlock(rec)}`;
+    return wrap(p1e) + wrap(p2e, ' style="page-break-before:always"');
+  }
   // Page 1 — debit note text with value + tafqit
   const p1 = `${meta}${to}
     <div class="subj">الموضـوع : عمل إشعار خصم</div>
@@ -3690,7 +3920,8 @@ function docHTML(rec, isLetter) {
   const inner = rec.type === "changeprice" ? priceLetterInner(rec) : debitLetterInner(rec, isLetter);
   const head = LH_MODE === "full" ? `<div class="lh-h"><img src="${LOGOS.header}" alt="UDC"></div>` : "";
   const foot = LH_MODE === "full" ? `<div class="lh-f"><img src="${LOGOS.footer}" alt=""></div>` : "";
-  return `<div class="doc lh-${LH_MODE}">${head}<div class="lh-body">${inner}</div>${foot}</div>`;
+  const en = LANG === "en";
+  return `<div class="doc lh-${LH_MODE}${en ? " ltr" : ""}"${en ? ' dir="ltr"' : ""}>${head}<div class="lh-body">${inner}</div>${foot}</div>`;
 }
 function fmtTs(s) {
   if (!s) return "";
@@ -3703,13 +3934,13 @@ function fmtTs(s) {
 function approvalTrail(n) {
   if (!n) return "";
   const steps = [];
-  steps.push(`<div class="step">✎ <b>${t("createdBy")}:</b> ${esc(n.createdByName || "-")} — ${fmtTs(n.createdAt)}</div>`);
+  steps.push(`<div class="step">✎ <b>${t("createdBy")}:</b> ${escN(n.createdByName || "-")} — ${fmtTs(n.createdAt)}</div>`);
   if (n.supApprovedAt)
-    steps.push(`<div class="step">✔ <b>${t("supApproved")}:</b> ${esc(n.supApprovedByName || "-")} — ${fmtTs(n.supApprovedAt)}</div>`);
+    steps.push(`<div class="step">✔ <b>${t("supApproved")}:</b> ${escN(n.supApprovedByName || "-")} — ${fmtTs(n.supApprovedAt)}</div>`);
   if (n.mgrApprovedAt)
-    steps.push(`<div class="step">✔ <b>${t("mgrApproved")}:</b> ${esc(n.mgrApprovedByName || "-")} — ${fmtTs(n.mgrApprovedAt)}</div>`);
+    steps.push(`<div class="step">✔ <b>${t("mgrApproved")}:</b> ${escN(n.mgrApprovedByName || "-")} — ${fmtTs(n.mgrApprovedAt)}</div>`);
   if (n.rejectedAt)
-    steps.push(`<div class="step" style="color:var(--danger)">✕ <b>${t("rejectedBy")} (${n.rejectedStage === "mgr" ? t("mgr") : t("sup")}):</b> ${esc(n.rejectedByName || "-")} — ${fmtTs(n.rejectedAt)}<br>${t("rejectReason")}: ${esc(n.rejectReason || "")}</div>`);
+    steps.push(`<div class="step" style="color:var(--danger)">✕ <b>${t("rejectedBy")} (${n.rejectedStage === "mgr" ? t("mgr") : t("sup")}):</b> ${escN(n.rejectedByName || "-")} — ${fmtTs(n.rejectedAt)}<br>${t("rejectReason")}: ${esc(n.rejectReason || "")}</div>`);
   return `<div class="approv-trail no-print"><b style="color:#123f70">${t("approvalTrail")}</b>${steps.join("")}</div>`;
 }
 let curDoc = null;
@@ -3722,10 +3953,10 @@ function toggleLh() {
 // name (recipient + letter type + reference number) just before printing.
 function fnameSafe(s) { return String(s || "").replace(/[\\/:*?"<>|\r\n\t]+/g, " ").replace(/\s+/g, " ").trim(); }
 function docFileName(rec, isLetter) {
-  const who = rec.recipient || coopAr(rec.coop) || "";
-  const type = ltName(rec.type) || (isLetter ? "كتاب" : "إشعار خصم");
+  const who = coopDisp(rec) || "";
+  const type = ltName(rec.type) || (isLetter ? t("letterWord") : t("dnWord"));
   const ref = (rec.lysal || "").replace(/\//g, "-");
-  return fnameSafe([who, type, ref].filter(Boolean).join(" - ")) || (isLetter ? "كتاب" : "إشعار");
+  return fnameSafe([who, type, ref].filter(Boolean).join(" - ")) || (isLetter ? t("letterWord") : t("noteWord"));
 }
 function printWithName(name) {
   const prev = document.title;
@@ -3928,8 +4159,8 @@ async function refreshUsers() {
     const r = await api("/admin/users");
     usersCache = r.users;
     const box = document.getElementById("usersBox");
-    box.innerHTML = `<table><thead><tr><th>${t("username")}</th><th>${t("name")}</th><th>${t("th_role")}</th><th>${t("th_status")}</th><th>${t("lastLogin")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${r.users
-      .map((u) => `<tr><td class="mono-sm">${esc(u.username)}</td><td>${esc(u.name)}</td><td><span class="badge role-${esc(u.role)}">${esc(u.role)}</span></td><td>${u.active ? `<span class="badge on">${t("active")}</span>` : `<span class="badge off">${t("inactive")}</span>`}${u.must_change_password ? ` <span class="pill-info">${t("pwPending")}</span>` : ""}</td><td class="mono-sm">${u.last_login_at ? fmtTs(u.last_login_at) : "-"}</td><td><div class="actions"><button class="btn ghost sm" onclick="openUserForm(${u.id})">${t("edit")}</button><button class="btn ghost sm" onclick="resetUserPw(${u.id})">${t("resetPw")}</button></div></td></tr>`)
+    box.innerHTML = `<table><thead><tr><th>${t("username")}</th><th>${t("name")}</th><th>EN</th><th>${t("th_role")}</th><th>${t("th_status")}</th><th>${t("lastLogin")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${r.users
+      .map((u) => `<tr><td class="mono-sm">${esc(u.username)}</td><td>${esc(u.name)}</td><td>${esc(u.name_en || "")}</td><td><span class="badge role-${esc(u.role)}">${esc(u.role)}</span></td><td>${u.active ? `<span class="badge on">${t("active")}</span>` : `<span class="badge off">${t("inactive")}</span>`}${u.must_change_password ? ` <span class="pill-info">${t("pwPending")}</span>` : ""}</td><td class="mono-sm">${u.last_login_at ? fmtTs(u.last_login_at) : "-"}</td><td><div class="actions"><button class="btn ghost sm" onclick="openUserForm(${u.id})">${t("edit")}</button><button class="btn ghost sm" onclick="resetUserPw(${u.id})">${t("resetPw")}</button></div></td></tr>`)
       .join("")}</tbody></table>`;
   } catch (e) {
     document.getElementById("usersBox").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -3943,6 +4174,7 @@ function openUserForm(id) {
     <div class="grid">
       <div class="field"><label>${t("username")}</label><input id="uU" value="${u ? esc(u.username) : ""}" ${u ? "readonly" : ""}></div>
       <div class="field"><label>${t("name")}</label><input id="uN" value="${u ? esc(u.name) : ""}"></div>
+      <div class="field"><label>${t("nameEn")}</label><input id="uNE" value="${u ? esc(u.name_en || "") : ""}" dir="ltr"></div>
       <div class="field"><label>${t("th_role")}</label><select id="uR">${roleOpts}</select></div>
       ${u ? `<div class="field"><label>${t("th_status")}</label><select id="uA"><option value="1" ${u.active ? "selected" : ""}>${t("active")}</option><option value="0" ${!u.active ? "selected" : ""}>${t("inactive")}</option></select></div>`
           : `<div class="field"><label>${t("initialPw")}</label><input id="uP" placeholder="${t("defaultPwNote")}"></div>`}
@@ -3959,6 +4191,7 @@ async function saveUser(id) {
         method: "PATCH",
         body: {
           name: document.getElementById("uN").value.trim(),
+          nameEn: document.getElementById("uNE").value.trim(),
           role: document.getElementById("uR").value,
           active: document.getElementById("uA").value === "1",
         },
@@ -3969,6 +4202,7 @@ async function saveUser(id) {
         body: {
           username: document.getElementById("uU").value.trim().toLowerCase(),
           name: document.getElementById("uN").value.trim(),
+          nameEn: document.getElementById("uNE").value.trim(),
           role: document.getElementById("uR").value,
           password: document.getElementById("uP").value || undefined,
         },
@@ -4431,8 +4665,8 @@ function editApproveItem(bc) {
       <div class="field"><label>${t("itemNo")}</label><input id="aiItemNo" ${f("aiItemNo", p.item_no)}></div>
       <div class="field"><label>${t("brand")}</label><input id="aiBrand" ${f("aiBrand", p.brand)} list="udcBrands"></div>
       <div class="field" style="grid-column:1/-1"><label>${t("itemNameAr")}</label><input id="aiName" ${f("aiName", p.name_ar || p.name)}></div>
-      <div class="field"><label>${t("origin")}</label><input id="aiOrigin" ${f("aiOrigin", p.origin || "السعودية")}></div>
-      <div class="field"><label>${t("th_pack")}</label><input id="aiPack" ${f("aiPack", p.pack)} placeholder="16 * 85 جرام"></div>
+      <div class="field"><label>${t("origin")}</label><input id="aiOrigin" ${f("aiOrigin", p.origin || t("originDefault"))}></div>
+      <div class="field"><label>${t("th_pack")}</label><input id="aiPack" ${f("aiPack", p.pack)} placeholder="${t("packPh")}"></div>
       <div class="field"><label>${t("coopCarton")}</label><input id="aiCoop" type="number" step="0.001" ${f("aiCoop", p.coop_carton)} oninput="aiRatio()"></div>
       <div class="field"><label>${t("consPiece")}</label><input id="aiCons" type="number" step="0.001" ${f("aiCons", p.cons_piece)} oninput="aiRatio()"></div>
       <div class="field"><label>${t("circularNo")}</label><input id="aiCirc" ${f("aiCirc", p.circular)}></div>
@@ -4537,7 +4771,7 @@ function printCoopBatch() {
     const html = specDocHTML(rec, spec);
     return i === 0 ? html : html.replace('<div class="doc ', '<div style="page-break-before:always" class="doc ');
   }).join("");
-  window.__batchName = fnameSafe(`كتب الجمعيات - اعتماد أصناف تكميلية - ${date}`);
+  window.__batchName = fnameSafe(`${t("batchFileName")} - ${date}`);
   modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("batchReady")} — ${t("batchCount").replace("{n}", chosen.length)}</b><div class="actions"><button class="btn gold sm" onclick="printWithName(window.__batchName)">🖨 ${t("printBatch")}</button><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div>${docs}`);
 }
 /* -- price tracker grid -- */
@@ -4636,7 +4870,17 @@ async function vContracts() {
   cxData = await api("/contracts");
   cxRenderList();
 }
-function cxCoopLabel(c) { return c.coopAr || c.coop; }
+// Free-text contract fields (title, reference, fixture, description) in the UI language.
+function cxT(s) { return LANG === "en" ? arToEn(s) : String(s == null ? "" : s); }
+// A fixture/space name in the UI language (the English name from the spaces master when set).
+function cxSpaceDisp(name) {
+  if (LANG !== "en") return String(name || "");
+  const s = (cxData && cxData.spaces || []).find((x) => x.name === name);
+  return (s && s.nameEn) || arToEn(name);
+}
+function cxCoopLabel(c) { return LANG === "en" ? (coopEn(c.coop) || c.coop) : (c.coopAr || c.coop); }
+// A contract row's co-op name in the UI language.
+function cxCoopName(c) { return LANG === "en" ? (coopEn(c.coop) || c.coop || "—") : (c.coopAr || (cxData && cxData.coops ? (cxData.coops.find((x) => x.coop === c.coop) || {}).coopAr : "") || c.coop || "—"); }
 async function cxViewPdf(id) {
   try {
     const res = await api("/contracts/" + id + "/pdf", { raw: true });
@@ -4655,7 +4899,7 @@ function cxEffBadge(c) {
     active: ["#1e874b", t("cxEffActive")],
     autorenew: ["#2f6fb0", t("cxEffAuto") + (c.renewedCycles ? " ×" + c.renewedCycles : "")],
     expired: ["#c0392b", t("cxEffExpired")],
-    future: ["#8a5a00", "لم يبدأ"],
+    future: ["#8a5a00", t("cxNotStarted")],
     unknown: ["#888", "—"],
   };
   const m = map[c.effStatus] || map.unknown;
@@ -4664,7 +4908,7 @@ function cxEffBadge(c) {
 function cxOutletName(coop, custId) {
   const e = cxData.coops.find((x) => x.coop === coop);
   const o = e && e.outlets.find((y) => String(y.custId) === String(custId));
-  return o ? (o.nameAr || o.name) : (custId || "");
+  return o ? (LANG === "en" ? (o.name || o.nameAr) : (o.nameAr || o.name)) : (custId || "");
 }
 function cxScopeLabel(it) {
   if (it.scope === "outlet") return cxOutletName(cxEditCoop(), it.custId) || t("cxsc_outlet");
@@ -4679,19 +4923,19 @@ function cxRenderList() {
     + `<div style="display:flex;gap:8px;flex-wrap:wrap">`
     + `<button class="btn ghost sm" onclick="vContractsDash()">📊 ${t("cxDash")}</button>`
     + (can ? `<button class="btn primary sm" onclick="cxEditContract(null)">${t("cxNew")}</button><button class="btn ghost sm" onclick="cxSpaces()">⬛ ${t("cxManageSpaces")}</button>` : "")
-    + `<button class="btn gold sm" onclick="dl('/export/contracts.csv')">⬇ ${t("cxExport")}</button>`
-    + `<button class="btn gold sm" onclick="dl('/export/contract-items.csv')">⬇ ${t("cxExportItems")}</button>`
+    + `<button class="btn gold sm" onclick="dl('/export/contracts.csv?lang=' + LANG)">⬇ ${t("cxExport")}</button>`
+    + `<button class="btn gold sm" onclick="dl('/export/contract-items.csv?lang=' + LANG)">⬇ ${t("cxExportItems")}</button>`
     + `</div>`;
   const bases = cxData.contracts.filter((c) => c.kind !== "addendum");
   const adds = cxData.contracts.filter((c) => c.kind === "addendum");
   const rowHtml = (c, isAdd) => {
     const who = c.level === "coop" ? cxCoopLabel(cxData.coops.find((x) => x.coop === c.coop) || { coop: c.coop, coopAr: c.coopAr })
-      : cxOutletName(c.coop, c.custId) + " — " + (c.coopAr || c.coop);
+      : cxOutletName(c.coop, c.custId) + " — " + cxCoopName(c);
     const per = (c.period.from || "") + (c.period.to ? " → " + c.period.to : "");
     const badge = isAdd ? `<span class="pill-info">${t("cxIsAddendum")}</span> ` : (c.isRenewal ? `<span class="pill-info">${t("cxIsRenewal")}</span> ` : "");
     const lvl = c.level === "coop" ? t("cxLevelCoop") : t("cxLevelOutlet");
     return `<tr${isAdd ? ' style="background:#fafafa"' : ""}>
-      <td>${isAdd ? "↳ " : ""}${badge}${c.verified ? `<span title="${t("cxVerified")}" style="color:#1e874b">✓</span> ` : ""}${c.code ? esc(c.code) : `<span style="color:#888">${t("cxNoRef")}</span>`}${c.title ? `<div class="mono-sm" style="color:#555">${esc(c.title)}</div>` : ""}</td>
+      <td>${isAdd ? "↳ " : ""}${badge}${c.verified ? `<span title="${t("cxVerified")}" style="color:#1e874b">✓</span> ` : ""}${c.code ? esc(cxT(c.code)) : `<span style="color:#888">${t("cxNoRef")}</span>`}${c.title ? `<div class="mono-sm" style="color:#555">${esc(cxT(c.title))}</div>` : ""}</td>
       <td>${esc(who)}<div class="mono-sm" style="color:#888">${esc(lvl)}</div></td>
       <td class="mono-sm">${esc(per)}</td>
       <td class="mono">${c.items.length}</td>
@@ -4709,7 +4953,7 @@ function cxRenderList() {
   };
   // Group by co-op (each co-op's contracts together), sorted by co-op then year;
   // addenda render indented under their base.
-  const dispCoop = (c) => c.coopAr || (cxData.coops.find((x) => x.coop === c.coop) || {}).coopAr || c.coop || "—";
+  const dispCoop = (c) => cxCoopName(c);
   const cyr = (c) => c.subjectYear || String((c.period && c.period.from) || "").slice(0, 4) || "";
   const coopCount = {};
   cxData.contracts.forEach((c) => { const k = dispCoop(c); coopCount[k] = (coopCount[k] || 0) + 1; });
@@ -4748,7 +4992,7 @@ async function vContractsDash() {
       ${kpi(t("cxEffActive"), s.effActive||0, "#1e874b")}
       ${kpi(t("cxEffAuto"), s.effAutoRenew||0, "#2f6fb0")}
       ${kpi(t("cxEffExpired"), s.effExpired||0, (s.effExpired?"#c0392b":"#123f70"))}
-      ${kpi(t("cxKpiLumpSum"), KD(s.lumpSum)+" د.ك", "#123f70")}
+      ${kpi(t("cxKpiLumpSum"), KD(s.lumpSum)+" "+t("kd"), "#123f70")}
       ${kpi(t("cxKpiPctAvg"), (s.pctAvg||0)+"%"+(s.pctCount?` (${s.pctMin}–${s.pctMax})`:""), "#8a5a00")}
       ${kpi(t("cxKpiSpaces"), s.spaces)}
       ${kpi(t("cxKpiAddendum"), s.addendum)}
@@ -4779,7 +5023,7 @@ function cxOutletOptions(coop, sel) {
   return `<option value="">${t("choose")}</option>` + outs.map((o) => `<option value="${esc(o.custId)}" ${String(sel) === String(o.custId) ? "selected" : ""}>${esc(o.nameAr || o.name)}</option>`).join("");
 }
 function cxSpaceOptions(sel) {
-  return `<option value="">—</option>` + (cxData.spaces || []).map((s) => `<option value="${s.id}" data-name="${esc(s.name)}" ${String(sel) === String(s.id) ? "selected" : ""}>${esc(s.name)}</option>`).join("");
+  return `<option value="">—</option>` + (cxData.spaces || []).map((s) => `<option value="${s.id}" data-name="${esc(s.name)}" ${String(sel) === String(s.id) ? "selected" : ""}>${esc(LANG === "en" ? (s.nameEn || arToEn(s.name)) : s.name)}</option>`).join("");
 }
 
 function cxEditContract(id, parentId) {
@@ -4831,7 +5075,7 @@ function cxRenderEditor() {
       <div class="field"><label>${t("cxPayWithin")}</label><input id="cxPay" type="number" value="${c.payWithin != null ? c.payWithin : 14}"></div>
     </div>
     <div class="grid g3">
-      <div class="field"><label>${t("cxBonusTerms")}</label><input id="cxBonus" value="${esc(c.bonusTerms || "")}" placeholder="1+1 مرة واحدة"></div>
+      <div class="field"><label>${t("cxBonusTerms")}</label><input id="cxBonus" value="${esc(c.bonusTerms || "")}" placeholder="${t("cxBonusPh")}"></div>
       <label class="chk"><input type="checkbox" id="cxRenewal" ${c.isRenewal ? "checked" : ""}> ${t("cxIsRenewal")}</label>
       <label class="chk"><input type="checkbox" id="cxRenewable" ${c.renewable !== false ? "checked" : ""}> ${t("cxRenewable")}</label>
     </div>
@@ -4883,11 +5127,11 @@ function cxItemRow(it, i) {
     <td>${cxScopeSelect(it, i)}</td>
     <td><select class="cxItSpace">${cxSpaceOptions(it.spaceId)}</select></td>
     <td><input class="cxItCount" type="number" min="1" value="${it.count || 1}" style="width:64px"></td>
-    <td><input class="cxItDim" value="${esc(it.dimensions || "")}" placeholder="110×240×65 سم"></td>
-    <td><input class="cxItCat" value="${esc(it.category || "")}" placeholder="شيبس / خبز"></td>
-    <td><input class="cxItLoc" value="${esc(it.location || "")}" placeholder="من أول الرف لأسفله"></td>
+    <td><input class="cxItDim" value="${esc(it.dimensions || "")}" placeholder="${t("cxDimPh")}"></td>
+    <td><input class="cxItCat" value="${esc(it.category || "")}" placeholder="${t("cxCatPh")}"></td>
+    <td><input class="cxItLoc" value="${esc(it.location || "")}" placeholder="${t("cxLocPh")}"></td>
     <td><input class="cxItAmt" type="number" step="0.001" value="${it.amount || 0}" style="width:80px"></td>
-    <td><input class="cxItDesc" value="${esc(it.description || "")}" style="min-width:200px" placeholder="غرفة للشيبس ..."></td>
+    <td><input class="cxItDesc" value="${esc(it.description || "")}" style="min-width:200px" placeholder="${t("cxDescPh")}"></td>
     <td><button class="btn danger sm" onclick="cxRemoveItem(${i})">✕</button></td></tr>`;
 }
 function cxRenderItems() {
@@ -4985,17 +5229,17 @@ async function cxDelete(id) {
 function cxView(id) {
   const c = cxData.contracts.find((x) => x.id === id); if (!c) return;
   cxEdit = c; // so cxOutletName scope resolves
-  const who = c.level === "coop" ? (c.coopAr || c.coop) : (cxOutletName(c.coop, c.custId) + " — " + (c.coopAr || c.coop));
+  const who = c.level === "coop" ? cxCoopName(c) : (cxOutletName(c.coop, c.custId) + " — " + cxCoopName(c));
   const scopeLbl = (it) => it.scope === "outlet" ? cxOutletName(c.coop, it.custId) : t("cxsc_" + (it.scope || "main"));
-  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(it.space || "")}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td><td class="mono">${it.amount ? KD(it.amount) : ""}</td><td>${esc(it.description || "")}</td></tr>`).join("");
+  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(cxSpaceDisp(it.space || ""))}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td><td class="mono">${it.amount ? KD(it.amount) : ""}</td><td>${esc(cxT(it.description || ""))}</td></tr>`).join("");
   const inst = c.installments.map((p) => `<tr><td>${p.seq}</td><td class="mono-sm">${esc(p.dueDate || "")}</td><td class="mono">${KD(p.amount)}</td><td>${p.status === "paid" ? t("cxPaid") : t("cxPending")}</td></tr>`).join("");
-  const valLine = c.valueMode === "pct" ? `${c.pct}% ${t("cxvm_pct")}` : `${KD(c.value)} د.ك`;
+  const valLine = c.valueMode === "pct" ? `${c.pct}% ${t("cxvm_pct")}` : `${KD(c.value)} ${t("kd")}`;
   modal(`<div style="max-width:820px;padding:16px 20px">
-    <h3>${esc(c.code || "#" + c.id)}${c.kind === "addendum" ? " · " + t("cxIsAddendum") : (c.isRenewal ? " · " + t("cxIsRenewal") : "")}</h3>
+    <h3>${esc(cxT(c.code || "#" + c.id))}${c.kind === "addendum" ? " · " + t("cxIsAddendum") : (c.isRenewal ? " · " + t("cxIsRenewal") : "")}</h3>
     <p>${esc(who)} · ${esc((c.period.from || "") + (c.period.to ? " → " + c.period.to : ""))}</p>
     <p><b>${t("cxTotal")}:</b> ${valLine} · ${t("cxvk_" + (c.valueKind || "rent"))} · ${t("cxpf_" + (c.payFreq || "once"))}${c.partyRep ? " · " + esc(c.partyRep) : ""}</p>
     ${c.bonusTerms ? `<p><b>${t("cxBonusTerms")}:</b> ${esc(c.bonusTerms)}</p>` : ""}
-    ${c.title ? `<p>${esc(c.title)}</p>` : ""}
+    ${c.title ? `<p>${esc(cxT(c.title))}</p>` : ""}
     <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=8>—</td></tr>`}</tbody></table>
     <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
     <div class="actions" style="margin-top:12px;gap:8px">${c.hasPdf ? `<button class="btn gold" onclick="cxViewPdf(${c.id})">${t("cxViewPdf")}</button><button class="btn ghost" onclick="cxDownloadPdf(${c.id})">${t("cxDownloadPdf")}</button>` : ""}<button class="btn ghost" onclick="closeModal()">${t("close")}</button></div></div>`);
@@ -5008,13 +5252,13 @@ async function cxGenDN(id) {
   const pre = await api("/contracts/" + id + "/debit-note?from=" + encodeURIComponent(c.period.from || "") + "&to=" + encodeURIComponent(c.period.to || ""));
   modal(`<div style="max-width:520px;padding:16px 20px">
     <h3>${t("cxGenDNTitle")}</h3>
-    <p>${esc(c.code || "#" + c.id)} · ${esc(c.coopAr || c.coop)}${pct ? " · " + c.pct + "% " + t("cxvm_pct") : ""}</p>
+    <p>${esc(cxT(c.code || "#" + c.id))} · ${esc(cxCoopName(c))}${pct ? " · " + c.pct + "% " + t("cxvm_pct") : ""}</p>
     <div class="grid g2">
       <div class="field"><label>${t("cxPeriodFrom")}</label><input id="dnFrom" type="date" value="${esc(pre.from || "")}" onchange="cxDNRecalc(${id})"></div>
       <div class="field"><label>${t("cxPeriodTo")}</label><input id="dnTo" type="date" value="${esc(pre.to || "")}" onchange="cxDNRecalc(${id})"></div>
     </div>
     ${pct ? `<div class="field"><label>${t("cxSalesBase")}</label><input id="dnBase" type="number" step="0.001" value="0" oninput="cxDNRecalc(${id})"></div>` : ""}
-    <div class="field"><label>${t("cxBilledFor")} (د.ك)</label><input id="dnAmt" type="number" step="0.001" value="${pre.amount}"></div>
+    <div class="field"><label>${t("cxBilledFor")} (${t("kd")})</label><input id="dnAmt" type="number" step="0.001" value="${pre.amount}"></div>
     <div class="hint" id="dnHint">${pct ? c.pct + "% × " + t("cxSalesBase") : t("cxTotal") + ": " + KD(pre.contractValue) + " · " + pre.billedMonths + "/" + pre.contractMonths + " " + t("months")}</div>
     <div class="actions" style="margin-top:12px;gap:8px"><button class="btn primary" onclick="cxDoGenDN(${id})">${t("cxGenerate")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
 }
@@ -5038,7 +5282,7 @@ async function cxDoGenDN(id) {
     date: new Date().toISOString().slice(0, 10),
     coop: c.coop,
     fields: { from, to, value },
-    note: (c.code ? "عقد " + c.code : "") ,
+    note: (c.code ? t("contractWord") + " " + c.code : "") ,
   };
   if (c.level === "outlet" && c.custId) { body.custId = c.custId; body.recipient = cxOutletName(c.coop, c.custId); }
   else body.recipient = c.coopAr || c.coop;

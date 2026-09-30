@@ -154,6 +154,12 @@ function buildState(user) {
   const notes = noteRows.map((r) => mapNote(r, nameOf));
 
   const counter = db.prepare("SELECT value FROM counters WHERE name='lysal'").get();
+  // Display-name map (Arabic name -> English name) for the English UI.
+  const people = {};
+  try {
+    db.prepare("SELECT name, name_en FROM users WHERE name_en IS NOT NULL AND name_en <> ''").all()
+      .forEach((u) => { if (u.name) people[u.name] = u.name_en; });
+  } catch (e) { /* column optional */ }
 
   const coops = db.prepare('SELECT name, name_ar, code, mains, branches FROM coops ORDER BY mains DESC, name ASC')
     .all().map((c) => ({ n: c.name, ar: c.name_ar || '', p: c.code, m: c.mains, b: c.branches }));
@@ -176,6 +182,7 @@ function buildState(user) {
     letters,
     notes,
     counter: counter ? counter.value : 0,
+    people,
     scope,
     ref: {
       coops,
