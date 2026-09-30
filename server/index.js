@@ -40,6 +40,12 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
 // API routes.
+// Any successful write may have introduced new Arabic text: let the machine
+// translator pick it up shortly after (debounced, no-op when disabled).
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'GET') res.on('finish', () => { if (res.statusCode < 400 && !/^\/(glossary|login|logout|change-password)/.test(req.path)) { try { require('./glossary-core').touch(); } catch (e) { /* */ } } });
+  next();
+});
 app.use('/api', require('./routes/auth.routes'));
 app.use('/api', require('./routes/state.routes'));
 app.use('/api', require('./routes/budget.routes'));
@@ -83,6 +89,8 @@ app.use((err, req, res, next) => {
 const server = app.listen(config.port, config.host, () => {
   // eslint-disable-next-line no-console
   console.log(`UDC Debit Note System running at http://${config.host}:${config.port} (${config.nodeEnv})`);
+  // Machine-translate newly stored Arabic text in the background (MyMemory).
+  try { require('./glossary-core').schedule(); } catch (e) { /* optional */ }
 });
 
 // Graceful shutdown.

@@ -700,7 +700,13 @@ const T = {
   gl_kind: { ar: "النوع", en: "Type" }, gl_k_word: { ar: "كلمة", en: "Word" }, gl_k_phrase: { ar: "عبارة (أكثر من كلمة)", en: "Phrase (several words)" }, gl_k_exact: { ar: "نص كامل كما هو", en: "Whole text, as is" },
   gl_add: { ar: "＋ إضافة ترجمة", en: "＋ Add translation" }, gl_search: { ar: "بحث بالقاموس…", en: "Search the dictionary…" }, gl_try: { ar: "جرّب الترجمة", en: "Try a translation" },
   gl_tryPh: { ar: "اكتب أي نص عربي لتشوف كيف بيطلع بالإنجليزي", en: "Type any Arabic text to see how it renders in English" }, gl_stats: { ar: "{t} من {s} نص مخزّن مترجم بالكامل", en: "{t} of {s} stored texts fully translated" },
-  gl_refresh: { ar: "تحديث", en: "Refresh" }, gl_delete: { ar: "حذف", en: "Delete" }, gl_confirmDel: { ar: "حذف هذه الترجمة؟", en: "Delete this translation?" },
+  gl_refresh: { ar: "تحديث", en: "Refresh" },
+  gl_mt: { ar: "الترجمة الآلية (MyMemory — مجانية)", en: "Machine translation (MyMemory — free)" }, gl_mtOff: { ar: "الترجمة الآلية متوقفة (MT_PROVIDER=off)", en: "Machine translation is off (MT_PROVIDER=off)" },
+  gl_mtHint: { ar: "أي نص عربي جديد ما بيعرفه القاموس بيتترجم تلقائياً خلال ثوانٍ من حفظه ويُخزَّن. تقدر تعدّل أي ترجمة آلية وتصير من قاموسك.", en: "Any new Arabic text the glossary cannot render is machine-translated within seconds of being saved and stored. Edit any machine translation and it becomes yours." },
+  gl_mtUsed: { ar: "المستخدم اليوم", en: "Used today" }, gl_mtChars: { ar: "حرف", en: "chars" }, gl_mtCached: { ar: "نصوص مترجمة آلياً", en: "machine-translated texts" }, gl_mtLast: { ar: "آخر تشغيل", en: "Last run" },
+  gl_mtRun: { ar: "ترجم النصوص الناقصة الآن", en: "Translate the missing texts now" }, gl_mtQuota: { ar: "انتهت الحصة المجانية لليوم — بيكمل تلقائياً بكرة", en: "Free quota for today is used up — continues automatically tomorrow" },
+  gl_mtErr: { ar: "آخر خطأ", en: "Last error" }, gl_mtDone: { ar: "تمت ترجمة {n} نص آلياً", en: "{n} text(s) machine-translated" }, gl_mtRemaining: { ar: "متبقي", en: "remaining" },
+  gl_mtEmail: { ar: "بدون إيميل: 5,000 حرف/يوم · مع إيميل بإعدادات Render (MYMEMORY_EMAIL): 50,000", en: "Without an email: 5,000 chars/day · with MYMEMORY_EMAIL set on Render: 50,000" }, gl_mtMakeMine: { ar: "تعديل / اعتماد", en: "Edit / adopt" }, gl_delete: { ar: "حذف", en: "Delete" }, gl_confirmDel: { ar: "حذف هذه الترجمة؟", en: "Delete this translation?" },
   r_users_d: { ar: "إدارة الحسابات والأدوار وكلمات المرور.", en: "Manage accounts, roles and passwords." },
   r_structure: { ar: "بناء الهيكل (مشرفين ← مناديب ← جمعيات ← أوتليت)", en: "Structure builder (supervisors → salesmen → co-ops → outlets)" },
   r_structure_d: { ar: "المصدر الوحيد للهيكل — أي تعديل هنا ينعكس على كل الشاشات فورًا.", en: "Single source of truth — any change here is reflected on every screen." },
@@ -1034,7 +1040,7 @@ let DB = {
 
 // Pull the full application state from the server into the local cache.
 async function loadState() {
-  loadGlossary();
+  refreshGlossaryIfChanged();
   const r = await api("/state");
   currentUser = r.user;
   const s = r.state;
@@ -2454,8 +2460,8 @@ async function vGlossary() {
   const box = document.getElementById("rv");
   box.innerHTML = `<div class="panel"><div class="empty">${t("loading")}</div></div>`;
   try {
-    const [p, e] = await Promise.all([api("/glossary/pending"), api("/glossary/entries")]);
-    glData = { pending: p, entries: e };
+    const [p, e, mt] = await Promise.all([api("/glossary/pending"), api("/glossary/entries"), api("/glossary/machine/list").catch(() => ({ rows: [] }))]);
+    glData = { pending: p, entries: e, mt };
   } catch (err) { box.innerHTML = `<div class="empty">${esc(err.message)}</div>`; return; }
   renderGlossary();
 }
@@ -2469,11 +2475,29 @@ function renderGlossary(q) {
   <div class="panel"><header><h3>${t("gl_pending")} <span class="pill-info">${p.pending.length}</span></h3><div class="actions" style="margin:0"><button class="btn ghost sm" onclick="vGlossary()">↻ ${t("gl_refresh")}</button><button class="btn primary sm" onclick="glSaveAll()">💾 ${t("gl_saveAll")}</button></div></header>
     <div class="hint" style="padding:6px 12px">${t("gl_pendingHint")} · ${t("gl_stats").replace("{t}", p.translated).replace("{s}", p.strings)}</div>
     <div class="tbl-wrap">${p.pending.length ? `<table><thead><tr><th>${t("gl_word")}</th><th>${t("gl_count")}</th><th>${t("gl_examples")}</th><th>${t("gl_en")}</th><th></th></tr></thead><tbody>${pendRows}</tbody></table>` : `<div class="empty">${t("gl_none")}</div>`}</div></div>
+  ${glMachineHTML(p.machine)}
   <div class="panel"><header><h3>${t("gl_try")}</h3></header><div style="padding:10px 12px" class="grid g2"><div class="field"><input id="glTryIn" dir="rtl" placeholder="${t("gl_tryPh")}" oninput="glTry()"></div><div class="field"><input id="glTryOut" dir="ltr" readonly style="background:var(--bg)"></div></div></div>
   <div class="panel"><header><h3>${t("gl_entries")} <span class="pill-info">${e.total}</span></h3><div class="actions" style="margin:0"><input id="glQ" placeholder="${t("gl_search")}" value="${esc(q || "")}" onkeydown="if(event.key==='Enter')glSearch()" style="min-width:200px"><button class="btn gold sm" onclick="glEdit(0)">${t("gl_add")}</button></div></header>
     <div class="hint" style="padding:6px 12px">${t("gl_entriesHint").replace("{shipped}", e.shipped)}</div>
     <div class="tbl-wrap">${e.entries.length ? `<table><thead><tr><th>${t("gl_word")}</th><th>${t("gl_en")}</th><th>${t("gl_kind")}</th><th>${t("th_date")}</th><th></th></tr></thead><tbody>${entRows}</tbody></table>` : `<div class="empty">—</div>`}</div></div>`;
 }
+function glMachineHTML(m) {
+  if (!m) return "";
+  if (!m.enabled) return `<div class="panel"><header><h3>${t("gl_mt")}</h3></header><div class="hint" style="padding:8px 12px">${t("gl_mtOff")}</div></div>`;
+  const last = m.last;
+  const lastTxt = last ? `${fmtTs(last.at)} — ${t("gl_mtDone").replace("{n}", last.translated)}${last.remaining ? ` · ${last.remaining} ${t("gl_mtRemaining")}` : ""}${last.quota ? ` · ⚠ ${t("gl_mtQuota")}` : ""}${last.error && !last.quota ? ` · ${t("gl_mtErr")}: ${esc(String(last.error).slice(0, 120))}` : ""}` : "—";
+  const rows = (glData.mt && glData.mt.rows || []).map((r) => `<tr><td dir="rtl">${esc(r.ar)}</td><td dir="ltr">${esc(r.en)}</td><td class="mono-sm">${fmtTs(r.created_at)}</td><td><div class="actions"><button class="btn ghost sm" onclick="glAdopt(${JSON.stringify(r.ar).replace(/"/g, "&quot;")})">${t("gl_mtMakeMine")}</button><button class="btn ghost sm" onclick="glMtDelete(${JSON.stringify(r.ar).replace(/"/g, "&quot;")})">${t("gl_delete")}</button></div></td></tr>`).join("");
+  return `<div class="panel"><header><h3>${t("gl_mt")} <span class="pill-info">${m.cached}</span></h3><div class="actions" style="margin:0"><button class="btn primary sm" id="glMtRunBtn" onclick="glMtRun()">🌐 ${t("gl_mtRun")}</button></div></header>
+    <div class="hint" style="padding:6px 12px">${t("gl_mtHint")}<br>${t("gl_mtUsed")}: <b>${m.usedToday.toLocaleString()}</b> / ${m.dailyChars.toLocaleString()} ${t("gl_mtChars")} · ${m.cached} ${t("gl_mtCached")} · ${t("gl_mtLast")}: ${lastTxt}<br><span style="color:#888">${t("gl_mtEmail")}</span></div>
+    <div class="tbl-wrap">${rows ? `<table><thead><tr><th>${t("gl_word")}</th><th>${t("gl_en")}</th><th>${t("th_date")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : ""}</div></div>`;
+}
+async function glMtRun() {
+  const btn = document.getElementById("glMtRunBtn"); if (btn) { btn.disabled = true; btn.textContent = "…"; }
+  try { const r = await api("/glossary/machine/run", { method: "POST", body: { limit: 60 } }); await loadGlossary(true); toast(r.quota ? t("gl_mtQuota") : t("gl_mtDone").replace("{n}", r.translated)); await vGlossary(); }
+  catch (e) { toast(e.message); if (btn) { btn.disabled = false; btn.textContent = "🌐 " + t("gl_mtRun"); } }
+}
+function glAdopt(ar) { const r = (glData.mt && glData.mt.rows || []).find((x) => x.ar === ar); glEdit(0); setTimeout(() => { document.getElementById("glAr").value = ar; document.getElementById("glEn").value = r ? r.en : ""; document.getElementById("glKind").value = "exact"; }, 30); }
+async function glMtDelete(ar) { if (!confirm(t("gl_confirmDel"))) return; try { await api("/glossary/machine/delete", { method: "POST", body: { ar } }); await glAfterSave(0); } catch (e) { toast(e.message); } }
 let glTryTimer = null;
 function glTry() {
   clearTimeout(glTryTimer);
@@ -3781,6 +3805,13 @@ function latinDigits(s) { return String(s || "").replace(/[٠-٩]/g, (d) => Stri
 // notes, contract descriptions …) is rendered through it in the English UI.
 let GLOSS = null;
 let GLOSS_VER = null;
+// Cheap version check; re-fetches the glossary only when the admin or the
+// machine translator changed it.
+async function refreshGlossaryIfChanged() {
+  if (!GLOSS) return loadGlossary();
+  try { const v = await api("/glossary/version"); if (v && v.version !== GLOSS_VER) { await loadGlossary(true); if (LANG === "en" && currentUser) render(); } } catch (e) { /* offline */ }
+}
+setInterval(() => { if (currentUser && LANG === "en" && GLOSS) refreshGlossaryIfChanged(); }, 3 * 60 * 1000);
 async function loadGlossary(force) {
   if (typeof ArEn === "undefined" || (GLOSS && !force)) return;
   try {
@@ -4977,6 +5008,10 @@ function cxSpaceDisp(name) {
   const s = (cxData && cxData.spaces || []).find((x) => x.name === name);
   return (s && s.nameEn) || arToEn(name);
 }
+// Editable free-text field: shows the English rendering in the English UI but
+// keeps the stored Arabic unless the user actually edits the value.
+function tvAttrs(orig) { orig = String(orig == null ? "" : orig); return `value="${esc(td(orig))}" data-orig="${esc(orig)}"`; }
+function tvRead(el) { if (!el) return ""; const o = el.dataset && el.dataset.orig != null ? el.dataset.orig : null; return o != null && el.value === td(o) ? o : el.value; }
 function cxCoopLabel(c) { return LANG === "en" ? (coopEn(c.coop) || c.coop) : (c.coopAr || c.coop); }
 // A contract row's co-op name in the UI language.
 function cxCoopName(c) { return LANG === "en" ? (coopEn(c.coop) || c.coop || "—") : (c.coopAr || (cxData && cxData.coops ? (cxData.coops.find((x) => x.coop === c.coop) || {}).coopAr : "") || c.coop || "—"); }
@@ -5144,8 +5179,8 @@ function cxRenderEditor() {
     <button class="back" onclick="vContracts()">← ${t("back")}</button></header>
   <div style="padding:12px 16px">
     <div class="grid g3">
-      <div class="field"><label>${t("cxCode")}</label><input id="cxCode" value="${esc(c.code || "")}"></div>
-      <div class="field"><label>${t("cxTitle")}</label><input id="cxTitle" value="${esc(c.title || "")}"></div>
+      <div class="field"><label>${t("cxCode")}</label><input id="cxCode" ${tvAttrs(c.code || "")}></div>
+      <div class="field"><label>${t("cxTitle")}</label><input id="cxTitle" ${tvAttrs(c.title || "")}></div>
       <div class="field"><label>${t("cxSubjectYear")}</label><input id="cxSubjYear" value="${esc(c.subjectYear || "")}"></div>
     </div>
     <div class="grid g3">
@@ -5169,16 +5204,16 @@ function cxRenderEditor() {
       <div class="field"><label>${t("cxStatus")}</label><select id="cxStatus"><option value="active" ${c.status !== "closed" ? "selected" : ""}>${t("cxActive")}</option><option value="closed" ${c.status === "closed" ? "selected" : ""}>${t("cxClosed")}</option></select></div>
     </div>
     <div class="grid g3">
-      <div class="field"><label>${t("cxPartyRep")}</label><input id="cxRep" value="${esc(c.partyRep || "")}"></div>
+      <div class="field"><label>${t("cxPartyRep")}</label><input id="cxRep" ${tvAttrs(c.partyRep || "")}></div>
       <div class="field"><label>${t("cxGrace")}</label><input id="cxGrace" type="number" value="${c.graceDays != null ? c.graceDays : 45}"></div>
       <div class="field"><label>${t("cxPayWithin")}</label><input id="cxPay" type="number" value="${c.payWithin != null ? c.payWithin : 14}"></div>
     </div>
     <div class="grid g3">
-      <div class="field"><label>${t("cxBonusTerms")}</label><input id="cxBonus" value="${esc(c.bonusTerms || "")}" placeholder="${t("cxBonusPh")}"></div>
+      <div class="field"><label>${t("cxBonusTerms")}</label><input id="cxBonus" ${tvAttrs(c.bonusTerms || "")} placeholder="${t("cxBonusPh")}"></div>
       <label class="chk"><input type="checkbox" id="cxRenewal" ${c.isRenewal ? "checked" : ""}> ${t("cxIsRenewal")}</label>
       <label class="chk"><input type="checkbox" id="cxRenewable" ${c.renewable !== false ? "checked" : ""}> ${t("cxRenewable")}</label>
     </div>
-    <div class="field"><label>${t("fNote")}</label><input id="cxNote" value="${esc(c.note || "")}"></div>
+    <div class="field"><label>${t("fNote")}</label><input id="cxNote" ${tvAttrs(c.note || "")}></div>
 
     <h4 style="margin:14px 0 6px">${t("cxItems")}</h4>
     <div class="tbl-wrap"><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th><th></th></tr></thead><tbody id="cxItemsBody"></tbody></table></div>
@@ -5226,11 +5261,11 @@ function cxItemRow(it, i) {
     <td>${cxScopeSelect(it, i)}</td>
     <td><select class="cxItSpace">${cxSpaceOptions(it.spaceId)}</select></td>
     <td><input class="cxItCount" type="number" min="1" value="${it.count || 1}" style="width:64px"></td>
-    <td><input class="cxItDim" value="${esc(it.dimensions || "")}" placeholder="${t("cxDimPh")}"></td>
-    <td><input class="cxItCat" value="${esc(it.category || "")}" placeholder="${t("cxCatPh")}"></td>
-    <td><input class="cxItLoc" value="${esc(it.location || "")}" placeholder="${t("cxLocPh")}"></td>
+    <td><input class="cxItDim" ${tvAttrs(it.dimensions || "")} placeholder="${t("cxDimPh")}"></td>
+    <td><input class="cxItCat" ${tvAttrs(it.category || "")} placeholder="${t("cxCatPh")}"></td>
+    <td><input class="cxItLoc" ${tvAttrs(it.location || "")} placeholder="${t("cxLocPh")}"></td>
     <td><input class="cxItAmt" type="number" step="0.001" value="${it.amount || 0}" style="width:80px"></td>
-    <td><input class="cxItDesc" value="${esc(it.description || "")}" style="min-width:200px" placeholder="${t("cxDescPh")}"></td>
+    <td><input class="cxItDesc" ${tvAttrs(it.description || "")} style="min-width:200px" placeholder="${t("cxDescPh")}"></td>
     <td><button class="btn danger sm" onclick="cxRemoveItem(${i})">✕</button></td></tr>`;
 }
 function cxRenderItems() {
@@ -5251,11 +5286,11 @@ function cxSyncItems() {
       spaceId: sp.value || null,
       space: sp.selectedOptions[0] ? (sp.selectedOptions[0].dataset.name || "") : "",
       count: parseInt(tr.querySelector(".cxItCount").value, 10) || 1,
-      dimensions: tr.querySelector(".cxItDim").value,
-      category: tr.querySelector(".cxItCat").value,
-      location: tr.querySelector(".cxItLoc").value,
+      dimensions: tvRead(tr.querySelector(".cxItDim")),
+      category: tvRead(tr.querySelector(".cxItCat")),
+      location: tvRead(tr.querySelector(".cxItLoc")),
       amount: parseFloat(tr.querySelector(".cxItAmt").value) || 0,
-      description: tr.querySelector(".cxItDesc").value,
+      description: tvRead(tr.querySelector(".cxItDesc")),
     };
   });
 }
@@ -5306,15 +5341,15 @@ async function cxSave() {
   const level = g("cxLevel");
   const body = {
     id: cxEdit.id || 0, kind: cxEdit.kind, parentId: cxEdit.parentId || null,
-    code: g("cxCode"), title: g("cxTitle"), subjectYear: g("cxSubjYear"),
+    code: tvRead(document.getElementById("cxCode")), title: tvRead(document.getElementById("cxTitle")), subjectYear: g("cxSubjYear"),
     isRenewal: gc("cxRenewal"), renewable: gc("cxRenewable"),
-    partyRep: g("cxRep"), contractDate: g("cxCDate"),
+    partyRep: tvRead(document.getElementById("cxRep")), contractDate: g("cxCDate"),
     level, coop: g("cxCoop"), custId: level === "outlet" ? (document.getElementById("cxCust") ? g("cxCust") : "") : "",
     periodFrom: g("cxFrom"), periodTo: g("cxTo"),
     valueMode: g("cxVMode"), value: g("cxValue"), pct: g("cxPct"),
-    payFreq: g("cxPFreq"), bonusTerms: g("cxBonus"),
+    payFreq: g("cxPFreq"), bonusTerms: tvRead(document.getElementById("cxBonus")),
     valueKind: g("cxVKind"), graceDays: g("cxGrace"), payWithin: g("cxPay"),
-    status: g("cxStatus"), note: g("cxNote"),
+    status: g("cxStatus"), note: tvRead(document.getElementById("cxNote")),
     items: cxEdit.items, installments: cxEdit.installments,
   };
   if (!body.coop) { toast(t("choose") + " " + t("coop")); return; }
