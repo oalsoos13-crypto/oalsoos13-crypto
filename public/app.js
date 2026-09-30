@@ -601,6 +601,8 @@ const T = {
   r_archive: { ar: "أرشفة الشهر (D.N)", en: "Month archive (D.N)" },
   r_archive_d: { ar: "أرشفة إشعارات الخصم للجهاز عند تسكيرة الشهر.", en: "Archive debit notes to the device at month close." },
   archiveMonth: { ar: "الشهر", en: "Month" },
+  dnRegister: { ar: "شيت الإشعارات (Excel)", en: "D.N register (Excel)" },
+  dnRegisterHint: { ar: "الإشعارات المعتمدة من الأدمن لأي شهر — بنفس أعمدة الشيت اليدوي + رقم الكتاب. يُضاف تلقائياً داخل ZIP الأرشفة.", en: "Admin-approved debit notes for any month — same columns as the manual sheet + letter ref. Also added inside the archive ZIP." },
   archiveReady: { ar: "إشعارات جاهزة للأرشفة", en: "Debit notes ready to archive" },
   archiveBtn: { ar: "⤓ أرشفة الشهر (ZIP)", en: "⤓ Archive month (ZIP)" },
   archiveCond: { ar: "تُؤرشف فقط الإشعارات التي أُدخل لها رقم إشعار بالجمعية ولها مرفقات. لكل إشعار ملف PDF (الكتاب + المرفقات + الملخّص) داخل مجلدات: المشرف ← D.N ← المندوب ← الجمعية.", en: "Only debit notes with a co-op DN number and attachments are archived. Each becomes a PDF (letter + attachments + summary) inside folders: supervisor → D.N → salesman → coop." },
@@ -2403,6 +2405,12 @@ async function vArchive() {
           <button class="btn primary" ${canRun ? "" : "disabled"} onclick="archiveRun()">${t("archiveBtn")}</button>
         </div>
         <div id="arcProg" class="hint" style="min-height:18px;color:var(--navy3);font-weight:700"></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 4px;padding-top:10px;border-top:1px dashed var(--line)">
+          <b style="color:var(--ink)">📊 ${t("dnRegister")}</b>
+          <input type="month" id="regMonth" value="${esc(ARCHIVE_MONTH || new Date().toISOString().slice(0, 7))}">
+          <button class="btn gold sm" onclick="downloadRegister(document.getElementById('regMonth').value)">⬇ Excel</button>
+          <span class="hint">${t("dnRegisterHint")}</span>
+        </div>
         ${data.count ? tblArchivePending(data.notes) : `<div class="empty">${t("archiveNone")}</div>`}
       </div>
     </div>
@@ -2438,6 +2446,15 @@ async function ensureArchiveLibs() {
   if (!window.JSZip || !window.html2pdf) throw new Error("libs");
 }
 function safeName(s) { return String(s || "").replace(/[\/\\:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 90) || "-"; }
+// Download the month's D.N register as Excel (admin).
+async function downloadRegister(month) {
+  if (!/^\d{4}-\d{2}$/.test(String(month || ""))) { toast(t("archivePickMonth")); return; }
+  try {
+    const res = await api("/dn-register.xlsx?month=" + encodeURIComponent(month), { raw: true });
+    if (!res.ok) { let m = ""; try { m = (await res.json()).error; } catch (e) {} throw new Error(m || res.statusText); }
+    downloadBlob(await res.blob(), `DN-Register-${month}.xlsx`);
+  } catch (e) { toast(e.message); }
+}
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -2509,6 +2526,12 @@ async function archiveRun() {
       doneIds.push(meta.id);
     }
     setP(t("archiveBuilding") + " (ZIP)…");
+    // The month's D.N register (Excel) rides inside the archive too.
+    try {
+      const rm = ARCHIVE_MONTH || (pending.notes[0] && pending.notes[0].month) || "";
+      const rr = await api("/dn-register.xlsx?month=" + encodeURIComponent(rm) + "&ids=" + encodeURIComponent(doneIds.join(",")), { raw: true });
+      if (rr.ok) zip.file(`DN-Register-${rm}.xlsx`, await rr.blob());
+    } catch (e) { /* the ZIP is still valid without the sheet */ }
     const out = await zip.generateAsync({ type: "blob" });
     downloadBlob(out, `DN-Archive-${ARCHIVE_MONTH || (pending.notes[0] && pending.notes[0].month) || "all"}.zip`);
     await api("/archive/commit", { method: "POST", body: { ids: doneIds, month: ARCHIVE_MONTH || (pending.notes[0] && pending.notes[0].month) } });

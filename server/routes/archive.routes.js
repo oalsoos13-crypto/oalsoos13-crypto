@@ -121,4 +121,72 @@ router.get('/archive/list', requireRole(), asyncH((req, res) => {
   });
 }));
 
+
+// ---- Monthly D.N register: the management sheet, generated from the system ----
+// One row per ADMIN-APPROVED debit note of the month (entry month, same rule as
+// archiving), in the columns of the existing manual sheet plus the letter ref.
+const XLSX = require('xlsx');
+const REG_REASON = {
+  palletdn: 'pallets', pallet: 'pallets', standdn: 'stands', stand: 'stands', rentstand: 'stand rent',
+  pricediff: 'price diff', priceoff: 'price diff', listing_dn: 'listing', listing: 'listing', listing_supp: 'listing',
+  linkitems: 'listing', rentdebit: 'rent', dataupd_dn: 'data update', priceupd: 'price update', changeprice: 'price update',
+  pctrebate: 'rebate', promotion: 'promotion', cda: 'CDA',
+};
+function fmtDMY(d) { const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d || ''); }
+function registerRows(month, ids) {
+  const userByPf = new Map(db.prepare('SELECT username, name FROM users').all().map((u) => [String(u.username), u.name]));
+  const outlets = db.prepare('SELECT cust_id, name, parent, fsm, fsm_pf, salesman, salesman_pf FROM outlets').all();
+  const byCust = new Map(outlets.map((o) => [String(o.cust_id), o]));
+  const cleanCoop = (p) => String(p || '').replace(/^P\d+\s*-\s*/i, '').trim().toUpperCase();
+  const idSet = ids && ids.length ? new Set(ids) : null;
+  const notes = db.prepare("SELECT * FROM notes WHERE status = 'approved' ORDER BY date ASC, created_at ASC").all()
+    .filter((n) => { const m = (n.created_at || n.date || '').slice(0, 7); return (!month || m === month) && (!idSet || idSet.has(n.id)); });
+  const getLetter = db.prepare('SELECT lysal, cust_id, brand, type, meta, note, coop, sales FROM letters WHERE id = ?');
+  return notes.map((n) => {
+    const L = getLetter.get(n.letter_id) || {};
+    // The addressed outlet; otherwise the co-op's main outlet served by this salesman.
+    let o = L.cust_id ? byCust.get(String(L.cust_id)) : null;
+    if (!o) {
+      const coopKey = cleanCoop(n.coop || L.coop);
+      const cands = outlets.filter((x) => cleanCoop(x.parent) === coopKey && (!n.sales || x.salesman === n.sales));
+      o = cands.find((x) => /MAIN/i.test(x.name)) || cands[0] || outlets.find((x) => cleanCoop(x.parent) === coopKey) || null;
+    }
+    let meta = {}; try { meta = L.meta ? JSON.parse(L.meta) : {}; } catch (e) { meta = {}; }
+    const reason = REG_REASON[L.type] || (meta.reason ? String(meta.reason) : String(L.type || n.type || ''));
+    const fsmName = o ? (userByPf.get(String(o.fsm_pf)) || o.fsm || '') : '';
+    return {
+      coop: o ? o.parent : (n.coop || L.coop || ''),
+      rep: o ? `${o.salesman_pf || ''}-${o.salesman || n.sales || ''}`.replace(/^-/, '') : (n.sales || ''),
+      fsm: o ? `${o.fsm_pf || ''}-${fsmName}`.replace(/^-/, '') : '',
+      customer: o ? o.name : '',
+      classification: o ? (/MAIN/i.test(o.name) ? 'Main' : 'Branch') : '',
+      dn: n.coop_dn || '', value: Number(n.value) || 0, brand: L.brand || n.brand || '',
+      date: fmtDMY(n.date), reason, note: n.note || L.note || '', letterRef: L.lysal || n.lysal || '',
+    };
+  });
+}
+const REG_HEAD = ['Co-op', 'Supervisor Name', 'FSM Supervisor', 'Customer ID & Name', 'Classification', 'Serial Number D.N', 'Value', 'Brand', 'Date', 'Reason', 'Note', 'Letter Ref'];
+function parseIds(q) { return String(q || '').split(',').map((x) => x.trim()).filter(Boolean); }
+// GET /api/dn-register?month=YYYY-MM[&ids=a,b] — rows as JSON.
+router.get('/dn-register', requireRole(), asyncH((req, res) => {
+  const month = /^\d{4}-\d{2}$/.test(String(req.query.month || '')) ? req.query.month : null;
+  res.json({ ok: true, month, rows: registerRows(month, parseIds(req.query.ids)) });
+}));
+// GET /api/dn-register.xlsx?month=YYYY-MM[&ids=a,b] — the Excel sheet.
+router.get('/dn-register.xlsx', requireRole(), asyncH((req, res) => {
+  const month = /^\d{4}-\d{2}$/.test(String(req.query.month || '')) ? req.query.month : null;
+  const rows = registerRows(month, parseIds(req.query.ids));
+  const aoa = [REG_HEAD].concat(rows.map((r) => [r.coop, r.rep, r.fsm, r.customer, r.classification, r.dn, r.value, r.brand, r.date, r.reason, r.note, r.letterRef]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [34, 26, 24, 40, 14, 18, 12, 12, 12, 16, 30, 20].map((w) => ({ wch: w }));
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(rows.length, 1), c: REG_HEAD.length - 1 } }) };
+  for (let i = 0; i < rows.length; i++) { const c = ws[XLSX.utils.encode_cell({ r: i + 1, c: 6 })]; if (c) { c.t = 'n'; c.z = '0.000'; } }
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'D.N Register');
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  audit.fromReq(req, 'dn.register.export', { entityType: 'note', summary: `D.N register export ${month || 'all'} (${rows.length} rows)` });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="DN-Register-${month || 'all'}.xlsx"`);
+  res.send(buf);
+}));
+
 module.exports = router;
