@@ -198,6 +198,10 @@ const freqEn = { once: 'One-off', monthly: 'Monthly', quarterly: 'Quarterly', se
 const kindEn = { rent: 'Rent', support: 'Support', cda: 'CDA commercial support', marketing: 'Marketing', other: 'Other' };
 // Exports follow the UI language (?lang=en): English headers and labels.
 const isEn = (req) => String(req.query.lang || '').toLowerCase() === 'en';
+// Stored Arabic free text rendered in English through the shared glossary.
+let GLOSS = null;
+try { GLOSS = require('../../public/ar-en.js').make(require('../../public/glossary_en.json')); } catch (e) { /* optional */ }
+const tEn = (v) => (GLOSS && v != null && v !== '' ? GLOSS.translate(String(v)) : v);
 const coopNameEn = (name) => String(name || '').replace(/^P\d+\s*-\s*/i, '').replace(/\s*(PARENT|CO[- ]?OP\.?|COOP|SOCIETY)\s*/gi, ' ').replace(/\s+/g, ' ').trim();
 
 // One row per contract (header level).
@@ -205,7 +209,7 @@ router.get('/export/contracts.csv', asyncH((req, res) => {
   const rows = scopedContracts(req.user);
   const en = isEn(req);
   const cols = en ? [
-    ['id', (c) => c.id], ['Reference', (c) => c.code], ['Co-op', (c) => coopNameEn(c.coop)],
+    ['id', (c) => c.id], ['Reference', (c) => tEn(c.code)], ['Co-op', (c) => coopNameEn(c.coop)],
     ['Level', (c) => (c.level === 'coop' ? 'Co-op' : 'Outlet')], ['Outlet', (c) => c.cust_id],
     ['Year', (c) => c.subject_year], ['Type', (c) => (c.kind === 'addendum' ? 'Addendum' : (c.is_renewal ? 'Renewal' : 'Contract'))],
     ['From', (c) => c.period_from], ['To', (c) => c.period_to],
@@ -213,8 +217,8 @@ router.get('/export/contracts.csv', asyncH((req, res) => {
     ['Value', (c) => (c.value_mode === 'pct' ? '' : c.value)], ['Rate %', (c) => (c.value_mode === 'pct' ? c.pct : '')],
     ['Frequency', (c) => freqEn[c.pay_freq] || c.pay_freq], ['Category', (c) => kindEn[c.value_kind] || c.value_kind],
     ['Grace days', (c) => c.grace_days], ['Pay within', (c) => c.pay_within],
-    ['1+1', (c) => c.bonus_terms], ['Spaces', (c) => db.prepare('SELECT COUNT(*) n FROM contract_items WHERE contract_id=?').get(c.id).n],
-    ['Status', (c) => (c.status === 'closed' ? 'Closed' : 'Active')], ['Notes', (c) => c.note],
+    ['1+1', (c) => tEn(c.bonus_terms)], ['Spaces', (c) => db.prepare('SELECT COUNT(*) n FROM contract_items WHERE contract_id=?').get(c.id).n],
+    ['Status', (c) => (c.status === 'closed' ? 'Closed' : 'Active')], ['Notes', (c) => tEn(c.note)],
   ] : [
     ['id', (c) => c.id], ['المرجع', (c) => c.code], ['الجمعية', (c) => AR.coops[c.coop] || c.coop],
     ['المستوى', (c) => (c.level === 'coop' ? 'جمعية' : 'منفذ')], ['المنفذ', (c) => c.cust_id],
@@ -246,11 +250,11 @@ router.get('/export/contract-items.csv', asyncH((req, res) => {
   const en = isEn(req);
   const spaceEn = new Map(db.prepare('SELECT name, name_en FROM contract_spaces').all().map((s) => [s.name, s.name_en || '']));
   const cols = en ? [
-    ['contract_id', (it) => it.contract_id], ['Reference', (it) => (byId.get(it.contract_id) || {}).code],
+    ['contract_id', (it) => it.contract_id], ['Reference', (it) => tEn((byId.get(it.contract_id) || {}).code)],
     ['Co-op', (it) => { const c = byId.get(it.contract_id) || {}; return coopNameEn(c.coop); }],
-    ['Scope', (it) => scEn[it.scope] || it.scope], ['Fixture', (it) => spaceEn.get(it.space) || it.space], ['Count', (it) => it.count],
-    ['Dimensions', (it) => it.dimensions], ['Category', (it) => it.category], ['Location', (it) => it.location],
-    ['Value', (it) => it.amount || ''], ['Description', (it) => it.description],
+    ['Scope', (it) => scEn[it.scope] || it.scope], ['Fixture', (it) => spaceEn.get(it.space) || tEn(it.space)], ['Count', (it) => it.count],
+    ['Dimensions', (it) => tEn(it.dimensions)], ['Category', (it) => tEn(it.category)], ['Location', (it) => tEn(it.location)],
+    ['Value', (it) => it.amount || ''], ['Description', (it) => tEn(it.description)],
   ] : [
     ['contract_id', (it) => it.contract_id], ['المرجع', (it) => (byId.get(it.contract_id) || {}).code],
     ['الجمعية', (it) => { const c = byId.get(it.contract_id) || {}; return AR.coops[c.coop] || c.coop; }],

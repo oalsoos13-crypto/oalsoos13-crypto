@@ -1024,6 +1024,7 @@ let DB = {
 
 // Pull the full application state from the server into the local cache.
 async function loadState() {
+  loadGlossary();
   const r = await api("/state");
   currentUser = r.user;
   const s = r.state;
@@ -1059,6 +1060,8 @@ function pn(name) {
   if (LANG !== "en" || !k) return k;
   if (DB && DB.people && DB.people[k]) return DB.people[k];
   if (typeof SIGN_EN !== "undefined" && SIGN_EN[k]) return SIGN_EN[k].name;
+  // Known names in the glossary (e.g. retired accounts in old audit rows).
+  if (/[\u0600-\u06FF]/.test(k) && GLOSS) { const g = GLOSS.translate(k); if (!/[\u0600-\u06FF]/.test(g)) return g; }
   return k;
 }
 const escN = (v) => esc(pn(v));
@@ -2120,7 +2123,7 @@ function vMonitor() {
     const n = noteActiveOf(L);
     const dnBtn = n ? `<button class="btn ghost sm" onclick="openDocById('${n.id}')">${t("viewDN")}</button>` : "";
     const btCell = isAdmin ? budgetTypeSelect(L) : budgetTypeLabel(L.budgetType);
-    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopNameDisp(L.coop))}</td><td>${esc(L.recipient || "")}</td><td>${escN(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
+    return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${btCell}</td><td>${esc(coopNameDisp(L.coop))}</td><td>${esc(td(L.recipient || ""))}</td><td>${escN(L.sales || "")}</td><td class="mono">${KD(monVal(L))}</td><td>${n ? noteStatusTag(n) : `<span class="pill-info" style="padding:1px 7px">${L.printedAt ? t("dnNeeded") : t("dnAwaitPrint")}</span>`}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
   };
   const letterTbl = (arr) => `<table><thead><tr><th>${t("letterNo")}</th><th>${t("budgetType")}</th><th>${t("coop")}</th><th>${t("outlet")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_status")}</th><th></th></tr></thead><tbody>${arr.map(rowFor).join("")}</tbody></table>`;
   const sups = Object.keys(tree).sort();
@@ -3025,8 +3028,8 @@ async function ensureProducts() {
 function buildProdDatalists() {
   let host = document.getElementById("prodDLs");
   if (!host) { host = document.createElement("div"); host.id = "prodDLs"; host.hidden = true; document.body.appendChild(host); }
-  const bc = productCache.map((p) => `<option value="${esc(p.barcode)}">${esc(p.name)}</option>`).join("");
-  const nm = productCache.map((p) => `<option value="${esc(p.name)}"></option>`).join("");
+  const bc = productCache.map((p) => `<option value="${esc(p.barcode)}">${esc(td(p.name))}</option>`).join("");
+  const nm = productCache.map((p) => `<option value="${esc(p.name)}" label="${esc(td(p.name))}"></option>`).join("");
   host.innerHTML = `<datalist id="prodBC">${bc}</datalist><datalist id="prodNM">${nm}</datalist>`;
 }
 /* ---------- history-driven suggestions (recipient / salesman / spec fields) ----------
@@ -3573,7 +3576,7 @@ async function loadDocAudit() {
     const r = await api("/audit?limit=25");
     if (!r.rows.length) { box.innerHTML = `<div class="empty">${t("noAudit")}</div>`; return; }
     box.innerHTML = `<table><thead><tr><th>${t("th_time")}</th><th>${t("username")}</th><th>${t("action")}</th><th>${t("th_detail")}</th></tr></thead><tbody>${r.rows
-      .map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${escN(a.name || a.username || "-")}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(a.summary || "")}</td></tr>`)
+      .map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${escN(a.name || a.username || "-")}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(td(a.summary || ""))}</td></tr>`)
       .join("")}</tbody></table>`;
   } catch (e) {
     box.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -3585,7 +3588,7 @@ function openAuditModal() {
     const box = document.getElementById("auditModalBox");
     if (!box) return;
     box.innerHTML = r.rows.length
-      ? `<table><thead><tr><th>${t("th_time")}</th><th>${t("username")}</th><th>${t("th_role")}</th><th>${t("action")}</th><th>${t("th_detail")}</th></tr></thead><tbody>${r.rows.map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${esc(a.name || a.username || "-")}</td><td>${a.role ? `<span class="badge role-${esc(a.role)}">${esc(a.role)}</span>` : ""}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(a.summary || "")}</td></tr>`).join("")}</tbody></table>`
+      ? `<table><thead><tr><th>${t("th_time")}</th><th>${t("username")}</th><th>${t("th_role")}</th><th>${t("action")}</th><th>${t("th_detail")}</th></tr></thead><tbody>${r.rows.map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${escN(a.name || a.username || "-")}</td><td>${a.role ? `<span class="badge role-${esc(a.role)}">${esc(a.role)}</span>` : ""}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(td(a.summary || ""))}</td></tr>`).join("")}</tbody></table>`
       : `<div class="empty">${t("noAudit")}</div>`;
   }).catch((e) => { const b = document.getElementById("auditModalBox"); if (b) b.innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
 }
@@ -3695,10 +3698,22 @@ const AR_DIGITS = "٠١٢٣٤٥٦٧٨٩";
 function latinDigits(s) { return String(s || "").replace(/[٠-٩]/g, (d) => String(AR_DIGITS.indexOf(d))); }
 // A free-text Arabic qualifier rendered in English (exact preset first, then
 // word-level substitution; anything still Arabic is left as typed).
+// The Arabic -> English glossary (public/glossary_en.json, applied through
+// public/ar-en.js). Loaded once at start-up; stored free text (item names,
+// notes, contract descriptions …) is rendered through it in the English UI.
+let GLOSS = null;
+async function loadGlossary() {
+  if (GLOSS || typeof ArEn === "undefined") return;
+  try { const r = await fetch("glossary_en.json", { cache: "force-cache" }); if (r.ok) GLOSS = ArEn.make(await r.json()); } catch (e) { /* fall back to the built-in word list */ }
+  if (GLOSS && LANG === "en" && currentUser) render();
+}
+// Stored free text in the UI language.
+function td(s) { return LANG === "en" ? arToEn(s) : String(s == null ? "" : s); }
 function arToEn(s) {
   s = String(s || "").trim(); if (!s) return "";
   if (!/[\u0600-\u06FF]/.test(s)) return s;
   if (REASON_AR2EN.has(s)) return REASON_AR2EN.get(s);
+  if (GLOSS) { const g = GLOSS.translate(s); if (!/[\u0600-\u06FF]/.test(g)) return g; s = g; }
   let o = s; for (const [re, en] of AR_WORDS_EN) o = o.replace(re, en);
   // Word-order touch-ups: "festival July" -> "July festival", "rent 2 stand" -> "rent of 2 stands".
   o = o.replace(/\bfestival (January|February|March|April|May|June|July|August|September|October|November|December|Ramadan|Eid)\b/g, "$1 festival")
@@ -3753,7 +3768,7 @@ function priceLetterInner(rec) {
       : `<tr><th rowspan="2">م</th><th rowspan="2">رقم الصنف</th><th rowspan="2">أسم الصنف</th><th rowspan="2">الشـد</th>
         <th colspan="2">سعر البيع للجمعية</th><th colspan="2">سعر البيع للمستهلك</th><th rowspan="2">باركود الحبة</th></tr>
     <tr><th>القديم</th><th>الجديد</th><th>القديم</th><th>الجديد</th></tr>`}</thead>
-    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.item)}</td><td class="nm">${esc(r.name)}</td><td>${esc(r.pack)}</td><td>${KD(r.coopOld)}</td><td>${KD(r.coopNew)}</td><td>${KD(r.consOld)}</td><td>${KD(r.consNew)}</td><td class="bc">${esc(r.barcode)}</td></tr>`).join("")}</tbody></table>` : "";
+    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.item)}</td><td class="nm">${esc(td(r.name))}</td><td>${esc(td(r.pack))}</td><td>${KD(r.coopOld)}</td><td>${KD(r.coopNew)}</td><td>${KD(r.consOld)}</td><td>${KD(r.consNew)}</td><td class="bc">${esc(r.barcode)}</td></tr>`).join("")}</tbody></table>` : "";
   if (en) return `${metaBlock(rec, true)}${toBlock(rec)}
   <div class="subj">Subject: Data / Price Update</div>
   <div class="body">With reference to the above subject, we kindly request your approval to update the data of the items listed in the table below and link them to the branches, as follows:</div>
@@ -3781,7 +3796,7 @@ function debitLetterInner(rec, isLetter) {
   const items =
     rec.items && rec.items.length
       ? (en
-        ? `<table class="items"><thead><tr><th>Price</th><th>Item Name</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(sum)}</b></td><td><b>Total per outlet</b></td></tr></tbody></table><div class="body">Against the listing of the above items in <b>${out}</b> outlets (${KD(sum)} × ${out} = <span class="val-big">KD ${KD(rec.value)}</span>).</div>`
+        ? `<table class="items"><thead><tr><th>Price</th><th>Item Name</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(td(it.name))}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(sum)}</b></td><td><b>Total per outlet</b></td></tr></tbody></table><div class="body">Against the listing of the above items in <b>${out}</b> outlets (${KD(sum)} × ${out} = <span class="val-big">KD ${KD(rec.value)}</span>).</div>`
         : `<table class="items"><thead><tr><th>السعر</th><th>اسم الصنف</th></tr></thead><tbody>${rec.items.map((it) => `<tr><td class="mono">${KD(it.price)}</td><td>${esc(it.name)}</td></tr>`).join("")}<tr><td class="mono"><b>${KD(sum)}</b></td><td><b>الإجمالي للأوتليت الواحد</b></td></tr></tbody></table><div class="body">وذلك مقابل اعتماد الأصناف أعلاه في <b>${out}</b> أوتليت (${KD(sum)} × ${out} = <span class="val-big">${KD(rec.value)} د.ك</span>).</div>`)
       : "";
   if (en) {
@@ -3835,7 +3850,7 @@ function specSubst(str, rec, en) {
 function specTablePrint(tbl, rows) {
   if (!rows || !rows.length) return "";
   const head = tbl.cols.map((c) => `<th>${esc(colLabel(c))}</th>`).join("");
-  const body = rows.map((r) => `<tr>${tbl.cols.map((c) => `<td class="${c.wide ? "nm" : ""}">${c.type === "num" ? KD(r[c.key]) : esc(r[c.key])}</td>`).join("")}</tr>`).join("");
+  const body = rows.map((r) => `<tr>${tbl.cols.map((c) => `<td class="${c.wide ? "nm" : ""}">${c.type === "num" ? KD(r[c.key]) : esc(td(r[c.key]))}</td>`).join("")}</tr>`).join("");
   return `<table class="pt"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 function specDocHTML(rec, spec) {
@@ -4139,7 +4154,7 @@ async function loadAudit() {
     const box = document.getElementById("auditBox");
     if (!r.rows.length) { box.innerHTML = `<div class="empty">${t("noAudit")}</div>`; return; }
     box.innerHTML = `<table><thead><tr><th>${t("th_time")}</th><th>${t("username")}</th><th>${t("th_role")}</th><th>${t("action")}</th><th>${t("th_detail")}</th></tr></thead><tbody>${r.rows
-      .map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${esc(a.name || a.username || "-")}</td><td>${a.role ? `<span class="badge role-${esc(a.role)}">${esc(a.role)}</span>` : ""}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(a.summary || "")}</td></tr>`)
+      .map((a) => `<tr><td class="mono-sm">${fmtTs(a.ts)}</td><td>${escN(a.name || a.username || "-")}</td><td>${a.role ? `<span class="badge role-${esc(a.role)}">${esc(a.role)}</span>` : ""}</td><td class="mono-sm">${esc(a.action)}</td><td>${esc(td(a.summary || ""))}</td></tr>`)
       .join("")}</tbody></table><div class="hint" style="padding:8px 12px">${t("showing")} ${r.rows.length} / ${r.total}</div>`;
   } catch (e) {
     document.getElementById("auditBox").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -4571,7 +4586,7 @@ function renderProducts() {
   box.innerHTML = rows.length
     ? `<table><thead><tr><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("origin")}</th><th>${t("consPiece")}</th><th>${t("coopCarton")}</th><th>${t("circularNo")}</th><th>${t("th_date")}</th></tr></thead><tbody>${rows
         .slice(0, 500)
-        .map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name)}</td><td>${esc(p.pack || "")}</td><td>${esc(p.origin || "")}</td><td class="mono">${p.consPiece != null ? KD(p.consPiece) : "—"}</td><td class="mono">${p.coopCarton != null ? KD(p.coopCarton) : "—"}</td><td class="mono-sm">${esc(p.circular || "")}</td><td class="mono-sm">${esc(p.circularDate || "")}</td></tr>`)
+        .map((p) => `<tr><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(td(p.name))}</td><td>${esc(td(p.pack || ""))}</td><td>${esc(td(p.origin || ""))}</td><td class="mono">${p.consPiece != null ? KD(p.consPiece) : "—"}</td><td class="mono">${p.coopCarton != null ? KD(p.coopCarton) : "—"}</td><td class="mono-sm">${esc(p.circular || "")}</td><td class="mono-sm">${esc(p.circularDate || "")}</td></tr>`)
         .join("")}</tbody></table>${rows.length > 500 ? `<div class="hint" style="padding:8px 12px">${t("showing")} 500 / ${rows.length}</div>` : ""}`
     : `<div class="empty">${t("noProducts")}</div>`;
 }
@@ -4620,7 +4635,7 @@ async function loadPriceProducts() {
   const r = await api("/price-products"); const mgmt = canEditMgmt();
   const box = document.getElementById("ppBox"); if (!box) return;
   box.innerHTML = r.products.length
-    ? `<table><thead><tr><th>#</th><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("priceCtnRcp")}</th><th>${t("pricePecRsp")}</th><th>${t("circularNo")}</th><th>${t("th_date")}</th><th>${t("letterNo")}</th>${mgmt ? "<th></th>" : ""}</tr></thead><tbody>${r.products.map((p, i) => `<tr><td>${p.seq || i + 1}</td><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.price_ctn_rcp || "")}</td><td class="mono">${esc(p.price_pec_rsp || "")}</td><td class="mono-sm">${esc(p.circular || "")}</td><td class="mono-sm">${esc(p.circular_date || "")}</td><td class="mono-sm">${esc(p.letter_lysal || "")}</td>${mgmt ? `<td><button class="btn danger sm" onclick="delPriceProduct('${esc(p.barcode)}')">${t("del")}</button></td>` : ""}</tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>#</th><th>${t("th_barcode")}</th><th>${t("th_name")}</th><th>${t("th_pack")}</th><th>${t("priceCtnRcp")}</th><th>${t("pricePecRsp")}</th><th>${t("circularNo")}</th><th>${t("th_date")}</th><th>${t("letterNo")}</th>${mgmt ? "<th></th>" : ""}</tr></thead><tbody>${r.products.map((p, i) => `<tr><td>${p.seq || i + 1}</td><td class="mono-sm">${esc(p.barcode)}</td><td>${esc(td(p.name_ar || p.name))}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.price_ctn_rcp || "")}</td><td class="mono">${esc(p.price_pec_rsp || "")}</td><td class="mono-sm">${esc(p.circular || "")}</td><td class="mono-sm">${esc(p.circular_date || "")}</td><td class="mono-sm">${esc(p.letter_lysal || "")}</td>${mgmt ? `<td><button class="btn danger sm" onclick="delPriceProduct('${esc(p.barcode)}')">${t("del")}</button></td>` : ""}</tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noProducts")}</div>`;
 }
 function doImportPrice(input) { const m = document.getElementById("ppMsg"); m.textContent = t("loading"); fileToApi(input, "/price-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadPriceProducts(); }); }
@@ -4648,7 +4663,7 @@ async function loadApprove() {
   approveCache = r.products || [];
   const box = document.getElementById("apBox"); if (!box) return;
   box.innerHTML = approveCache.length
-    ? `<table><thead><tr><th>${t("itemNo")}</th><th>${t("brand")}</th><th>${t("th_name")}</th><th>${t("origin")}</th><th>${t("th_pack")}</th><th>${t("coopCarton")}</th><th>${t("consPiece")}</th><th>${t("pieceBarcode")}</th><th>${t("cartonBarcode")}</th><th>${t("circularNo")}</th><th></th></tr></thead><tbody>${approveCache.map((p) => `<tr><td class="mono-sm">${esc(p.item_no || "")}</td><td>${esc(p.brand || "")}</td><td>${esc(p.name_ar || p.name)}</td><td>${esc(p.origin || "")}</td><td>${esc(p.pack || "")}</td><td class="mono">${esc(p.coop_carton || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono-sm">${esc(p.barcode)}</td><td class="mono-sm">${esc(p.carton_barcode || "")}</td><td class="mono-sm">${esc(p.circular || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="editApproveItem('${esc(p.barcode)}')">${t("editItem")}</button><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></div></td></tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>${t("itemNo")}</th><th>${t("brand")}</th><th>${t("th_name")}</th><th>${t("origin")}</th><th>${t("th_pack")}</th><th>${t("coopCarton")}</th><th>${t("consPiece")}</th><th>${t("pieceBarcode")}</th><th>${t("cartonBarcode")}</th><th>${t("circularNo")}</th><th></th></tr></thead><tbody>${approveCache.map((p) => `<tr><td class="mono-sm">${esc(p.item_no || "")}</td><td>${esc(td(p.brand || ""))}</td><td>${esc(td(p.name_ar || p.name))}</td><td>${esc(td(p.origin || ""))}</td><td>${esc(td(p.pack || ""))}</td><td class="mono">${esc(p.coop_carton || "")}</td><td class="mono">${esc(p.cons_piece || "")}</td><td class="mono-sm">${esc(p.barcode)}</td><td class="mono-sm">${esc(p.carton_barcode || "")}</td><td class="mono-sm">${esc(p.circular || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="editApproveItem('${esc(p.barcode)}')">${t("editItem")}</button><button class="btn danger sm" onclick="delApprove('${esc(p.barcode)}')">${t("del")}</button></div></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noProducts")}</div>`;
 }
 function doImportApprove(input) { const m = document.getElementById("apMsg"); m.textContent = t("loading"); fileToApi(input, "/approve-products/import", (e, r) => { if (e) { m.textContent = e.message; return; } m.textContent = `${t("imported")}: ${r.imported} · ${t("total")}: ${r.total}`; toast(t("importDone")); loadApprove(); }); }
@@ -4788,7 +4803,7 @@ async function vPriceTrack() {
     <div class="tbl-wrap" id="ptGrid"><div class="empty">${t("loading")}</div></div></div>`;
   const r = await api("/price-track"); ptCache = r;
   const sel = document.getElementById("ptProd");
-  sel.innerHTML = r.products.length ? r.products.map((p) => `<option value="${esc(p.barcode)}">${esc(p.name_ar || p.name)}</option>`).join("") : `<option value="">${t("noProducts")}</option>`;
+  sel.innerHTML = r.products.length ? r.products.map((p) => `<option value="${esc(p.barcode)}">${esc(td(p.name_ar || p.name))}</option>`).join("") : `<option value="">${t("noProducts")}</option>`;
   renderTrackGrid();
 }
 function renderTrackGrid() {
@@ -5020,7 +5035,7 @@ function cxCoopOptions(sel) {
 function cxOutletOptions(coop, sel) {
   const e = cxData.coops.find((x) => x.coop === coop);
   const outs = e ? e.outlets : [];
-  return `<option value="">${t("choose")}</option>` + outs.map((o) => `<option value="${esc(o.custId)}" ${String(sel) === String(o.custId) ? "selected" : ""}>${esc(o.nameAr || o.name)}</option>`).join("");
+  return `<option value="">${t("choose")}</option>` + outs.map((o) => `<option value="${esc(o.custId)}" ${String(sel) === String(o.custId) ? "selected" : ""}>${esc(LANG === "en" ? (o.name || o.nameAr) : (o.nameAr || o.name))}</option>`).join("");
 }
 function cxSpaceOptions(sel) {
   return `<option value="">—</option>` + (cxData.spaces || []).map((s) => `<option value="${s.id}" data-name="${esc(s.name)}" ${String(sel) === String(s.id) ? "selected" : ""}>${esc(LANG === "en" ? (s.nameEn || arToEn(s.name)) : s.name)}</option>`).join("");
@@ -5231,14 +5246,14 @@ function cxView(id) {
   cxEdit = c; // so cxOutletName scope resolves
   const who = c.level === "coop" ? cxCoopName(c) : (cxOutletName(c.coop, c.custId) + " — " + cxCoopName(c));
   const scopeLbl = (it) => it.scope === "outlet" ? cxOutletName(c.coop, it.custId) : t("cxsc_" + (it.scope || "main"));
-  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(cxSpaceDisp(it.space || ""))}</td><td class="mono">${it.count || 1}</td><td>${esc(it.dimensions || "")}</td><td>${esc(it.category || "")}</td><td>${esc(it.location || "")}</td><td class="mono">${it.amount ? KD(it.amount) : ""}</td><td>${esc(cxT(it.description || ""))}</td></tr>`).join("");
+  const items = c.items.map((it) => `<tr><td>${esc(scopeLbl(it))}</td><td>${esc(cxSpaceDisp(it.space || ""))}</td><td class="mono">${it.count || 1}</td><td>${esc(cxT(it.dimensions || ""))}</td><td>${esc(cxT(it.category || ""))}</td><td>${esc(cxT(it.location || ""))}</td><td class="mono">${it.amount ? KD(it.amount) : ""}</td><td>${esc(cxT(it.description || ""))}</td></tr>`).join("");
   const inst = c.installments.map((p) => `<tr><td>${p.seq}</td><td class="mono-sm">${esc(p.dueDate || "")}</td><td class="mono">${KD(p.amount)}</td><td>${p.status === "paid" ? t("cxPaid") : t("cxPending")}</td></tr>`).join("");
   const valLine = c.valueMode === "pct" ? `${c.pct}% ${t("cxvm_pct")}` : `${KD(c.value)} ${t("kd")}`;
   modal(`<div style="max-width:820px;padding:16px 20px">
     <h3>${esc(cxT(c.code || "#" + c.id))}${c.kind === "addendum" ? " · " + t("cxIsAddendum") : (c.isRenewal ? " · " + t("cxIsRenewal") : "")}</h3>
     <p>${esc(who)} · ${esc((c.period.from || "") + (c.period.to ? " → " + c.period.to : ""))}</p>
-    <p><b>${t("cxTotal")}:</b> ${valLine} · ${t("cxvk_" + (c.valueKind || "rent"))} · ${t("cxpf_" + (c.payFreq || "once"))}${c.partyRep ? " · " + esc(c.partyRep) : ""}</p>
-    ${c.bonusTerms ? `<p><b>${t("cxBonusTerms")}:</b> ${esc(c.bonusTerms)}</p>` : ""}
+    <p><b>${t("cxTotal")}:</b> ${valLine} · ${t("cxvk_" + (c.valueKind || "rent"))} · ${t("cxpf_" + (c.payFreq || "once"))}${c.partyRep ? " · " + esc(cxT(c.partyRep)) : ""}</p>
+    ${c.bonusTerms ? `<p><b>${t("cxBonusTerms")}:</b> ${esc(cxT(c.bonusTerms))}</p>` : ""}
     ${c.title ? `<p>${esc(cxT(c.title))}</p>` : ""}
     <h4>${t("cxItems")}</h4><table><thead><tr><th>${t("cxScope")}</th><th>${t("cxSpace")}</th><th>${t("cxCount")}</th><th>${t("cxDimensions")}</th><th>${t("cxCategory")}</th><th>${t("cxLocation")}</th><th>${t("cxAmount")}</th><th>${t("cxDescription")}</th></tr></thead><tbody>${items || `<tr><td colspan=8>—</td></tr>`}</tbody></table>
     <h4>${t("cxInstallments")}</h4><table><thead><tr><th>${t("cxSeq")}</th><th>${t("cxDue")}</th><th>${t("cxAmount")}</th><th>${t("cxStatus")}</th></tr></thead><tbody>${inst || `<tr><td colspan=4>—</td></tr>`}</tbody></table>
