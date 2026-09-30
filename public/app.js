@@ -664,7 +664,9 @@ const T = {
   st_mains: { ar: "عدد الأسواق الرئيسية", en: "Main markets" }, st_branches: { ar: "عدد الفروع", en: "Branches" },
   st_custId: { ar: "رقم العميل", en: "Customer ID" }, st_outletName: { ar: "اسم الأوتلت", en: "Outlet name" }, st_coop: { ar: "الجمعية", en: "Co-op" },
   st_search: { ar: "بحث…", en: "Search…" }, st_outlets: { ar: "أوتلت", en: "outlets" }, st_delQ: { ar: "حذف الأوتلت؟", en: "Delete this outlet?" },
-  st_none: { ar: "— بدون —", en: "— none —" }, st_moveCoop: { ar: "نقل الجمعية كاملة إلى مندوب", en: "Move whole co-op to salesman" },
+  st_none: { ar: "— بدون —", en: "— none —" },
+  myTeam: { ar: "فريقي — مناديب وجمعيات وأوتليت", en: "My team — salesmen, co-ops and outlets" },
+  st_fromStructure: { ar: "يُقرأ من بناء الهيكل", en: "read from the structure builder" }, st_moveCoop: { ar: "نقل الجمعية كاملة إلى مندوب", en: "Move whole co-op to salesman" },
   r_methodology: { ar: "منهجية العمل — PMI", en: "Methodology — PMI" },
   r_methodology_d: { ar: "دورة حياة المشروع حسب المعيار العالمي PMI، الحالة والمراجع.", en: "Project lifecycle per the PMI global standard, status and references." },
   meth_title: { ar: "منهجية العمل — المعيار العالمي PMI", en: "Methodology — PMI Global Standard" },
@@ -1846,15 +1848,29 @@ async function saveDist() {
   } catch (e) { toast(e.message); }
 }
 /* ---------- supervisor ---------- */
-function vSupervisor() {
+// The supervisor's home: letters awaiting their approval + their team as it is
+// in the structure builder (supervisor -> salesmen -> co-ops -> outlets). This
+// replaced the old manual "assignments" table, which was not derived from the
+// structure and could drift from it.
+async function vSupervisor() {
   const me = scopeName();
-  const myRows = me ? DB.dist.filter((r) => r.sup === me) : DB.dist;
-  const recv = sum(myRows.map(rowAmt));
-  document.getElementById("rv").innerHTML =
-    `<div class="cards">${card("accent", t("c_recv"), KD(recv), 1)}${card("", t("c_rowsN"), myRows.length, 0)}</div>
+  const rv = document.getElementById("rv");
+  rv.innerHTML = `<div class="panel"><div class="empty">${t("loading")}</div></div>`;
+  let plan = null;
+  try { plan = await api("/budget-plan?month=" + (bpMonth || new Date().toISOString().slice(0, 7))); } catch (e) { plan = null; }
+  const struct = (plan && plan.structure && plan.structure[me]) || {};
+  const salesmen = Object.keys(struct).sort();
+  const coopSet = new Set(); let outN = 0;
+  salesmen.forEach((sm) => Object.entries(struct[sm] || {}).forEach(([c, outs]) => { coopSet.add(c); outN += (outs || []).length; }));
+  const recv = plan ? (plan.alloc || []).filter((a) => a.supervisor === me).reduce((s, a) => s + (+a.amount || 0), 0) : 0;
+  const rows = salesmen.map((sm) => {
+    const coops = struct[sm] || {}; const names = Object.keys(coops).sort();
+    return names.map((c, i) => `<tr>${i === 0 ? `<td rowspan="${names.length}"><b>${esc(sm)}</b></td>` : ""}<td>${esc(LANG === "en" ? c : (coopAr(c) || c))}</td><td class="mono">${(coops[c] || []).length}</td></tr>`).join("");
+  }).join("");
+  rv.innerHTML =
+    `<div class="cards">${card("accent", t("c_recv") + (plan ? " · " + esc(plan.month) : ""), KD(recv), 1)}${card("", t("salesman"), salesmen.length, 0)}${card("", t("coopsN"), coopSet.size, 0)}${card("", t("st_outlets"), outN, 0)}</div>
   ${stageLettersPanel("supervisor")}
-  <div class="panel"><header><h3>${t("myAssignments")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("salesman")}</th><th>${t("mainCoop")}</th><th>${t("outlet")}</th><th>${t("wob")}</th><th>${t("amount")} (${t("kd")})</th></tr></thead><tbody>${myRows.length ? myRows.map((r) => `<tr><td>${esc(r.sales)}</td><td>${esc(r.coop)}</td><td>${esc(r.outlet)}</td><td class="mono">${+r.wob || 0}</td><td class="mono">${KD(rowAmt(r))}</td></tr>`).join("") : `<tr><td colspan="5"><div class="empty">${t("noAssign")}</div></td></tr>`}</tbody></table></div></div>
-  <div class="panel"><header><h3>${t("coopsRef")}</h3><span class="pill-info">${DB.ref.coops.length} ${t("coopsN")}</span></header><div class="tbl-wrap" style="max-height:300px"><table><thead><tr><th>${t("coop")}</th><th>${t("mainOut")}</th><th>${t("branches")}</th></tr></thead><tbody>${DB.ref.coops.map((c) => `<tr><td>${esc(c.n)}</td><td class="mono">${c.m}</td><td>${c.b}</td></tr>`).join("")}</tbody></table></div></div>`;
+  <div class="panel"><header><h3>${t("myTeam")}</h3><span class="pill-info">${t("st_fromStructure")}</span></header><div class="tbl-wrap"><table><thead><tr><th>${t("salesman")}</th><th>${t("coop")}</th><th>${t("st_outlets")}</th></tr></thead><tbody>${rows || `<tr><td colspan="3"><div class="empty">${t("noAssign")}</div></td></tr>`}</tbody></table></div></div>`;
 }
 /* ---------- history views ---------- */
 let lhSel = new Set();
