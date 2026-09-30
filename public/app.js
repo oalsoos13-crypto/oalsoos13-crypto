@@ -655,6 +655,16 @@ const T = {
   r_audit_d: { ar: "استعراض كل العمليات وتصديرها للمراجعة.", en: "Review and export every action." },
   r_users: { ar: "المستخدمون", en: "Users" },
   r_users_d: { ar: "إدارة الحسابات والأدوار وكلمات المرور.", en: "Manage accounts, roles and passwords." },
+  r_structure: { ar: "بناء الهيكل (مشرفين ← مناديب ← جمعيات ← أوتليت)", en: "Structure builder (supervisors → salesmen → co-ops → outlets)" },
+  r_structure_d: { ar: "المصدر الوحيد للهيكل — أي تعديل هنا ينعكس على كل الشاشات فورًا.", en: "Single source of truth — any change here is reflected on every screen." },
+  st_hint: { ar: "الهيكل مبني على ماستر الأوتليت: المشرف والمندوب من المستخدمين، والجمعية بكودها P. أي تغيير هنا يغيّر النطاق، شجرة البتجيت، توليد الكتب، المراقبة والشيت — بلا استثناء.", en: "Built on the outlets master: supervisor and salesman are users, the co-op is its P-code. Any change here changes scope, the budget tree, letter generation, monitoring and the register — without exception." },
+  st_addCoop: { ar: "＋ جمعية", en: "+ Co-op" }, st_addOutlet: { ar: "＋ أوتلت", en: "+ Outlet" }, st_users: { ar: "👥 إدارة المستخدمين", en: "👥 Manage users" },
+  st_unassigned: { ar: "غير مخصّص", en: "Unassigned" }, st_supervisor: { ar: "المشرف", en: "Supervisor" }, st_salesman: { ar: "المندوب", en: "Salesman" },
+  st_coopCode: { ar: "كود الجمعية (P123)", en: "Co-op code (P123)" }, st_coopName: { ar: "اسم الجمعية (إنجليزي)", en: "Co-op name (English)" }, st_coopAr: { ar: "الاسم بالعربي", en: "Arabic name" },
+  st_mains: { ar: "عدد الأسواق الرئيسية", en: "Main markets" }, st_branches: { ar: "عدد الفروع", en: "Branches" },
+  st_custId: { ar: "رقم العميل", en: "Customer ID" }, st_outletName: { ar: "اسم الأوتلت", en: "Outlet name" }, st_coop: { ar: "الجمعية", en: "Co-op" },
+  st_search: { ar: "بحث…", en: "Search…" }, st_outlets: { ar: "أوتلت", en: "outlets" }, st_delQ: { ar: "حذف الأوتلت؟", en: "Delete this outlet?" },
+  st_none: { ar: "— بدون —", en: "— none —" }, st_moveCoop: { ar: "نقل الجمعية كاملة إلى مندوب", en: "Move whole co-op to salesman" },
   r_methodology: { ar: "منهجية العمل — PMI", en: "Methodology — PMI" },
   r_methodology_d: { ar: "دورة حياة المشروع حسب المعيار العالمي PMI، الحالة والمراجع.", en: "Project lifecycle per the PMI global standard, status and references." },
   meth_title: { ar: "منهجية العمل — المعيار العالمي PMI", en: "Methodology — PMI Global Standard" },
@@ -1089,7 +1099,7 @@ const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrac
 // Top-level sections (two-level sidebar): each groups a set of screens.
 const SECTIONS = [
   { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "budgetDist", "printQueue", "archive", "lettersHistory"] },
-  { k: "settings", screens: ["users", "backup", "audit", "methodology"] },
+  { k: "settings", screens: ["structure", "users", "backup", "audit", "methodology"] },
   { k: "contracts", screens: ["contracts"] },
   { k: "sales", screens: ["sales", "salesMonthly"] },
   { k: "dailyreports", screens: ["dailyReports"] },
@@ -1191,7 +1201,7 @@ function render() {
     supervisor: ["budgetDist", "lettersHistory"],
     salesman: [],
   };
-  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "users", "backup", "audit", "methodology", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
+  const ADMIN_NAV = ["monitor", "union", "budgetPlan", "printQueue", "archive", "lettersHistory", "structure", "users", "backup", "audit", "methodology", "contracts", "sales", "salesMonthly", "dailyReports", "orders"];
   const navKeys = (isAdmin ? ADMIN_NAV : [currentUser.role].concat(EXTRA[currentUser.role] || []))
     .filter((k) => !HIDDEN_ROUTES.has(k));
   // No default screen: the content stays empty until the user picks a section.
@@ -1246,6 +1256,7 @@ function render() {
     budgetPlan: vBudgetPlan,
     budgetDist: vBudgetDist,
     methodology: vMethodology,
+    structure: vStructure,
     union: vUnion,
     dailyReports: vDailyReports,
     orders: vOrders,
@@ -1411,6 +1422,7 @@ const ADMIN_ROLES = [
   { k: "users", ic: "👥" },
   { k: "backup", ic: "💾" },
   { k: "methodology", ic: "📐" },
+  { k: "structure", ic: "🧩" },
 ];
 function renderHome() {
   const cards = ROLES.concat(currentUser.role === "admin" ? ADMIN_ROLES : []).filter((r) => !HIDDEN_ROUTES.has(r.k));
@@ -2320,6 +2332,74 @@ function vDailyReports() {
 function vOrders() {
   document.getElementById("rv").innerHTML = `<div class="panel"><div class="empty">🧾 ${t("comingSoonBody")}</div></div>`;
 }
+/* ---------- Structure builder (admin, settings) ---------- */
+let STR = null, STR_OPEN = new Set(), STR_Q = "";
+async function vStructure() {
+  const box = document.getElementById("rv");
+  box.innerHTML = `<div class="panel"><div class="empty">${t("loading")}</div></div>`;
+  try { STR = await api("/structure"); } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  renderStructure();
+}
+function stName(list, pf) { const x = (list || []).find((u) => u.pf === pf); return x ? x.name : pf; }
+function stCoopLabel(code) { const c = (STR.coops || []).find((x) => x.code === code); return c ? `${c.code} — ${c.name}${c.nameAr ? " · " + c.nameAr : ""}` : code; }
+function stSelSup(cur, onch) { return `<select onchange="${onch}"><option value="">${t("st_none")}</option>${STR.supervisors.map((s) => `<option value="${s.pf}" ${s.pf === cur ? "selected" : ""}>${s.pf} — ${esc(s.name)}</option>`).join("")}</select>`; }
+function stSelSales(cur, onch) { return `<select onchange="${onch}"><option value="">${t("st_none")}</option>${STR.salesmen.map((s) => `<option value="${s.pf}" ${s.pf === cur ? "selected" : ""}>${s.pf} — ${esc(s.name)}</option>`).join("")}</select>`; }
+function stSelCoop(cur, onch) { return `<select onchange="${onch}">${STR.coops.map((c) => `<option value="${c.code}" ${c.code === cur ? "selected" : ""}>${c.code} — ${esc(c.name)}</option>`).join("")}</select>`; }
+function stToggle(key, el) { if (el.open) STR_OPEN.add(key); else STR_OPEN.delete(key); }
+function renderStructure() {
+  const q = STR_Q.trim().toLowerCase();
+  const hit = (s) => !q || String(s || "").toLowerCase().includes(q);
+  const bySales = {}; STR.outlets.forEach((o) => { (bySales[o.salesmanPf || ""] = bySales[o.salesmanPf || ""] || []).push(o); });
+  const salesBySup = {}; STR.salesmen.forEach((s) => { (salesBySup[s.fsmPf || ""] = salesBySup[s.fsmPf || ""] || []).push(s); });
+  const outletRow = (o) => `<tr class="${hit(o.name) || hit(o.custId) ? "" : "st-dim"}"><td class="mono" style="padding-inline-start:36px">${esc(o.custId)}</td>
+    <td><input value="${esc(o.name.replace(new RegExp("^" + o.custId + "\\s*-\\s*"), ""))}" onchange="stSaveOutlet('${o.custId}',{name:this.value})" style="min-width:220px"></td>
+    <td>${stSelCoop(o.coopCode, `stSaveOutlet('${o.custId}',{coopCode:this.value})`)}</td>
+    <td>${stSelSales(o.salesmanPf, `stSaveOutlet('${o.custId}',{salesmanPf:this.value})`)}</td>
+    <td><button class="btn danger sm" onclick="stDelOutlet('${o.custId}')">🗑</button></td></tr>`;
+  const coopBlocks = (outs, smPf) => {
+    const byCoop = {}; outs.forEach((o) => { (byCoop[o.coopCode || o.parent] = byCoop[o.coopCode || o.parent] || []).push(o); });
+    return Object.keys(byCoop).sort().map((code) => { const k = "c:" + smPf + ":" + code; const rows = byCoop[code];
+      return `<details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary style="padding-inline-start:18px">🏬 <b>${esc(stCoopLabel(code))}</b> <span class="hint">(${rows.length} ${t("st_outlets")})</span>
+        <span style="margin-inline-start:12px" onclick="event.preventDefault()">${t("st_moveCoop")}: ${stSelSales(smPf, `stMoveCoop('${code}',this.value)`)}</span></summary>
+        <div class="tbl-wrap"><table><thead><tr><th>${t("st_custId")}</th><th>${t("st_outletName")}</th><th>${t("st_coop")}</th><th>${t("st_salesman")}</th><th></th></tr></thead><tbody>${rows.map(outletRow).join("")}</tbody></table></div></details>`; }).join("");
+  };
+  const salesBlock = (s) => { const k = "s:" + s.pf; const outs = bySales[s.pf] || []; const coopsN = new Set(outs.map((o) => o.coopCode)).size;
+    return `<details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary style="padding-inline-start:8px">🧑‍💼 <b>${s.pf} — ${esc(s.name)}</b> <span class="hint">(${coopsN} ${t("coopsN")} · ${outs.length} ${t("st_outlets")})</span>
+      <span style="margin-inline-start:12px" onclick="event.preventDefault()">${t("st_supervisor")}: ${stSelSup(s.fsmPf, `stAssign('${s.pf}',this.value)`)}</span></summary>${coopBlocks(outs, s.pf)}</details>`; };
+  const supBlocks = STR.supervisors.map((sup) => { const k = "u:" + sup.pf; const sms = salesBySup[sup.pf] || []; const outN = sms.reduce((a, s) => a + (bySales[s.pf] || []).length, 0);
+    return `<div class="mon-node"><details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary>👤 <b>${sup.pf} — ${esc(sup.name)}</b> <span class="hint">(${sms.length} ${t("salesman")} · ${outN} ${t("st_outlets")})</span></summary>${sms.map(salesBlock).join("") || `<div class="empty">${t("noAssign")}</div>`}</details></div>`; }).join("");
+  const unSales = salesBySup[""] || [], unOut = bySales[""] || [];
+  const unassigned = (unSales.length || unOut.length) ? `<div class="mon-node"><details open><summary>⚠️ <b>${t("st_unassigned")}</b> <span class="hint">(${unSales.length} ${t("salesman")} · ${unOut.length} ${t("st_outlets")})</span></summary>${unSales.map(salesBlock).join("")}${unOut.length ? `<div class="tbl-wrap"><table><tbody>${unOut.map(outletRow).join("")}</tbody></table></div>` : ""}</details></div>` : "";
+  document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>🧩 ${t("r_structure")}</h3><div class="actions">
+      <input placeholder="${t("st_search")}" value="${esc(STR_Q)}" oninput="STR_Q=this.value;renderStructure()" style="min-width:200px">
+      <button class="btn gold sm" onclick="stOpenCoop()">${t("st_addCoop")}</button><button class="btn primary sm" onclick="stOpenOutlet()">${t("st_addOutlet")}</button>
+      <button class="btn ghost sm" onclick="go('users')">${t("st_users")}</button></div></header>
+    <div class="body"><p class="hint">${t("st_hint")}</p>${supBlocks}${unassigned}</div></div>`;
+}
+async function stReload(msg) { try { STR = await api("/structure"); renderStructure(); await loadState(); if (msg !== false) toast(t("saved")); } catch (e) { toast(e.message); } }
+async function stAssign(salesmanPf, supervisorPf) { if (!supervisorPf) { renderStructure(); return; } try { await api("/structure/assign", { method: "POST", body: { salesmanPf, supervisorPf } }); await stReload(); } catch (e) { toast(e.message); renderStructure(); } }
+async function stMoveCoop(coopCode, salesmanPf) { try { await api("/structure/coop-salesman", { method: "POST", body: { coopCode, salesmanPf } }); await stReload(); } catch (e) { toast(e.message); renderStructure(); } }
+async function stSaveOutlet(custId, patch) {
+  const o = STR.outlets.find((x) => x.custId === custId) || {};
+  const body = { custId, name: patch.name != null ? patch.name : o.name, coopCode: patch.coopCode || o.coopCode, salesmanPf: patch.salesmanPf != null ? patch.salesmanPf : o.salesmanPf };
+  try { await api("/structure/outlet", { method: "POST", body }); await stReload(); } catch (e) { toast(e.message); renderStructure(); }
+}
+async function stDelOutlet(custId) { if (!confirm(t("st_delQ"))) return; try { await api("/structure/outlet/" + encodeURIComponent(custId), { method: "DELETE" }); await stReload(); } catch (e) { toast(e.message); } }
+function stOpenCoop() {
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("st_addCoop")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div><div style="padding:18px 22px"><div class="grid g3">
+    <div class="field"><label>${t("st_coopCode")}</label><input id="scCode" placeholder="P999" style="direction:ltr"></div>
+    <div class="field"><label>${t("st_coopName")}</label><input id="scName"></div><div class="field"><label>${t("st_coopAr")}</label><input id="scAr"></div>
+    <div class="field"><label>${t("st_mains")}</label><input id="scMains" type="number" value="1"></div><div class="field"><label>${t("st_branches")}</label><input id="scBr" type="number" value="0"></div></div>
+    <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="stSaveCoop()">${t("save")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
+}
+async function stSaveCoop() { const g = (i) => document.getElementById(i).value; try { await api("/structure/coop", { method: "POST", body: { code: g("scCode"), name: g("scName"), nameAr: g("scAr"), mains: g("scMains"), branches: g("scBr") } }); closeModal(); await stReload(); } catch (e) { toast(e.message); } }
+function stOpenOutlet() {
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("st_addOutlet")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div><div style="padding:18px 22px"><div class="grid g3">
+    <div class="field"><label>${t("st_custId")}</label><input id="soCust" style="direction:ltr"></div><div class="field"><label>${t("st_outletName")}</label><input id="soName"></div>
+    <div class="field"><label>${t("st_coop")}</label>${stSelCoop("", "").replace("<select", '<select id="soCoop"')}</div><div class="field"><label>${t("st_salesman")}</label>${stSelSales("", "").replace("<select", '<select id="soSales"')}</div></div>
+    <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="stSaveNewOutlet()">${t("save")}</button><button class="btn ghost" onclick="closeModal()">${t("cancel")}</button></div></div>`);
+}
+async function stSaveNewOutlet() { const g = (i) => document.getElementById(i).value; try { await api("/structure/outlet", { method: "POST", body: { custId: g("soCust"), name: g("soName"), coopCode: g("soCoop"), salesmanPf: g("soSales") } }); closeModal(); await stReload(); } catch (e) { toast(e.message); } }
 /* ---------- Cooperatives Union section (admin) ---------- */
 function vUnion() {
   const list = DB.letters.filter((L) => isUnionType(L.type)).slice().reverse();

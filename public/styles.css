@@ -625,3 +625,6 @@ body.app-in .appbar-toggle{display:inline-flex}
 body.nav-collapsed #navArrow::before{content:"\276E"}
 body.app-in #navArrow{display:flex}
 body.app-in.nav-collapsed #navArrow{inset-inline-start:2px}
+
+/* Structure builder: rows not matching the search */
+.st-dim{opacity:.35}
