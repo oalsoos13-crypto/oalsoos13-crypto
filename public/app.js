@@ -703,10 +703,10 @@ const T = {
   gl_refresh: { ar: "تحديث", en: "Refresh" },
   gl_mt: { ar: "الترجمة الآلية (MyMemory — مجانية)", en: "Machine translation (MyMemory — free)" }, gl_mtOff: { ar: "الترجمة الآلية متوقفة (MT_PROVIDER=off)", en: "Machine translation is off (MT_PROVIDER=off)" },
   gl_mtHint: { ar: "أي نص عربي جديد ما بيعرفه القاموس بيتترجم تلقائياً خلال ثوانٍ من حفظه ويُخزَّن. تقدر تعدّل أي ترجمة آلية وتصير من قاموسك.", en: "Any new Arabic text the glossary cannot render is machine-translated within seconds of being saved and stored. Edit any machine translation and it becomes yours." },
-  gl_mtUsed: { ar: "المستخدم اليوم", en: "Used today" }, gl_mtChars: { ar: "حرف", en: "chars" }, gl_mtCached: { ar: "نصوص مترجمة آلياً", en: "machine-translated texts" }, gl_mtLast: { ar: "آخر تشغيل", en: "Last run" },
+  gl_mtUsed: { ar: "المستخدم اليوم", en: "Used today" }, gl_mtEmailOn: { ar: "الإيميل مضبوط ✓", en: "Email set ✓" }, gl_mtChars: { ar: "حرف", en: "chars" }, gl_mtCached: { ar: "نصوص مترجمة آلياً", en: "machine-translated texts" }, gl_mtLast: { ar: "آخر تشغيل", en: "Last run" },
   gl_mtRun: { ar: "ترجم النصوص الناقصة الآن", en: "Translate the missing texts now" }, gl_mtQuota: { ar: "انتهت الحصة المجانية لليوم — بيكمل تلقائياً بكرة", en: "Free quota for today is used up — continues automatically tomorrow" },
   gl_mtErr: { ar: "آخر خطأ", en: "Last error" }, gl_mtDone: { ar: "تمت ترجمة {n} نص آلياً", en: "{n} text(s) machine-translated" }, gl_mtRemaining: { ar: "متبقي", en: "remaining" },
-  gl_mtEmail: { ar: "بدون إيميل: 5,000 حرف/يوم · مع إيميل بإعدادات Render (MYMEMORY_EMAIL): 50,000", en: "Without an email: 5,000 chars/day · with MYMEMORY_EMAIL set on Render: 50,000" }, gl_mtMakeMine: { ar: "تعديل / اعتماد", en: "Edit / adopt" }, gl_delete: { ar: "حذف", en: "Delete" }, gl_confirmDel: { ar: "حذف هذه الترجمة؟", en: "Delete this translation?" },
+  gl_mtEmail: { ar: "بدون إيميل الحصة (5,000 حرف/يوم) محسوبة على عنوان السيرفر المشترك وغالبًا مستهلكة — حط MYMEMORY_EMAIL بإعدادات Render لتصير 50,000 حرف/يوم على الإيميل.", en: "Without an email the quota (5,000 chars/day) is tied to the shared server IP and usually already used — set MYMEMORY_EMAIL on Render for 50,000 chars/day on the email." }, gl_mtMakeMine: { ar: "تعديل / اعتماد", en: "Edit / adopt" }, gl_delete: { ar: "حذف", en: "Delete" }, gl_confirmDel: { ar: "حذف هذه الترجمة؟", en: "Delete this translation?" },
   r_users_d: { ar: "إدارة الحسابات والأدوار وكلمات المرور.", en: "Manage accounts, roles and passwords." },
   r_structure: { ar: "بناء الهيكل (مشرفين ← مناديب ← جمعيات ← أوتليت)", en: "Structure builder (supervisors → salesmen → co-ops → outlets)" },
   r_structure_d: { ar: "المصدر الوحيد للهيكل — أي تعديل هنا ينعكس على كل الشاشات فورًا.", en: "Single source of truth — any change here is reflected on every screen." },
@@ -2485,10 +2485,10 @@ function glMachineHTML(m) {
   if (!m) return "";
   if (!m.enabled) return `<div class="panel"><header><h3>${t("gl_mt")}</h3></header><div class="hint" style="padding:8px 12px">${t("gl_mtOff")}</div></div>`;
   const last = m.last;
-  const lastTxt = last ? `${fmtTs(last.at)} — ${t("gl_mtDone").replace("{n}", last.translated)}${last.remaining ? ` · ${last.remaining} ${t("gl_mtRemaining")}` : ""}${last.quota ? ` · ⚠ ${t("gl_mtQuota")}` : ""}${last.error && !last.quota ? ` · ${t("gl_mtErr")}: ${esc(String(last.error).slice(0, 120))}` : ""}` : "—";
+  const lastTxt = last ? `${fmtTs(last.at)} — ${t("gl_mtDone").replace("{n}", last.translated)}${last.remaining ? ` · ${last.remaining} ${t("gl_mtRemaining")}` : ""}${last.quota ? ` · ⚠ ${t("gl_mtQuota")}` : ""}${last.error ? `<br><span style="color:#b00">${t("gl_mtErr")}: ${esc(String(last.error).slice(0, 220))}</span>` : ""}` : "—";
   const rows = (glData.mt && glData.mt.rows || []).map((r) => `<tr><td dir="rtl">${esc(r.ar)}</td><td dir="ltr">${esc(r.en)}</td><td class="mono-sm">${fmtTs(r.created_at)}</td><td><div class="actions"><button class="btn ghost sm" onclick="glAdopt(${JSON.stringify(r.ar).replace(/"/g, "&quot;")})">${t("gl_mtMakeMine")}</button><button class="btn ghost sm" onclick="glMtDelete(${JSON.stringify(r.ar).replace(/"/g, "&quot;")})">${t("gl_delete")}</button></div></td></tr>`).join("");
   return `<div class="panel"><header><h3>${t("gl_mt")} <span class="pill-info">${m.cached}</span></h3><div class="actions" style="margin:0"><button class="btn primary sm" id="glMtRunBtn" onclick="glMtRun()">🌐 ${t("gl_mtRun")}</button></div></header>
-    <div class="hint" style="padding:6px 12px">${t("gl_mtHint")}<br>${t("gl_mtUsed")}: <b>${m.usedToday.toLocaleString()}</b> / ${m.dailyChars.toLocaleString()} ${t("gl_mtChars")} · ${m.cached} ${t("gl_mtCached")} · ${t("gl_mtLast")}: ${lastTxt}<br><span style="color:#888">${t("gl_mtEmail")}</span></div>
+    <div class="hint" style="padding:6px 12px">${t("gl_mtHint")}<br>${t("gl_mtUsed")}: <b>${m.usedToday.toLocaleString()}</b> / ${m.dailyChars.toLocaleString()} ${t("gl_mtChars")}${m.emailSet ? " · " + t("gl_mtEmailOn") : ""} · ${m.cached} ${t("gl_mtCached")} · ${t("gl_mtLast")}: ${lastTxt}<br><span style="color:#888">${t("gl_mtEmail")}</span></div>
     <div class="tbl-wrap">${rows ? `<table><thead><tr><th>${t("gl_word")}</th><th>${t("gl_en")}</th><th>${t("th_date")}</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : ""}</div></div>`;
 }
 async function glMtRun() {
@@ -2503,7 +2503,14 @@ function glTry() {
   clearTimeout(glTryTimer);
   glTryTimer = setTimeout(async () => {
     const v = document.getElementById("glTryIn").value;
-    try { const r = await api("/glossary/try", { method: "POST", body: { text: v } }); document.getElementById("glTryOut").value = r.en; } catch (e) { /* ignore */ }
+    const out = document.getElementById("glTryOut");
+    try {
+      const r = await api("/glossary/try", { method: "POST", body: { text: v } }); out.value = r.en;
+      // Still Arabic? ask the online service directly (also a live connectivity test).
+      if (/[\u0600-\u06FF]/.test(r.en) && glData && glData.pending && glData.pending.machine && glData.pending.machine.enabled) {
+        out.value = r.en + "  …🌐"; const m = await api("/glossary/machine/text", { method: "POST", body: { text: v } }); out.value = m.en + "  (🌐 MyMemory)";
+      }
+    } catch (e) { out.value = "⚠ " + e.message; }
   }, 250);
 }
 async function glAfterSave(n) {

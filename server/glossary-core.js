@@ -151,17 +151,20 @@ async function callMyMemory(q) {
   u.searchParams.set('q', q); u.searchParams.set('langpair', 'ar|en');
   if (MT.email) u.searchParams.set('de', MT.email);
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 12000);
-  let res, data;
+  let res, raw = '', data = null;
   try {
-    res = await fetch(u, { signal: ctl.signal, headers: { 'User-Agent': 'UDC-DebitNotes/1.0' } });
-    data = await res.json().catch(() => null);
+    res = await fetch(u, { signal: ctl.signal, headers: { 'User-Agent': 'UDC-DebitNotes/1.0 (+render)', Accept: 'application/json' } });
+    raw = await res.text();
+    try { data = JSON.parse(raw); } catch (e) { data = null; }
   } finally { clearTimeout(timer); }
-  if (res.status === 429 || res.status === 403 || (data && (data.quotaFinished === true || data.responseStatus === 429 || data.responseStatus === 403))) {
-    throw new QuotaError((data && data.responseDetails) || ('HTTP ' + res.status));
-  }
+  const detail = (data && data.responseDetails) || raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || ('HTTP ' + res.status);
   const text = data && data.responseData && data.responseData.translatedText;
-  if (!res.ok || !data || +data.responseStatus !== 200 || !text) throw new Error((data && data.responseDetails) || ('HTTP ' + res.status));
-  if (/^MYMEMORY WARNING/i.test(text)) throw new QuotaError(text);
+  // MyMemory reports an exhausted quota as HTTP 429, or HTTP 200 with
+  // responseStatus 403 / quotaFinished / a "MYMEMORY WARNING" text.
+  const quota = res.status === 429 || (data && (data.quotaFinished === true || +data.responseStatus === 429 || +data.responseStatus === 403)) || /MYMEMORY WARNING|USED ALL AVAILABLE/i.test(String(text || detail));
+  if (quota) throw new QuotaError('HTTP ' + res.status + ' — ' + detail);
+  if (!res.ok || !data) throw new Error('HTTP ' + res.status + ' — ' + detail);
+  if (+data.responseStatus !== 200 || !text) throw new Error('responseStatus ' + data.responseStatus + ' — ' + detail);
   return String(text).trim();
 }
 // Clean up the machine output a little (spacing, capital, ASCII digits).
