@@ -603,6 +603,16 @@ function migrate() {
       updated_at  TEXT,
       PRIMARY KEY (month, supplier_id, budget_type, channel)
     )`);
+  // Admin: each brand's (supplier's) budget total per sales channel. The
+  // channel managers then split it by line and supervisor (budget_alloc_sup).
+  db.exec(`CREATE TABLE IF NOT EXISTS brand_channel_budget (
+      month       TEXT NOT NULL,
+      supplier_id INTEGER NOT NULL,
+      channel     TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, supplier_id, channel)
+    )`);
   // The sales manager splits each supplier's co-op budget line between the
   // supervisors; budget_alloc (per line × supervisor) is kept as the sum of these.
   db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc_sup (

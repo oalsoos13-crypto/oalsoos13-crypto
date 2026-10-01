@@ -660,3 +660,9 @@ body.app-in.nav-collapsed #navArrow{inset-inline-start:2px}
 .cb-sheet tr.cb-grand td .cb-zero{color:#8aa0bd}
 html[dir="rtl"] .cb-sheet tr.cb-grp td{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6414,#b8862a)}
+.cb-grp-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cb-grp-info{font-weight:500;font-size:13px;opacity:.95}
+.cb-grp-info b{font-weight:800}
+.cb-sheet .cb-th-grp{text-align:center!important;direction:inherit;border-bottom:1px solid var(--line2)}
+.cb-entry thead th{position:static}
+.cb-entry td.cb-brand{white-space:nowrap;padding-inline-start:12px}

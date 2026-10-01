@@ -580,9 +580,8 @@ const T = {
   al_budgetCol: { ar: "بتجيت الجمعيات", en: "Co-op budget" },
   al_allSup: { ar: "كل الموردين", en: "All suppliers" },
   al_grand: { ar: "إجمالي الجمعيات", en: "Co-op total" },
-  al_note: { ar: "بتجيت الجمعيات لكل مورد جاي من شيت الشركة (عمود الجمعيات). ما بتقدر توزّع أكثر منه، ومجموع كل مشرف بيروح لشاشة التوزيع تبعه.", en: "Each supplier's co-op budget comes from the company sheet (Coop column). You cannot allocate more than it, and each supervisor's total goes to his distribution screen." },
+  al_note: { ar: "توتال كل براند للجمعيات بيحطه الأدمن. وزّعه هون على المشرفين حسب البند — ما بتقدر تتجاوز توتال البراند، ومجموع كل مشرف بيروح لشاشة التوزيع تبعه.", en: "The admin sets each brand's co-op total. Split it here by line and supervisor — you cannot go over the brand's total, and each supervisor's sum goes to his distribution screen." },
   cb_leftLbl: { ar: "المتبقي", en: "Left" },
-  cb_coopNote: { ar: "عمود الجمعيات هو سقف بتجيت الجمعيات اللي بيوزعه مدير المبيعات على المشرفين — بيتحدث تلقائيًا.", en: "The Coop column is the co-op budget cap the sales manager splits between supervisors — it updates automatically." },
   cb_grand: { ar: "الإجمالي الكلي للشركة", en: "Company grand total" },
   cb_keys: { ar: "اكتب الرقم واضغط Enter للنزول · Tab للانتقال يمين/يسار · تقدر تلصق جدول كامل من Excel مباشرة · كل خانة بتنحفظ لحالها", en: "Type a number and press Enter to go down · Tab to move across · paste a whole block straight from Excel · every cell saves itself" },
   cb_copy: { ar: "نسخ من", en: "Copy from" },
@@ -602,8 +601,16 @@ const T = {
   cb_none: { ar: "لا يوجد موردين — أضف موردًا.", en: "No suppliers — add one." },
   ch_coop: { ar: "الجمعيات", en: "Coop" },
   ch_ka: { ar: "KA", en: "KA" },
-  ch_tt: { ar: "TT", en: "TT" },
   ch_online: { ar: "أونلاين", en: "Online" },
+  ch_tt_grocery: { ar: "بقالات", en: "Grocery" },
+  ch_tt_ws: { ar: "WS", en: "WS" },
+  ch_tt_horeca: { ar: "هوريكا + مدارس", en: "HoReCa + Schools" },
+  cb_brand: { ar: "البراند", en: "Brand" },
+  cb_linesTitle: { ar: "التوزيع حسب البند — من شاشات المدراء", en: "Split by line — from the channel managers" },
+  cb_linesHint: { ar: "هاد الجدول بيتعبّى لحاله من توزيع مدير كل قسم (الجمعيات: سائد). «·» يعني القسم لسا ما إله مدير بالنظام.", en: "Filled automatically from each channel manager's split (Coop: the sales manager). «·» means the channel has no manager in the system yet." },
+  cb_noMgr: { ar: "القسم ما إله مدير بالنظام بعد", en: "No manager for this channel yet" },
+  cb_distributed: { ar: "الموزّع", en: "Distributed" },
+  cb_budgetRow: { ar: "البتجيت", en: "Budget" },
   bp_cap: { ar: "السقف", en: "Cap" },
   bp_note: { ar: "ملاحظة", en: "Note" },
   bp_openCap: { ar: "مفتوح — بلا سقف", en: "Open — no cap" },
@@ -2222,30 +2229,28 @@ async function vBudgetPlan(refresh) {
 function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
 /* ---- Company budget: one entry sheet, supplier × budget line × channel ---- */
 let cbData = null;
-/* ---- Sales manager: co-op budget → supervisors, per supplier (entry sheet) ---- */
+/* ---- Sales manager: each brand's co-op total → lines × supervisors (entry sheet) ---- */
 let alData = null;
 function alAmt(sid, bt, sup) { const r = alData.rows.find((x) => x.supplierId === sid && x.budgetType === bt && x.supervisor === sup); return r ? +r.amount : null; }
 function alSum(f) { return alData.rows.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
 function alBud(f) { return alData.budget.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
 function alLeft(v) { return `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">–</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`; }
+function alGrpInfo(sid) { const b = alBud((x) => x.supplierId === sid), a = alSum((x) => x.supplierId === sid); return `${t("al_budget")}: <b class="mono">${KD(b)}</b> · ${t("bp_allocated")}: <b class="mono">${KD(a)}</b> · ${t("cb_leftLbl")}: <b class="mono">${alLeft(b - a)}</b>`; }
 function allocSheetPanel() {
   if (!alData) return "";
   const d = alData, ed = currentUser.role === "sales_manager" && !d.closed, sups = d.suppliers, svs = d.supervisors, types = d.types;
-  const n = svs.length + 4;
+  const n = svs.length + 2;
   let ri = 0;
-  const rowCells = (fA, fB) => { const a = alSum(fA), b = alBud(fB); return [a, b, b - a]; };
   const supRows = sups.map((sp) => {
-    const lines = types.map((bt) => { const r = ri++; const [a, b, l] = rowCells((x) => x.supplierId === sp.id && x.budgetType === bt, (x) => x.supplierId === sp.id && x.budgetType === bt);
+    const lines = types.map((bt) => { const r = ri++;
       return `<tr><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(sp.id, bt, sv);
         return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-s="${sp.id}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
-        <td class="cb-tot" id="alRA_${sp.id}_${bt}">${cbFmt(a)}</td><td class="cb-tot al-bud">${cbFmt(b)}</td><td class="cb-tot" id="alRL_${sp.id}_${bt}">${alLeft(l)}</td></tr>`; }).join("");
-    const [a, b, l] = rowCells((x) => x.supplierId === sp.id, (x) => x.supplierId === sp.id);
-    return `<tr class="cb-grp"><td colspan="${n}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}
-      <tr class="cb-sub"><td>${t("total")} — ${esc(sp.name)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alST_${sp.id}_${i}">${cbFmt(alSum((x) => x.supplierId === sp.id && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alSA_${sp.id}">${cbFmt(a)}</td><td class="cb-tot">${cbFmt(b)}</td><td class="cb-tot" id="alSL_${sp.id}">${alLeft(l)}</td></tr>`;
+        <td class="cb-tot" id="alRA_${sp.id}_${bt}">${cbFmt(alSum((x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`; }).join("");
+    return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${sp.id}">${alGrpInfo(sp.id)}</span></div></td></tr>${lines}
+      <tr class="cb-sub"><td>${t("total")} — ${esc(sp.name)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alST_${sp.id}_${i}">${cbFmt(alSum((x) => x.supplierId === sp.id && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alSA_${sp.id}">${cbFmt(alSum((x) => x.supplierId === sp.id))}</td></tr>`;
   }).join("");
-  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => { const [a, b, l] = rowCells((x) => x.budgetType === bt, (x) => x.budgetType === bt);
-      return `<tr class="cb-co"><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${bt}_${i}">${cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${bt}">${cbFmt(a)}</td><td class="cb-tot">${cbFmt(b)}</td><td class="cb-tot" id="alCL_${bt}">${alLeft(l)}</td></tr>`; }).join("")
-    + (() => { const [a, b, l] = rowCells(() => true, () => true); return `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${i}">${KD(alSum((x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA">${KD(a)}</td><td class="cb-tot">${KD(b)}</td><td class="cb-tot" id="alGL">${alLeft(l)}</td></tr>`; })();
+  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${bt}_${i}">${cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${bt}">${cbFmt(alSum((x) => x.budgetType === bt))}</td></tr>`).join("")
+    + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${i}">${KD(alSum((x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA">${KD(alSum(() => true))}</td></tr>`;
   const totB = alBud(() => true), totA = alSum(() => true);
   const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("al_budget")}</div><div class="val mono">${KD(totB)}</div></div>
     <div class="card"><div class="lbl">${t("bp_allocated")}</div><div class="val mono" id="alK_a">${KD(totA)}</div></div>
@@ -2253,66 +2258,83 @@ function allocSheetPanel() {
     <div class="cb-chips">${svs.map((sv, i) => `<span class="cb-chip"><b>${escN(sv)}</b> <span class="mono" id="alKS_${i}">${KD(alSum((x) => x.supervisor === sv))}</span></span>`).join("")}</div>`;
   const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>`
     : `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">🏬 ${t("al_note")}</div>`;
-  const sheet = sups.length && svs.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" data-kind="alloc" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><thead><tr><th>${t("cb_line")}</th>${svs.map((sv) => `<th>${escN(sv)}</th>`).join("")}<th>${t("bp_allocated")}</th><th>${t("al_budgetCol")}</th><th>${t("cb_leftLbl")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
+  const sheet = sups.length && svs.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" data-kind="alloc" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><thead><tr><th>${t("cb_line")}</th>${svs.map((sv) => `<th>${escN(sv)}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
     : `<div class="empty">${t(svs.length ? "cb_none" : "noAssign")}</div>`;
   return `<div class="panel cb-panel"><header><h3>🏬 ${t("al_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3></header><div class="body">${kpis}${note}${sheet}</div></div>`;
 }
 function alRefresh() {
   const d = alData, html = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
   d.suppliers.forEach((sp) => {
-    d.types.forEach((bt) => { const a = alSum((x) => x.supplierId === sp.id && x.budgetType === bt), b = alBud((x) => x.supplierId === sp.id && x.budgetType === bt); html(`alRA_${sp.id}_${bt}`, cbFmt(a)); html(`alRL_${sp.id}_${bt}`, alLeft(b - a)); });
+    d.types.forEach((bt) => html(`alRA_${sp.id}_${bt}`, cbFmt(alSum((x) => x.supplierId === sp.id && x.budgetType === bt))));
     d.supervisors.forEach((sv, i) => html(`alST_${sp.id}_${i}`, cbFmt(alSum((x) => x.supplierId === sp.id && x.supervisor === sv))));
-    const a = alSum((x) => x.supplierId === sp.id), b = alBud((x) => x.supplierId === sp.id); html(`alSA_${sp.id}`, cbFmt(a)); html(`alSL_${sp.id}`, alLeft(b - a));
+    html(`alSA_${sp.id}`, cbFmt(alSum((x) => x.supplierId === sp.id))); html(`alGI_${sp.id}`, alGrpInfo(sp.id));
   });
-  d.types.forEach((bt) => { d.supervisors.forEach((sv, i) => html(`alCT_${bt}_${i}`, cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv)))); const a = alSum((x) => x.budgetType === bt), b = alBud((x) => x.budgetType === bt); html(`alCA_${bt}`, cbFmt(a)); html(`alCL_${bt}`, alLeft(b - a)); });
+  d.types.forEach((bt) => { d.supervisors.forEach((sv, i) => html(`alCT_${bt}_${i}`, cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv)))); html(`alCA_${bt}`, cbFmt(alSum((x) => x.budgetType === bt))); });
   d.supervisors.forEach((sv, i) => { const v = alSum((x) => x.supervisor === sv); html(`alG_${i}`, KD(v)); html(`alKS_${i}`, KD(v)); });
-  const a = alSum(() => true), b = alBud(() => true); html("alGA", KD(a)); html("alGL", alLeft(b - a)); html("alK_a", KD(a)); html("alK_l", alLeft(b - a));
+  const a = alSum(() => true), b = alBud(() => true); html("alGA", KD(a)); html("alK_a", KD(a)); html("alK_l", alLeft(b - a));
 }
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
 function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbData.closed; }
-function cbAmt(sid, bt, ch) { const r = cbData.rows.find((x) => x.supplierId === sid && x.budgetType === bt && x.channel === ch); return r ? +r.amount : null; }
-function cbSum(f) { return cbData.rows.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
+function cbAmt(sid, ch) { const r = cbData.totals.find((x) => x.supplierId === sid && x.channel === ch); return r ? +r.amount : null; }
+function cbTot(f) { return cbData.totals.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
+function cbLn(f) { return cbData.lines.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
+function cbChHead(chs) { // Coop · KA · Online · TT (Grocery · WS · HoReCa+Schools)
+  const tt = chs.filter((c) => c.startsWith("tt_")), other = chs.filter((c) => !c.startsWith("tt_"));
+  return { row1: other.map((c) => `<th rowspan="2">${t("ch_" + c)}</th>`).join("") + (tt.length ? `<th colspan="${tt.length}" class="cb-th-grp">TT</th>` : ""), row2: tt.map((c) => `<th>${t("ch_" + c)}</th>`).join(""), order: other.concat(tt) };
+}
 function companyPanel() {
   if (!cbData) return "";
-  const d = cbData, ed = cbEditable(), sups = d.suppliers, chs = d.channels, types = CB_TYPES.filter((bt) => d.types.includes(bt));
+  const d = cbData, ed = cbEditable(), sups = d.suppliers, H = cbChHead(d.channels), chs = H.order;
   const tools = currentUser.role === "admin" ? `<div class="actions" style="margin:0">
       ${ed && d.prevCount ? `<button class="btn ghost sm" onclick="cbCopyPrev()">⧉ ${t("cb_copy")} <bdi dir="ltr">${esc(d.prevMonth)}</bdi></button>` : ""}
       <button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>
       <button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button></div>`
     : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`;
-  // Summary: company total, each supplier, each channel.
-  const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("cb_total")}</div><div class="val mono" id="cbK_all">${KD(cbSum(() => true))}</div></div>
-    ${sups.map((sp) => `<div class="card"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div><div class="val mono" id="cbK_${sp.id}">${KD(cbSum((r) => r.supplierId === sp.id))}</div></div>`).join("")}</div>
-    <div class="cb-chips">${chs.map((ch) => `<span class="cb-chip"><b>${t("ch_" + ch)}</b> <span class="mono" id="cbKC_${ch}">${KD(cbSum((r) => r.channel === ch))}</span></span>`).join("")}</div>`;
-  let ri = 0;
-  const supRows = sups.map((sp) => {
-    const lines = types.map((bt) => { const r = ri++;
-      return `<tr><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${chs.map((ch, c) => { const v = cbAmt(sp.id, bt, ch);
-        return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-s="${sp.id}" data-b="${bt}" data-c="${ch}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
-        <td class="cb-tot" id="cbRT_${sp.id}_${bt}">${cbFmt(cbSum((x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`; }).join("");
-    return `<tr class="cb-grp"><td colspan="${chs.length + 2}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}
-      <tr class="cb-sub"><td>${t("total")} — ${esc(sp.name)}</td>${chs.map((ch) => `<td class="cb-tot" id="cbST_${sp.id}_${ch}">${cbFmt(cbSum((x) => x.supplierId === sp.id && x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbSTT_${sp.id}">${cbFmt(cbSum((x) => x.supplierId === sp.id))}</td></tr>`;
-  }).join("");
-  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${chs.length + 2}">${t("cb_total")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${chs.map((ch) => `<td class="cb-tot" id="cbCT_${bt}_${ch}">${cbFmt(cbSum((x) => x.budgetType === bt && x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbCTT_${bt}">${cbFmt(cbSum((x) => x.budgetType === bt))}</td></tr>`).join("")
-    + `<tr class="cb-grand"><td>${t("cb_grand")}</td>${chs.map((ch) => `<td class="cb-tot" id="cbG_${ch}">${KD(cbSum((x) => x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbGT">${KD(cbSum(() => true))}</td></tr>`;
-  const sheet = sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><thead><tr><th>${t("cb_line")}</th>${chs.map((ch) => `<th>${t("ch_" + ch)}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
+  const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("cb_total")}</div><div class="val mono" id="cbK_all">${KD(cbTot(() => true))}</div></div>
+    ${sups.map((sp) => `<div class="card"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div><div class="val mono" id="cbK_${sp.id}">${KD(cbTot((r) => r.supplierId === sp.id))}</div></div>`).join("")}</div>`;
+  // 1) Brand totals per channel — the only thing the admin types.
+  const entry = sups.length ? `<div class="tbl-wrap"><table class="cb-sheet cb-entry" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
+      <thead><tr><th rowspan="2">${t("cb_brand")}</th>${H.row1}<th rowspan="2">${t("total")}</th></tr><tr>${H.row2}</tr></thead><tbody>
+      ${sups.map((sp, r) => `<tr><td class="cb-brand"><b>${esc(sp.name)}</b>${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${chs.map((ch, c) => { const v = cbAmt(sp.id, ch);
+        return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-s="${sp.id}" data-c="${ch}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot" id="cbBT_${sp.id}">${cbFmt(cbTot((x) => x.supplierId === sp.id))}</td></tr>`).join("")}
+      <tr class="cb-grand"><td>${t("cb_total")}</td>${chs.map((ch) => `<td class="cb-tot" id="cbCT_${ch}">${KD(cbTot((x) => x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbGT">${KD(cbTot(() => true))}</td></tr></tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
-  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed ? `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">🏬 ${t("cb_coopNote")}</div>` : "");
-  return `<div class="panel cb-panel"><header><h3>${t("cb_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${kpis}${note}${sheet}</div></div>`;
+  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed ? `<div class="hint" style="margin:10px 0">⌨ ${t("cb_keys")}</div>` : "");
+  return `<div class="panel cb-panel"><header><h3>${t("cb_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${kpis}${note}${entry}</div></div>
+    <div class="panel cb-panel"><header><h3>📊 ${t("cb_linesTitle")}</h3></header><div class="body"><div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div><div id="cbLinesWrap">${cbLinesTable()}</div></div></div>`;
+}
+// 2) The split by line, read-only: filled from the channel managers' screens.
+function cbLinesTable() {
+  const d = cbData, sups = d.suppliers, H = cbChHead(d.channels), chs = H.order, types = d.types, n = chs.length + 2;
+  const mg = (ch) => d.managed.includes(ch);
+  const cell = (v, ch) => mg(ch) ? cbFmt(v) : `<span class="cb-zero" title="${esc(t("cb_noMgr"))}">·</span>`;
+  const left = (v) => `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">–</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`;
+  const brand = sups.map((sp) => {
+    const lines = types.map((bt) => `<tr><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${chs.map((ch) => `<td class="cb-tot">${cell(cbLn((x) => x.supplierId === sp.id && x.budgetType === bt && x.channel === ch), ch)}</td>`).join("")}<td class="cb-tot">${cbFmt(cbLn((x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`).join("");
+    const dist = chs.map((ch) => cbLn((x) => x.supplierId === sp.id && x.channel === ch)), bud = chs.map((ch) => cbTot((x) => x.supplierId === sp.id && x.channel === ch));
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    return `<tr class="cb-grp"><td colspan="${n}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}
+      <tr class="cb-sub"><td>${t("cb_distributed")}</td>${dist.map((v) => `<td class="cb-tot">${cbFmt(v)}</td>`).join("")}<td class="cb-tot">${cbFmt(sum(dist))}</td></tr>
+      <tr class="cb-co"><td>${t("cb_budgetRow")}</td>${bud.map((v) => `<td class="cb-tot">${cbFmt(v)}</td>`).join("")}<td class="cb-tot">${cbFmt(sum(bud))}</td></tr>
+      <tr class="cb-co"><td>${t("cb_leftLbl")}</td>${bud.map((v, i) => `<td class="cb-tot">${mg(chs[i]) ? left(v - dist[i]) : `<span class="cb-zero">·</span>`}</td>`).join("")}<td class="cb-tot">${left(sum(bud) - sum(dist))}</td></tr>`;
+  }).join("");
+  const co = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_total")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${chs.map((ch) => `<td class="cb-tot">${cell(cbLn((x) => x.budgetType === bt && x.channel === ch), ch)}</td>`).join("")}<td class="cb-tot">${cbFmt(cbLn((x) => x.budgetType === bt))}</td></tr>`).join("")
+    + `<tr class="cb-grand"><td>${t("cb_distributed")}</td>${chs.map((ch) => `<td class="cb-tot">${KD(cbLn((x) => x.channel === ch))}</td>`).join("")}<td class="cb-tot">${KD(cbLn(() => true))}</td></tr>`;
+  return sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet"><thead><tr><th rowspan="2">${t("cb_line")}</th>${H.row1}<th rowspan="2">${t("total")}</th></tr><tr>${H.row2}</tr></thead><tbody>${brand}${co}</tbody></table></div>` : "";
 }
 // ---- Shared spreadsheet behaviour for the entry sheets (company / co-op alloc) ----
 // Each sheet <table data-kind="…"> has inputs .cb-in with data-r / data-col; the
 // kind's adapter knows how to read, save and re-total its cells.
 const SHEETS = {
   company: {
-    amt: (el) => cbAmt(+el.dataset.s, el.dataset.b, el.dataset.c),
-    cell: (el, v) => ({ supplierId: +el.dataset.s, budgetType: el.dataset.b, channel: el.dataset.c, amount: v }),
+    amt: (el) => cbAmt(+el.dataset.s, el.dataset.c),
+    cell: (el, v) => ({ supplierId: +el.dataset.s, channel: el.dataset.c, amount: v }),
     post: (cells) => api("/budget-company", { method: "POST", body: { month: cbData.month, cells } }),
     apply: (cells) => cells.forEach((c) => {
-      cbData.rows = cbData.rows.filter((r) => !(r.supplierId === c.supplierId && r.budgetType === c.budgetType && r.channel === c.channel));
-      if (c.amount !== "") cbData.rows.push({ supplierId: c.supplierId, budgetType: c.budgetType, channel: c.channel, amount: +c.amount });
+      cbData.totals = cbData.totals.filter((r) => !(r.supplierId === c.supplierId && r.channel === c.channel));
+      if (c.amount !== "") cbData.totals.push({ supplierId: c.supplierId, channel: c.channel, amount: +c.amount });
     }),
     refresh: () => cbRefresh(),
   },
@@ -2329,10 +2351,12 @@ const SHEETS = {
 };
 function shOf(el) { const tb = el.closest("table"); return tb ? SHEETS[tb.dataset.kind] : null; }
 function cbCell(from, r, c) { const tb = from.closest("table"); return tb ? tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`) : null; }
-function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) { el._fresh = true; setTimeout(() => { if (document.activeElement === el) el.select(); }, 0); } }
+function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) { el._fresh = true; const v0 = el.value; setTimeout(() => { if (document.activeElement === el && el.value === v0) el.select(); }, 0); } }
 // The click that focused a cell must not collapse the selection: typing then
 // replaces the number, like Excel.
 function cbMouseUp(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in") && el._fresh) { e.preventDefault(); el._fresh = false; el.select(); } }
+// Typing in a cell ends the "just focused" state, so a late select() never eats keystrokes.
+document.addEventListener("input", (e) => { if (e.target && e.target.classList && e.target.classList.contains("cb-in")) e.target._fresh = false; }, true);
 // Excel-like movement: Enter / ↓ next row, ↑ previous row, ← → between columns
 // when the caret is at the edge of the number (mirrored in Arabic).
 function cbKey(e) {
@@ -2384,18 +2408,13 @@ async function cbSaveCells(els, vals) {
     toast(errDisp(e.message));
   }
 }
-// Recompute every total in place (focus and scroll stay where they are).
+// Recompute the totals in place (focus and scroll stay where they are).
 function cbRefresh() {
-  const set = (id, v, plain) => { const el = document.getElementById(id); if (el) el.innerHTML = plain ? KD(v) : cbFmt(v); };
-  const d = cbData;
-  d.suppliers.forEach((sp) => {
-    CB_TYPES.forEach((bt) => set(`cbRT_${sp.id}_${bt}`, cbSum((x) => x.supplierId === sp.id && x.budgetType === bt)));
-    d.channels.forEach((ch) => set(`cbST_${sp.id}_${ch}`, cbSum((x) => x.supplierId === sp.id && x.channel === ch)));
-    const tot = cbSum((x) => x.supplierId === sp.id); set(`cbSTT_${sp.id}`, tot); set(`cbK_${sp.id}`, tot, true);
-  });
-  CB_TYPES.forEach((bt) => { d.channels.forEach((ch) => set(`cbCT_${bt}_${ch}`, cbSum((x) => x.budgetType === bt && x.channel === ch))); set(`cbCTT_${bt}`, cbSum((x) => x.budgetType === bt)); });
-  d.channels.forEach((ch) => { const v = cbSum((x) => x.channel === ch); set(`cbG_${ch}`, v, true); set(`cbKC_${ch}`, v, true); });
-  const all = cbSum(() => true); set("cbGT", all, true); set("cbK_all", all, true);
+  const d = cbData, html = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+  d.suppliers.forEach((sp) => { const v = cbTot((x) => x.supplierId === sp.id); html(`cbBT_${sp.id}`, cbFmt(v)); html(`cbK_${sp.id}`, KD(v)); });
+  d.channels.forEach((ch) => html(`cbCT_${ch}`, KD(cbTot((x) => x.channel === ch))));
+  const all = cbTot(() => true); html("cbGT", KD(all)); html("cbK_all", KD(all));
+  html("cbLinesWrap", cbLinesTable());
 }
 async function cbCopyPrev() {
   if (!confirm(t("cb_copyQ").replace("{m}", cbData.prevMonth))) return;
