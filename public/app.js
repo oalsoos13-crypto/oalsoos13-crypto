@@ -610,7 +610,7 @@ const T = {
   ch_online: { ar: "أونلاين", en: "Online" },
   ch_tt_grocery: { ar: "بقالات", en: "Grocery" },
   ch_tt_ws: { ar: "WS", en: "WS" },
-  ch_tt_horeca: { ar: "هوريكا + مدارس", en: "HoReCa + Schools" },
+  ch_tt_horeca: { ar: "هوريكا + مدارس", en: "Horeca + Schools" },
   cb_brand: { ar: "اسم المورد", en: "Supplier name" },
   cb_extra: { ar: "بتجيت إضافي", en: "Extra budget" },
   cb_addExtra: { ar: "بتجيت إضافي", en: "Extra budget" },
@@ -2326,7 +2326,7 @@ function cbTot(L, f) { return cbData.totals.filter(lyF(L, f)).reduce((a, r) => a
 function cbLn(L, f) { return cbData.lines.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
 // Channel groups: Coop (Main · Branch · Coop total), KA, Online, TT (Grocery · WS ·
-// HoReCa+Schools · TT total). Group totals are calculated, never typed.
+// Horeca+Schools · TT total). Group totals are calculated, never typed.
 const CB_GROUPS = [{ k: "coop", chs: ["coop_main", "coop_branch"] }, { k: "ka", chs: ["ka"] }, { k: "online", chs: ["online"] }, { k: "tt", chs: ["tt_grocery", "tt_ws", "tt_horeca"] }];
 // Columns of a sheet: [{ ch } input/value column | { grp } group-total column].
 function cbCols(chs) {
@@ -2374,7 +2374,7 @@ function companyLayerPanel(L) {
 }
 // 2) The split by line, read-only: filled from the channel managers' screens.
 // One table per channel group; under each brand its sub-channels and the group
-// total (Coop: Main · Branch · Total, TT: Grocery · WS · HoReCa+Schools · Total);
+// total (Coop: Main · Branch · Total, TT: Grocery · WS · Horeca+Schools · Total);
 // then all channels together.
 function cbLinesTable(L) {
   const d = cbData, sups = d.suppliers, types = d.types;
