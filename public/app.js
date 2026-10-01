@@ -2214,7 +2214,7 @@ function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
 /* ---- Company budget: one entry sheet, supplier × budget line × channel ---- */
 let cbData = null;
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
-function cbCanSee() { return !!currentUser && ["admin", "sales_manager", "marketing_manager", "sales_ops"].includes(currentUser.role); }
+function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
 function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbData.closed; }
 function cbAmt(sid, bt, ch) { const r = cbData.rows.find((x) => x.supplierId === sid && x.budgetType === bt && x.channel === ch); return r ? +r.amount : null; }
 function cbSum(f) { return cbData.rows.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }

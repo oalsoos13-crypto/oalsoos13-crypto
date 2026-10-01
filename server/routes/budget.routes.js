@@ -491,7 +491,9 @@ function cbWrite(month, c, now) {
     .run(month, sup.id, bt, ch, amount, now);
   return { supplierId: sup.id, budgetType: bt, channel: ch, amount };
 }
-const MGMT = ['sales_manager', 'marketing_manager', 'sales_ops'];
+// The sales manager runs the co-op channel only: he works from the co-op caps
+// (the sheet's Coop column) and does not see the company-wide sheet.
+const MGMT = ['marketing_manager', 'sales_ops'];
 function monthClosed(month) { const r = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month); return !!(r && r.closed); }
 
 // GET /api/budget-company?month=YYYY-MM — suppliers + every entered amount.
