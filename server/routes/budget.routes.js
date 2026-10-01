@@ -459,6 +459,19 @@ function cbRows(month) {
   return db.prepare("SELECT supplier_id, budget_type, channel, amount FROM company_budget WHERE month=? AND channel<>'all'").all(month)
     .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, channel: r.channel, amount: r.amount }));
 }
+// The co-op chain's caps (what the sales manager can allocate to supervisors)
+// follow the company sheet: each line's cap = the Coop column summed over the
+// suppliers. Only once the month has company figures; notes/manual spend kept.
+function syncCoopCaps(month, now) {
+  if (!db.prepare("SELECT 1 FROM company_budget WHERE month=? AND channel<>'all' LIMIT 1").get(month)) return;
+  const up = db.prepare(`INSERT INTO budget_caps (month, budget_type, amount, note, updated_at) VALUES (?,?,?,'',?)
+    ON CONFLICT(month, budget_type) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`);
+  for (const bt of CB_TYPES) {
+    const v = db.prepare(`SELECT COALESCE(SUM(b.amount),0) s FROM company_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1
+      WHERE b.month=? AND b.budget_type=? AND b.channel='coop'`).get(month, bt).s;
+    up.run(month, bt, Math.round(v * 1000) / 1000, now);
+  }
+}
 // Validate + write one cell; returns the normalised cell. Throws on bad input.
 function cbWrite(month, c, now) {
   const bt = String(c.budgetType || ''), ch = String(c.channel || '');
@@ -502,7 +515,9 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
   const now = nowIso();
   const saved = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-    return cells.map((c) => cbWrite(month, c, now));
+    const out = cells.map((c) => cbWrite(month, c, now));
+    syncCoopCaps(month, now);
+    return out;
   })();
   audit.fromReq(req, 'budget.company', { entityType: 'company_budget', summary: `Company budget ${month}: ${saved.length} cell(s)`, details: { month, cells: saved.slice(0, 50) } });
   res.json({ ok: true, saved });
@@ -516,9 +531,10 @@ router.post('/budget-company/copy', requireRole(), asyncH((req, res) => {
   const prev = prevMonth(month), now = nowIso();
   const n = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-    return db.prepare(`INSERT OR IGNORE INTO company_budget (month, supplier_id, budget_type, channel, amount, updated_at)
+    const n2 = db.prepare(`INSERT OR IGNORE INTO company_budget (month, supplier_id, budget_type, channel, amount, updated_at)
       SELECT ?, b.supplier_id, b.budget_type, b.channel, b.amount, ? FROM company_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1
       WHERE b.month=? AND b.channel<>'all'`).run(month, now, prev).changes;
+    syncCoopCaps(month, now); return n2;
   })();
   audit.fromReq(req, 'budget.company.copy', { entityType: 'company_budget', summary: `Company budget ${month}: copied ${n} cell(s) from ${prev}` });
   res.json({ ok: true, copied: n, from: prev });
@@ -576,6 +592,7 @@ router.post('/budget-company/supplier/:id/remove', requireRole(), asyncH((req, r
   const sup = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(id);
   if (!sup) throw notFound('المورد غير موجود | Supplier not found');
   db.prepare('UPDATE company_suppliers SET active=0, updated_at=? WHERE id=?').run(nowIso(), id);
+  db.prepare('SELECT DISTINCT month FROM company_budget WHERE supplier_id=?').all(id).forEach((r) => { if (!monthClosed(r.month)) syncCoopCaps(r.month, nowIso()); });
   audit.fromReq(req, 'budget.company.supplier.remove', { entityType: 'company_supplier', entityId: String(id), summary: `Removed supplier ${sup.name}` });
   res.json({ ok: true });
 }));

@@ -575,6 +575,7 @@ const T = {
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
   cb_title: { ar: "بتجيت الشركة — كل القنوات", en: "Company budget — all channels" },
   cb_line: { ar: "بند البتجيت", en: "Budget line" },
+  cb_coopNote: { ar: "عمود الجمعيات هو سقف بتجيت الجمعيات اللي بيوزعه مدير المبيعات على المشرفين — بيتحدث تلقائيًا.", en: "The Coop column is the co-op budget cap the sales manager splits between supervisors — it updates automatically." },
   cb_grand: { ar: "الإجمالي الكلي للشركة", en: "Company grand total" },
   cb_keys: { ar: "اكتب الرقم واضغط Enter للنزول · Tab للانتقال يمين/يسار · تقدر تلصق جدول كامل من Excel مباشرة · كل خانة بتنحفظ لحالها", en: "Type a number and press Enter to go down · Tab to move across · paste a whole block straight from Excel · every cell saves itself" },
   cb_copy: { ar: "نسخ من", en: "Copy from" },
@@ -2243,7 +2244,7 @@ function companyPanel() {
     + `<tr class="cb-grand"><td>${t("cb_grand")}</td>${chs.map((ch) => `<td class="cb-tot" id="cbG_${ch}">${KD(cbSum((x) => x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbGT">${KD(cbSum(() => true))}</td></tr>`;
   const sheet = sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)"><thead><tr><th>${t("cb_line")}</th>${chs.map((ch) => `<th>${t("ch_" + ch)}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
-  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed ? `<div class="hint" style="margin:10px 0">⌨ ${t("cb_keys")}</div>` : "");
+  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed ? `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">🏬 ${t("cb_coopNote")}</div>` : "");
   return `<div class="panel cb-panel"><header><h3>${t("cb_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${kpis}${note}${sheet}</div></div>`;
 }
 function cbInputs() { return Array.from(document.querySelectorAll(".cb-sheet .cb-in")); }
@@ -2356,8 +2357,10 @@ function renderBudgetPlan() {
     ${isAdmin ? `<button class="btn ${closed ? "ghost" : "danger"} sm" onclick="bpCloseMonth(${closed ? "false" : "true"})">${closed ? t("bp_reopen") : t("bp_close")}</button>` : ""}
   </div></div>`;
   // Caps (admin)
+  // Caps are no longer typed here: they follow the Coop column of the company
+  // sheet (server-side), so the panel is not shown.
   let capsPanel = "";
-  if (isAdmin) {
+  if (false) {
     // المجاني / الكوديشن are not driven by letters: the admin enters their
     // spend by hand. The FOC row also shows how the allocated FOC breaks down
     // by the type it was given against (pallets / stands / price diff).
