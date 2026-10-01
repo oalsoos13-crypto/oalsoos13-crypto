@@ -456,7 +456,9 @@ router.post('/budget-spent', requireRole(), asyncH((req, res) => {
 // Admin enters each brand's total per channel (brand_channel_budget). Each
 // channel's manager splits his brand totals by line and supervisor
 // (budget_alloc_sup — the co-op channel / sales manager today), and the
-// admin's line view is built from those splits.
+// admin's line view is built from those splits. Every month has the main
+// budget (layer 0) and any number of extra budgets (layers 1..n) the admin
+// adds; each layer mirrors the whole flow.
 const CHANNELS = ['coop_main', 'coop_branch', 'ka', 'online', 'tt_grocery', 'tt_ws', 'tt_horeca'];
 // The managers split a whole channel group (the co-op manager: Main + Branch together).
 const LINE_CHANNELS = ['coop', 'ka', 'online', 'tt_grocery', 'tt_ws', 'tt_horeca'];
@@ -470,17 +472,25 @@ const MGMT = ['marketing_manager', 'sales_ops'];
 function monthClosed(month) { const r = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month); return !!(r && r.closed); }
 function prevMonth(m) { const [y, mo] = m.split('-').map(Number); const d = new Date(Date.UTC(y, mo - 2, 1)); return d.toISOString().slice(0, 7); }
 const activeSuppliers = () => db.prepare('SELECT id, code, name, sort FROM company_suppliers WHERE active=1 ORDER BY sort, id').all();
+const layerOf = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 0 ? n : 0; };
+function monthLayers(month) {
+  const extra = db.prepare('SELECT layer, name FROM budget_layers WHERE month=? AND layer>0 ORDER BY layer').all(month);
+  return [{ layer: 0, name: null }].concat(extra);
+}
+function assertLayer(month, layer) {
+  if (layer && !db.prepare('SELECT 1 FROM budget_layers WHERE month=? AND layer=?').get(month, layer)) throw badRequest('البتجيت الإضافي غير موجود | Extra budget not found', 'NO_LAYER');
+}
 function brandTotals(month) {
-  return db.prepare('SELECT supplier_id, channel, amount FROM brand_channel_budget WHERE month=?').all(month)
-    .map((r) => ({ supplierId: r.supplier_id, channel: r.channel, amount: r.amount }));
+  return db.prepare('SELECT layer, supplier_id, channel, amount FROM brand_channel_budget WHERE month=?').all(month)
+    .map((r) => ({ layer: r.layer, supplierId: r.supplier_id, channel: r.channel, amount: r.amount }));
 }
 // The managers' splits by line, per channel (co-op: sum over supervisors).
 function channelLines(month) {
-  return db.prepare('SELECT supplier_id, budget_type, SUM(amount) s FROM budget_alloc_sup WHERE month=? GROUP BY supplier_id, budget_type').all(month)
-    .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, channel: 'coop', amount: +r.s || 0 }));
+  return db.prepare('SELECT layer, supplier_id, budget_type, SUM(amount) s FROM budget_alloc_sup WHERE month=? GROUP BY layer, supplier_id, budget_type').all(month)
+    .map((r) => ({ layer: r.layer, supplierId: r.supplier_id, budgetType: r.budget_type, channel: 'coop', amount: +r.s || 0 }));
 }
-// Co-op caps per line follow what the sales manager allocated (kept for the
-// screens that still read budget_caps).
+// Co-op caps per line follow what the sales manager allocated over all layers
+// (kept for the screens that still read budget_caps).
 function syncCoopCaps(month, now) {
   if (!db.prepare('SELECT 1 FROM budget_alloc_sup WHERE month=? LIMIT 1').get(month)) return;
   const up = db.prepare(`INSERT INTO budget_caps (month, budget_type, amount, note, updated_at) VALUES (?,?,?,'',?)
@@ -491,20 +501,21 @@ function syncCoopCaps(month, now) {
   }
 }
 
-// GET /api/budget-company?month= — brands, channels, the admin's brand totals
-// and the managers' split by line.
+// GET /api/budget-company?month= — brands, channels, layers, the admin's brand
+// totals and the managers' split by line (all layers; rows carry `layer`).
 router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const prev = prevMonth(month);
+  const prevCounts = {};
+  db.prepare('SELECT layer, COUNT(*) c FROM brand_channel_budget WHERE month=? GROUP BY layer').all(prev).forEach((r) => { prevCounts[r.layer] = r.c; });
   res.json({
     month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, lineChannels: LINE_CHANNELS, managed: Object.keys(CHANNEL_MANAGER),
-    suppliers: activeSuppliers(), totals: brandTotals(month), lines: channelLines(month),
-    prevMonth: prev, prevCount: db.prepare('SELECT COUNT(*) c FROM brand_channel_budget WHERE month=?').get(prev).c,
+    suppliers: activeSuppliers(), layers: monthLayers(month), totals: brandTotals(month), lines: channelLines(month), prevMonth: prev, prevCounts,
   });
 }));
 
-// POST /api/budget-company (admin) — brand totals. Body: { month, cells: [{ supplierId,
-// channel, amount }] }; an empty amount clears the cell. All-or-nothing.
+// POST /api/budget-company (admin) — brand totals. Body: { month, cells: [{ layer,
+// supplierId, channel, amount }] }; an empty amount clears the cell. All-or-nothing.
 router.post('/budget-company', requireRole(), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
@@ -514,71 +525,109 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
   const saved = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
     return cells.map((c) => {
-      const ch = String(c.channel || '');
+      const ch = String(c.channel || ''), layer = layerOf(c.layer);
+      assertLayer(month, layer);
       if (!CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
       const sp = db.prepare('SELECT id FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
       if (!sp) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
       const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
-      if (raw === '') { db.prepare('DELETE FROM brand_channel_budget WHERE month=? AND supplier_id=? AND channel=?').run(month, sp.id, ch); return { supplierId: sp.id, channel: ch, amount: null }; }
+      if (raw === '') { db.prepare('DELETE FROM brand_channel_budget WHERE month=? AND layer=? AND supplier_id=? AND channel=?').run(month, layer, sp.id, ch); return { layer, supplierId: sp.id, channel: ch, amount: null }; }
       const amount = Number(raw);
       if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
-      db.prepare(`INSERT INTO brand_channel_budget (month, supplier_id, channel, amount, updated_at) VALUES (?,?,?,?,?)
-        ON CONFLICT(month, supplier_id, channel) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, sp.id, ch, amount, now);
-      return { supplierId: sp.id, channel: ch, amount };
+      db.prepare(`INSERT INTO brand_channel_budget (month, layer, supplier_id, channel, amount, updated_at) VALUES (?,?,?,?,?,?)
+        ON CONFLICT(month, layer, supplier_id, channel) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, layer, sp.id, ch, amount, now);
+      return { layer, supplierId: sp.id, channel: ch, amount };
     });
   })();
   audit.fromReq(req, 'budget.company', { entityType: 'brand_budget', summary: `Brand budgets ${month}: ${saved.length} cell(s)`, details: { month, cells: saved } });
   res.json({ ok: true, saved });
 }));
 
-// POST /api/budget-company/copy (admin) — fill this month's EMPTY brand totals
-// from the previous month. Body: { month }
-router.post('/budget-company/copy', requireRole(), asyncH((req, res) => {
+// POST /api/budget-company/layer (admin) — add an extra budget to the month. Body: { month }
+router.post('/budget-company/layer', requireRole(), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  const now = nowIso();
+  const layer = (db.prepare('SELECT MAX(layer) m FROM budget_layers WHERE month=?').get(month).m || 0) + 1;
+  db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+  db.prepare('INSERT INTO budget_layers (month, layer, name, created_at) VALUES (?,?,?,?)').run(month, layer, null, now);
+  audit.fromReq(req, 'budget.layer.add', { entityType: 'budget_layer', entityId: `${month}#${layer}`, summary: `Extra budget ${layer} added to ${month}` });
+  res.json({ ok: true, layer });
+}));
+
+// POST /api/budget-company/layer/remove (admin) — delete an extra budget with its
+// brand totals and the managers' split of it. Body: { month, layer }
+router.post('/budget-company/layer/remove', requireRole(), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  const layer = layerOf(req.body.layer);
+  if (!layer) throw badRequest('لا يمكن حذف البتجيت الأساسي | The main budget cannot be removed', 'MAIN_LAYER');
+  if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  assertLayer(month, layer);
+  const now = nowIso();
+  db.transaction(() => {
+    db.prepare('DELETE FROM brand_channel_budget WHERE month=? AND layer=?').run(month, layer);
+    db.prepare('DELETE FROM budget_alloc_sup WHERE month=? AND layer=?').run(month, layer);
+    db.prepare('DELETE FROM budget_layers WHERE month=? AND layer=?').run(month, layer);
+    syncAllocFromSup(month, now);
+  })();
+  audit.fromReq(req, 'budget.layer.remove', { entityType: 'budget_layer', entityId: `${month}#${layer}`, summary: `Extra budget ${layer} removed from ${month}` });
+  res.json({ ok: true });
+}));
+
+// POST /api/budget-company/copy (admin) — fill this month's EMPTY brand totals of a
+// layer from the same layer of the previous month. Body: { month, layer }
+router.post('/budget-company/copy', requireRole(), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  const layer = layerOf(req.body.layer);
+  if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  assertLayer(month, layer);
   const prev = prevMonth(month), now = nowIso();
   const n = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-    return db.prepare(`INSERT OR IGNORE INTO brand_channel_budget (month, supplier_id, channel, amount, updated_at)
-      SELECT ?, b.supplier_id, b.channel, b.amount, ? FROM brand_channel_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1 WHERE b.month=?`).run(month, now, prev).changes;
+    return db.prepare(`INSERT OR IGNORE INTO brand_channel_budget (month, layer, supplier_id, channel, amount, updated_at)
+      SELECT ?, b.layer, b.supplier_id, b.channel, b.amount, ? FROM brand_channel_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1 WHERE b.month=? AND b.layer=?`).run(month, now, prev, layer).changes;
   })();
-  audit.fromReq(req, 'budget.company.copy', { entityType: 'brand_budget', summary: `Brand budgets ${month}: copied ${n} cell(s) from ${prev}` });
+  audit.fromReq(req, 'budget.company.copy', { entityType: 'brand_budget', summary: `Brand budgets ${month} (layer ${layer}): copied ${n} cell(s) from ${prev}` });
   res.json({ ok: true, copied: n, from: prev });
 }));
 
-// GET /api/budget-company.xlsx?month= — brand totals + the managers' split by line.
+// GET /api/budget-company.xlsx?month= — per layer: brand totals + the managers' split by line.
 router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const XLSX = require('xlsx');
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
   const CH = { coop: 'Coop', coop_main: 'Coop Main', coop_branch: 'Coop Branch', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT HoReCa+Schools' };
   const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price diff' };
-  const tot = {}; brandTotals(month).forEach((r) => { tot[`${r.supplierId}|${r.channel}`] = +r.amount || 0; });
-  sups.forEach((sp) => { tot[`${sp.id}|coop`] = (tot[`${sp.id}|coop_main`] || 0) + (tot[`${sp.id}|coop_branch`] || 0); });
-  const ln = {}; channelLines(month).forEach((r) => { ln[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];
   const COLS = ['coop_main', 'coop_branch', 'coop', 'ka', 'online', ...TT, 'tt'];
-  const g = (sid, c) => c === 'tt' ? sum(TT.map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
-  const head = ['Brand', 'Code', ...COLS.map((c) => c === 'coop' ? 'Coop total' : c === 'tt' ? 'TT total' : CH[c]), 'Total'];
-  const a1 = [[`Brand budgets — ${month}`], [], head];
-  sups.forEach((sp) => a1.push([sp.name, sp.code, ...COLS.map((c) => g(sp.id, c)), sum(CHANNELS.map((c) => g(sp.id, c)))]));
-  a1.push(['Company', '', ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), sum(sups.map((sp) => sum(CHANNELS.map((c) => g(sp.id, c)))))]);
-  const a2 = [[`Split by line (from the channel managers) — ${month}`], [], ['Brand', 'Code', 'Line', ...LINE_CHANNELS.map((c) => CH[c]), 'Total']];
-  sups.forEach((sp) => {
-    CB_TYPES.forEach((bt) => {
-      const v = LINE_CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]);
-      if (bt === 'stands') { const o = LINE_CHANNELS.map((c) => (ln[`${sp.id}|pallets|${c}`] || 0) + (ln[`${sp.id}|stands|${c}`] || 0)); a2.push([sp.name, sp.code, 'Off-Shelf Display', ...o, sum(o)]); }
-    });
-    const d = LINE_CHANNELS.map((c) => sum(CB_TYPES.map((bt) => ln[`${sp.id}|${bt}|${c}`] || 0))); a2.push([sp.name, sp.code, 'Distributed', ...d, sum(d)]);
-    const b = LINE_CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a2.push([sp.name, sp.code, 'Budget', ...b, sum(b)]);
-    a2.push([sp.name, sp.code, 'Left', ...b.map((x, i) => x - d[i]), sum(b) - sum(d)]); a2.push([]);
-  });
+  const allTot = brandTotals(month), allLn = channelLines(month);
   const wb = XLSX.utils.book_new();
-  for (const [aoa, name] of [[a1, 'Brand budgets'], [a2, 'Split by line']]) {
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [16, 12, 14, 12, 12, 12, 12, 12, 16, 14].map((w) => ({ wch: w }));
-    Object.keys(ws).forEach((k) => { if (k[0] !== '!' && typeof ws[k].v === 'number') ws[k].z = '#,##0.000'; });
-    XLSX.utils.book_append_sheet(wb, ws, name);
+  for (const { layer } of monthLayers(month)) {
+    const lname = layer ? `Extra ${layer}` : 'Main';
+    const tot = {}; allTot.filter((r) => r.layer === layer).forEach((r) => { tot[`${r.supplierId}|${r.channel}`] = +r.amount || 0; });
+    sups.forEach((sp) => { tot[`${sp.id}|coop`] = (tot[`${sp.id}|coop_main`] || 0) + (tot[`${sp.id}|coop_branch`] || 0); });
+    const ln = {}; allLn.filter((r) => r.layer === layer).forEach((r) => { ln[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
+    const g = (sid, c) => c === 'tt' ? sum(TT.map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
+    const head = ['Brand', 'Code', ...COLS.map((c) => c === 'coop' ? 'Coop total' : c === 'tt' ? 'TT total' : CH[c]), 'Total'];
+    const a1 = [[`${lname} budget — brand totals — ${month}`], [], head];
+    sups.forEach((sp) => a1.push([sp.name, sp.code, ...COLS.map((c) => g(sp.id, c)), sum(CHANNELS.map((c) => g(sp.id, c)))]));
+    a1.push(['Company', '', ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), sum(sups.map((sp) => sum(CHANNELS.map((c) => g(sp.id, c)))))]);
+    const a2 = [[`${lname} budget — split by line (from the channel managers) — ${month}`], [], ['Brand', 'Code', 'Line', ...LINE_CHANNELS.map((c) => CH[c]), 'Total']];
+    sups.forEach((sp) => {
+      CB_TYPES.forEach((bt) => {
+        const v = LINE_CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]);
+        if (bt === 'stands') { const o = LINE_CHANNELS.map((c) => (ln[`${sp.id}|pallets|${c}`] || 0) + (ln[`${sp.id}|stands|${c}`] || 0)); a2.push([sp.name, sp.code, 'Off-Shelf Display', ...o, sum(o)]); }
+      });
+      const d = LINE_CHANNELS.map((c) => sum(CB_TYPES.map((bt) => ln[`${sp.id}|${bt}|${c}`] || 0))); a2.push([sp.name, sp.code, 'Distributed', ...d, sum(d)]);
+      const b = LINE_CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a2.push([sp.name, sp.code, 'Budget', ...b, sum(b)]);
+      a2.push([sp.name, sp.code, 'Left', ...b.map((x, i) => x - d[i]), sum(b) - sum(d)]); a2.push([]);
+    });
+    for (const [aoa, name] of [[a1, `${lname} - brand totals`], [a2, `${lname} - split by line`]]) {
+      const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [16, 12, 14, 12, 12, 12, 12, 12, 16, 14, 14].map((w) => ({ wch: w }));
+      Object.keys(ws).forEach((k) => { if (k[0] !== '!' && typeof ws[k].v === 'number') ws[k].z = '#,##0.000'; });
+      XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+    }
   }
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="Company-Budget-${month}.xlsx"`);
@@ -586,19 +635,19 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
 }));
 
 // ---- Co-op channel: the sales manager splits each brand's co-op total by line
-// and supervisor ----
-function coopBudget(month) { // { sid: amount } — each brand's co-op total
+// and supervisor, per layer ----
+function coopBudget(month, layer) { // { sid: amount } — each brand's co-op total (Main + Branch)
   const m = {};
-  db.prepare("SELECT supplier_id, SUM(amount) s FROM brand_channel_budget WHERE month=? AND channel IN ('coop_main','coop_branch') GROUP BY supplier_id").all(month).forEach((r) => { m[r.supplier_id] = +r.s || 0; });
+  db.prepare("SELECT supplier_id, SUM(amount) s FROM brand_channel_budget WHERE month=? AND layer=? AND channel IN ('coop_main','coop_branch') GROUP BY supplier_id").all(month, layer).forEach((r) => { m[r.supplier_id] = +r.s || 0; });
   return m;
 }
 // budget_alloc (line × supervisor), which the supervisors distribute from, is
-// the sum over brands — once the month is allocated per brand.
+// the sum over brands and layers — once the month is allocated per brand.
 function syncAllocFromSup(month, now) {
-  if (!db.prepare('SELECT 1 FROM budget_alloc_sup WHERE month=? LIMIT 1').get(month)) return;
   const sums = {};
   db.prepare('SELECT budget_type, supervisor, SUM(amount) s FROM budget_alloc_sup a JOIN company_suppliers c ON c.id=a.supplier_id AND c.active=1 WHERE month=? GROUP BY budget_type, supervisor').all(month)
     .forEach((r) => { sums[`${r.budget_type}|${r.supervisor}`] = +r.s || 0; });
+  if (!Object.keys(sums).length && !db.prepare('SELECT 1 FROM budget_layers WHERE month=? LIMIT 1').get(month)) return;
   db.prepare('SELECT budget_type, supervisor FROM budget_alloc WHERE month=?').all(month)
     .forEach((r) => { const k = `${r.budget_type}|${r.supervisor}`; if (!(k in sums)) sums[k] = 0; });
   const up = db.prepare(`INSERT INTO budget_alloc (month, budget_type, supervisor, amount, updated_at) VALUES (?,?,?,?,?)
@@ -607,20 +656,22 @@ function syncAllocFromSup(month, now) {
   syncCoopCaps(month, now);
 }
 
-// GET /api/budget-alloc-sup?month= — brands, supervisors, each brand's co-op
-// total and the sales manager's split of it.
+// GET /api/budget-alloc-sup?month= — layers, brands, supervisors, each brand's
+// co-op total per layer and the sales manager's split of it.
 router.get('/budget-alloc-sup', requireRole('sales_manager', ...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const supervisors = db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1 ORDER BY name").all().map((r) => r.name);
-  const budget = Object.entries(coopBudget(month)).map(([sid, amount]) => ({ supplierId: +sid, amount }));
-  const rows = db.prepare('SELECT supplier_id, budget_type, supervisor, amount FROM budget_alloc_sup WHERE month=?').all(month)
-    .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, supervisor: r.supervisor, amount: r.amount }));
-  res.json({ month, closed: monthClosed(month), types: CB_TYPES, suppliers: activeSuppliers(), supervisors, budget, rows });
+  const layers = monthLayers(month);
+  const budget = [];
+  layers.forEach(({ layer }) => Object.entries(coopBudget(month, layer)).forEach(([sid, amount]) => budget.push({ layer, supplierId: +sid, amount })));
+  const rows = db.prepare('SELECT layer, supplier_id, budget_type, supervisor, amount FROM budget_alloc_sup WHERE month=?').all(month)
+    .map((r) => ({ layer: r.layer, supplierId: r.supplier_id, budgetType: r.budget_type, supervisor: r.supervisor, amount: r.amount }));
+  res.json({ month, closed: monthClosed(month), types: CB_TYPES, suppliers: activeSuppliers(), supervisors, layers, budget, rows });
 }));
 
-// POST /api/budget-alloc-sup (sales manager) — { month, cells: [{ supplierId,
-// budgetType, supervisor, amount }] }. A brand's split (all lines, all
-// supervisors) may never exceed its co-op total. All-or-nothing.
+// POST /api/budget-alloc-sup (sales manager) — { month, cells: [{ layer, supplierId,
+// budgetType, supervisor, amount }] }. Within a layer, a brand's split (all lines,
+// all supervisors) may never exceed its co-op total. All-or-nothing.
 router.post('/budget-alloc-sup', requireRole('sales_manager'), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
@@ -632,27 +683,28 @@ router.post('/budget-alloc-sup', requireRole('sales_manager'), asyncH((req, res)
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
     const touched = new Map();
     const out = cells.map((c) => {
-      const bt = String(c.budgetType || ''), sv = String(c.supervisor || '').trim();
+      const bt = String(c.budgetType || ''), sv = String(c.supervisor || '').trim(), layer = layerOf(c.layer);
+      assertLayer(month, layer);
       if (!CB_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
       if (!sups.has(sv)) throw badRequest('اختر المشرف', 'NO_SUP');
       const sp = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
       if (!sp) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
       const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
-      if (raw === '') db.prepare('DELETE FROM budget_alloc_sup WHERE month=? AND supplier_id=? AND budget_type=? AND supervisor=?').run(month, sp.id, bt, sv);
+      if (raw === '') db.prepare('DELETE FROM budget_alloc_sup WHERE month=? AND layer=? AND supplier_id=? AND budget_type=? AND supervisor=?').run(month, layer, sp.id, bt, sv);
       else {
         const amount = Number(raw);
         if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
-        db.prepare(`INSERT INTO budget_alloc_sup (month, supplier_id, budget_type, supervisor, amount, updated_at) VALUES (?,?,?,?,?,?)
-          ON CONFLICT(month, supplier_id, budget_type, supervisor) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, sp.id, bt, sv, amount, now);
+        db.prepare(`INSERT INTO budget_alloc_sup (month, layer, supplier_id, budget_type, supervisor, amount, updated_at) VALUES (?,?,?,?,?,?,?)
+          ON CONFLICT(month, layer, supplier_id, budget_type, supervisor) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, layer, sp.id, bt, sv, amount, now);
       }
-      touched.set(sp.id, sp.name);
-      return { supplierId: sp.id, budgetType: bt, supervisor: sv, amount: raw === '' ? null : Number(raw) };
+      touched.set(`${layer}|${sp.id}`, sp.name);
+      return { layer, supplierId: sp.id, budgetType: bt, supervisor: sv, amount: raw === '' ? null : Number(raw) };
     });
-    const bud = coopBudget(month);
-    for (const [sid, sname] of touched) {
-      const tot = num(db.prepare('SELECT COALESCE(SUM(amount),0) s FROM budget_alloc_sup WHERE month=? AND supplier_id=?').get(month, sid).s);
-      const lim = bud[sid] || 0;
-      if (tot > lim + 1e-9) throw badRequest(`تجاوز بتجيت الجمعيات — ${sname}: الحد ${lim.toFixed(3)} د.ك، والمطلوب يوصل ${tot.toFixed(3)} د.ك | Over the co-op budget — ${sname}: limit ${lim.toFixed(3)} KD, this would make ${tot.toFixed(3)} KD`, 'OVER_CAP');
+    for (const [k, sname] of touched) {
+      const [layer, sid] = k.split('|').map(Number);
+      const tot = num(db.prepare('SELECT COALESCE(SUM(amount),0) s FROM budget_alloc_sup WHERE month=? AND layer=? AND supplier_id=?').get(month, layer, sid).s);
+      const lim = coopBudget(month, layer)[sid] || 0;
+      if (tot > lim + 1e-9) throw badRequest(`تجاوز بتجيت الجمعيات — ${sname}${layer ? ` (بتجيت إضافي ${layer})` : ''}: الحد ${lim.toFixed(3)} د.ك، والمطلوب يوصل ${tot.toFixed(3)} د.ك | Over the co-op budget — ${sname}${layer ? ` (extra budget ${layer})` : ''}: limit ${lim.toFixed(3)} KD, this would make ${tot.toFixed(3)} KD`, 'OVER_CAP');
     }
     syncAllocFromSup(month, now);
     return out;

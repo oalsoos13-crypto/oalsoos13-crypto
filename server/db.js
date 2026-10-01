@@ -611,7 +611,15 @@ function migrate() {
       channel     TEXT NOT NULL,
       amount      REAL NOT NULL DEFAULT 0,
       updated_at  TEXT,
-      PRIMARY KEY (month, supplier_id, channel)
+      layer       INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (month, layer, supplier_id, channel)
+    )`);
+  // Budget layers per month: 0 = the main budget, 1..n = extra budgets the
+  // admin adds; each layer mirrors the whole flow (brand totals → managers'
+  // split). Older tables without a layer column are rebuilt with layer 0.
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_layers (
+      month TEXT NOT NULL, layer INTEGER NOT NULL, name TEXT, created_at TEXT,
+      PRIMARY KEY (month, layer)
     )`);
   // The co-op channel was split into Main and Branch: an earlier single 'coop'
   // total is kept as Main (idempotent).
@@ -625,8 +633,22 @@ function migrate() {
       supervisor  TEXT NOT NULL,
       amount      REAL NOT NULL DEFAULT 0,
       updated_at  TEXT,
-      PRIMARY KEY (month, supplier_id, budget_type, supervisor)
+      layer       INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (month, layer, supplier_id, budget_type, supervisor)
     )`);
+  const addLayer = (tbl, cols, pk) => {
+    const have = db.prepare(`PRAGMA table_info(${tbl})`).all().map((c) => c.name);
+    if (!have.length || have.includes('layer')) return;
+    db.exec(`ALTER TABLE ${tbl} RENAME TO ${tbl}_old`);
+    db.exec(`CREATE TABLE ${tbl} (${cols}, layer INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (${pk}))`);
+    db.exec(`INSERT INTO ${tbl} (${have.join(',')}, layer) SELECT ${have.join(',')}, 0 FROM ${tbl}_old`);
+    db.exec(`DROP TABLE ${tbl}_old`);
+  };
+  db.transaction(() => {
+    addLayer('brand_channel_budget', 'month TEXT NOT NULL, supplier_id INTEGER NOT NULL, channel TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, updated_at TEXT', 'month, layer, supplier_id, channel');
+    addLayer('budget_alloc_sup', 'month TEXT NOT NULL, supplier_id INTEGER NOT NULL, budget_type TEXT NOT NULL, supervisor TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, updated_at TEXT', 'month, layer, supplier_id, budget_type, supervisor');
+  })();
+
   if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
     const ins = db.prepare('INSERT INTO company_suppliers (code, name, sort, created_at) VALUES (?,?,?,?)');
     const ts = new Date().toISOString();
