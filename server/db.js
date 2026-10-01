@@ -603,6 +603,17 @@ function migrate() {
       updated_at  TEXT,
       PRIMARY KEY (month, supplier_id, budget_type, channel)
     )`);
+  // The sales manager splits each supplier's co-op budget line between the
+  // supervisors; budget_alloc (per line × supervisor) is kept as the sum of these.
+  db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc_sup (
+      month       TEXT NOT NULL,
+      supplier_id INTEGER NOT NULL,
+      budget_type TEXT NOT NULL,
+      supervisor  TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, supplier_id, budget_type, supervisor)
+    )`);
   if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
     const ins = db.prepare('INSERT INTO company_suppliers (code, name, sort, created_at) VALUES (?,?,?,?)');
     const ts = new Date().toISOString();

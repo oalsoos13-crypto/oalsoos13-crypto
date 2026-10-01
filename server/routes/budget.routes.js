@@ -506,13 +506,81 @@ router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, suppliers, rows, prevMonth: prev, prevCount });
 }));
 
-// GET /api/budget-company/coop?month= — the co-op channel only, per supplier
-// (what the sales manager runs; his caps are these totals).
-router.get('/budget-company/coop', requireRole('sales_manager', ...MGMT), asyncH((req, res) => {
+// ---- Co-op budget → supervisors, per supplier (sales manager) ----
+function coopBudget(month) { // { 'sid|bt': amount } from the company sheet's Coop column
+  const m = {};
+  db.prepare("SELECT supplier_id, budget_type, amount FROM company_budget WHERE month=? AND channel='coop'").all(month)
+    .forEach((r) => { m[`${r.supplier_id}|${r.budget_type}`] = +r.amount || 0; });
+  return m;
+}
+// budget_alloc (line × supervisor), which the supervisors distribute from, is
+// the sum over suppliers — once the month is allocated per supplier.
+function syncAllocFromSup(month, now) {
+  if (!db.prepare('SELECT 1 FROM budget_alloc_sup WHERE month=? LIMIT 1').get(month)) return;
+  const sums = {};
+  db.prepare('SELECT budget_type, supervisor, SUM(amount) s FROM budget_alloc_sup a JOIN company_suppliers c ON c.id=a.supplier_id AND c.active=1 WHERE month=? GROUP BY budget_type, supervisor').all(month)
+    .forEach((r) => { sums[`${r.budget_type}|${r.supervisor}`] = +r.s || 0; });
+  db.prepare('SELECT budget_type, supervisor FROM budget_alloc WHERE month=?').all(month)
+    .forEach((r) => { const k = `${r.budget_type}|${r.supervisor}`; if (!(k in sums)) sums[k] = 0; });
+  const up = db.prepare(`INSERT INTO budget_alloc (month, budget_type, supervisor, amount, updated_at) VALUES (?,?,?,?,?)
+    ON CONFLICT(month, budget_type, supervisor) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`);
+  Object.entries(sums).forEach(([k, v]) => { const [bt, sup] = k.split('|'); up.run(month, bt, sup, Math.round(v * 1000) / 1000, now); });
+}
+
+// GET /api/budget-alloc-sup?month= — suppliers, supervisors, the co-op budget per
+// supplier × line, and the sales manager's split of it between supervisors.
+router.get('/budget-alloc-sup', requireRole('sales_manager', ...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const suppliers = db.prepare('SELECT id, code, name, sort FROM company_suppliers WHERE active=1 ORDER BY sort, id').all();
-  const rows = cbRows(month).filter((r) => r.channel === 'coop');
-  res.json({ month, types: CB_TYPES, suppliers, rows });
+  const supervisors = db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1 ORDER BY name").all().map((r) => r.name);
+  const budget = Object.entries(coopBudget(month)).map(([k, amount]) => { const [sid, bt] = k.split('|'); return { supplierId: +sid, budgetType: bt, amount }; });
+  const rows = db.prepare('SELECT supplier_id, budget_type, supervisor, amount FROM budget_alloc_sup WHERE month=?').all(month)
+    .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, supervisor: r.supervisor, amount: r.amount }));
+  res.json({ month, closed: monthClosed(month), types: CB_TYPES, suppliers, supervisors, budget, rows });
+}));
+
+// POST /api/budget-alloc-sup (sales manager) — { month, cells: [{ supplierId,
+// budgetType, supervisor, amount }] }. Per supplier × line the supervisors'
+// total may never exceed that supplier's co-op budget. All-or-nothing.
+router.post('/budget-alloc-sup', requireRole('sales_manager'), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  const cells = Array.isArray(req.body.cells) ? req.body.cells : [req.body];
+  if (!cells.length || cells.length > 2000) throw badRequest('بيانات ناقصة', 'NO_CELLS');
+  const sups = new Set(db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1").all().map((r) => r.name));
+  const now = nowIso();
+  const saved = db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+    const touched = new Set();
+    const out = cells.map((c) => {
+      const bt = String(c.budgetType || ''), sv = String(c.supervisor || '').trim();
+      if (!CB_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+      if (!sups.has(sv)) throw badRequest('اختر المشرف', 'NO_SUP');
+      const sp = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
+      if (!sp) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
+      const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
+      if (raw === '') { db.prepare('DELETE FROM budget_alloc_sup WHERE month=? AND supplier_id=? AND budget_type=? AND supervisor=?').run(month, sp.id, bt, sv); }
+      else {
+        const amount = Number(raw);
+        if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
+        db.prepare(`INSERT INTO budget_alloc_sup (month, supplier_id, budget_type, supervisor, amount, updated_at) VALUES (?,?,?,?,?,?)
+          ON CONFLICT(month, supplier_id, budget_type, supervisor) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, sp.id, bt, sv, amount, now);
+      }
+      touched.add(`${sp.id}|${bt}|${sp.name}`);
+      return { supplierId: sp.id, budgetType: bt, supervisor: sv, amount: raw === '' ? null : Number(raw) };
+    });
+    const bud = coopBudget(month);
+    for (const k of touched) {
+      const [sid, bt, sname] = k.split('|');
+      const tot = num(db.prepare('SELECT COALESCE(SUM(amount),0) s FROM budget_alloc_sup WHERE month=? AND supplier_id=? AND budget_type=?').get(month, +sid, bt).s);
+      const lim = bud[`${sid}|${bt}`] || 0;
+      if (tot > lim + 1e-9) throw badRequest(`تجاوز بتجيت الجمعيات — ${sname} / ${bt}: الحد ${lim.toFixed(3)} د.ك، والمطلوب يوصل ${tot.toFixed(3)} د.ك | Over the co-op budget — ${sname} / ${bt}: limit ${lim.toFixed(3)} KD, this would make ${tot.toFixed(3)} KD`, 'OVER_CAP');
+    }
+    syncAllocFromSup(month, now);
+    return out;
+  })();
+  audit.fromReq(req, 'budget.alloc.sup', { entityType: 'budget_alloc', summary: `Co-op allocation ${month}: ${saved.length} cell(s)`, details: { month, cells: saved.slice(0, 50) } });
+  res.json({ ok: true, saved });
 }));
 
 // POST /api/budget-company (admin) — save cells. Body: { month, cells: [{ supplierId,
@@ -604,6 +672,7 @@ router.post('/budget-company/supplier/:id/remove', requireRole(), asyncH((req, r
   if (!sup) throw notFound('المورد غير موجود | Supplier not found');
   db.prepare('UPDATE company_suppliers SET active=0, updated_at=? WHERE id=?').run(nowIso(), id);
   db.prepare('SELECT DISTINCT month FROM company_budget WHERE supplier_id=?').all(id).forEach((r) => { if (!monthClosed(r.month)) syncCoopCaps(r.month, nowIso()); });
+  db.prepare('SELECT DISTINCT month FROM budget_alloc_sup WHERE supplier_id=?').all(id).forEach((r) => { if (!monthClosed(r.month)) syncAllocFromSup(r.month, nowIso()); });
   audit.fromReq(req, 'budget.company.supplier.remove', { entityType: 'company_supplier', entityId: String(id), summary: `Removed supplier ${sup.name}` });
   res.json({ ok: true });
 }));
