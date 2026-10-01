@@ -574,10 +574,15 @@ const T = {
   bp_reopen: { ar: "🔓 فتح الشهر", en: "🔓 Reopen month" },
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
   cb_title: { ar: "بتجيت الشركة — كل القنوات", en: "Company budget — all channels" },
-  cb_hint: { ar: "أدخل بتجيت كل مورد لكل بند بالجدول، ثم وزّعه على القنوات تحت. إجمالي الشركة يُحسب تلقائيًا.", en: "Enter each supplier's budget per line in the table, then split it by channel below. The company total is calculated automatically." },
-  cb_budget: { ar: "البتجيت", en: "Budget" },
-  cb_split: { ar: "الموزّع", en: "Split" },
-  cb_left: { ar: "المتبقي", en: "Left" },
+  cb_line: { ar: "بند البتجيت", en: "Budget line" },
+  cb_grand: { ar: "الإجمالي الكلي للشركة", en: "Company grand total" },
+  cb_keys: { ar: "اكتب الرقم واضغط Enter للنزول · Tab للانتقال يمين/يسار · تقدر تلصق جدول كامل من Excel مباشرة · كل خانة بتنحفظ لحالها", en: "Type a number and press Enter to go down · Tab to move across · paste a whole block straight from Excel · every cell saves itself" },
+  cb_copy: { ar: "نسخ من", en: "Copy from" },
+  cb_copyQ: { ar: "نسخ أرقام شهر {m} إلى الخانات الفاضية بهذا الشهر؟ الخانات المعبّأة ما بتتغير.", en: "Copy {m}'s figures into this month's empty cells? Filled cells are not changed." },
+  cb_copied: { ar: "تم نسخ {n} خانة", en: "{n} cells copied" },
+  cb_pasted: { ar: "تم لصق وحفظ {n} خانة", en: "{n} cells pasted and saved" },
+  cb_bad: { ar: "أدخل رقمًا موجبًا", en: "Enter a positive number" },
+  cb_locked: { ar: "الشهر مسكّر — البتجيت للعرض فقط", en: "The month is closed — the budget is view-only" },
   cb_total: { ar: "إجمالي الشركة", en: "Company total" },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
   cb_code: { ar: "كود المورد", en: "Supplier code" },
@@ -2205,60 +2210,118 @@ async function vBudgetPlan(refresh) {
   if (refresh === true) document.querySelectorAll("#rv .panel").forEach((p) => { p.style.animation = "none"; });
 }
 function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
-/* ---- Company budget: supplier × budget line × channel (entry only) ---- */
-let cbData = null; const cbOpen = new Set();
-// The lines in the order the business uses them.
+/* ---- Company budget: one entry sheet, supplier × budget line × channel ---- */
+let cbData = null;
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "sales_manager", "marketing_manager", "sales_ops"].includes(currentUser.role); }
+function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbData.closed; }
 function cbAmt(sid, bt, ch) { const r = cbData.rows.find((x) => x.supplierId === sid && x.budgetType === bt && x.channel === ch); return r ? +r.amount : null; }
-// Budget = the amount typed in the company table (channel 'all');
-// split = what is spread over the channels underneath.
-function cbBud(f) { return cbData.rows.filter((r) => r.channel === "all" && f(r)).reduce((a, r) => a + (+r.amount || 0), 0); }
-function cbSplit(f) { return cbData.rows.filter((r) => r.channel !== "all" && f(r)).reduce((a, r) => a + (+r.amount || 0), 0); }
-function cbSupName(sp) { return `${sp.name}${sp.code ? " · " + sp.code : ""}`; }
-function cbInput(sid, bt, ch, dis) { const v = cbAmt(sid, bt, ch); return `<input type="number" step="0.001" min="0" value="${v == null ? "" : v}" onchange="cbSave(${sid},'${bt}','${ch}',this)" style="width:110px" ${dis}>`; }
-function cbRemTxt(rem) { return `<span style="${rem < 0 ? "color:var(--danger);font-weight:700" : ""}">${KD(rem)}${rem < 0 ? " ⚠" : ""}</span>`; }
+function cbSum(f) { return cbData.rows.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
+function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
 function companyPanel() {
   if (!cbData) return "";
-  const d = cbData, isAdmin = currentUser.role === "admin", dis = !isAdmin || d.closed ? "disabled" : "";
-  const types = CB_TYPES.filter((bt) => d.types.includes(bt)), chs = d.channels, sups = d.suppliers;
-  const totTable = sups.length ? `<div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th>${sups.map((sp) => `<th>${esc(cbSupName(sp))}</th>`).join("")}<th>${t("cb_total")}</th></tr></thead><tbody>${types.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>${sups.map((sp) => `<td>${cbInput(sp.id, bt, "all", dis)}</td>`).join("")}<td class="mono"><b id="cbT_all_${bt}">${KD(cbBud((r) => r.budgetType === bt))}</b></td></tr>`).join("")}
-      <tr><td><b>${t("total")}</b></td>${sups.map((sp) => `<td class="mono"><b id="cbT_${sp.id}_all">${KD(cbBud((r) => r.supplierId === sp.id))}</b></td>`).join("")}<td class="mono"><b id="cbT_all_all">${KD(cbBud(() => true))}</b></td></tr></tbody></table></div>`
-    : `<div class="empty">${t("cb_none")}</div>`;
-  const blocks = sups.map((sp) => {
-    const body = types.map((bt) => { const bud = cbBud((r) => r.supplierId === sp.id && r.budgetType === bt), spl = cbSplit((r) => r.supplierId === sp.id && r.budgetType === bt);
-      return `<tr><td>${budgetTypeLabel(bt)}</td>${chs.map((ch) => `<td>${cbInput(sp.id, bt, ch, dis)}</td>`).join("")}<td class="mono"><b id="cbR_${sp.id}_${bt}">${KD(spl)}</b></td><td class="mono" id="cbB_${sp.id}_${bt}">${KD(bud)}</td><td class="mono" id="cbX_${sp.id}_${bt}">${cbRemTxt(bud - spl)}</td></tr>`; }).join("");
-    const bud = cbBud((r) => r.supplierId === sp.id), spl = cbSplit((r) => r.supplierId === sp.id);
-    const foot = `<tr><td><b>${t("total")}</b></td>${chs.map((ch) => `<td class="mono"><b id="cbC_${sp.id}_${ch}">${KD(cbSplit((r) => r.supplierId === sp.id && r.channel === ch))}</b></td>`).join("")}<td class="mono"><b id="cbS_${sp.id}">${KD(spl)}</b></td><td class="mono"><b id="cbBS_${sp.id}">${KD(bud)}</b></td><td class="mono" id="cbXS_${sp.id}">${cbRemTxt(bud - spl)}</td></tr>`;
-    return `<div class="mon-node"><details ${cbOpen.has(sp.id) ? "open" : ""} ontoggle="cbToggle(${sp.id},this)"><summary><b>${esc(sp.name)}</b> <span class="hint">${t("cb_code")}: ${esc(sp.code || t("cb_noCode"))}</span> — ${t("cb_budget")}: <span class="mono" id="cbSumB_${sp.id}">${KD(bud)}</span> · ${t("cb_split")}: <span class="mono" id="cbSum_${sp.id}">${KD(spl)}</span></summary>
-      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("budgetType")}</th>${chs.map((ch) => `<th>${t("ch_" + ch)}</th>`).join("")}<th>${t("cb_split")}</th><th>${t("cb_budget")}</th><th>${t("cb_left")}</th></tr></thead><tbody>${body}${foot}</tbody></table></div></details></div>`;
+  const d = cbData, ed = cbEditable(), sups = d.suppliers, chs = d.channels, types = CB_TYPES.filter((bt) => d.types.includes(bt));
+  const tools = currentUser.role === "admin" ? `<div class="actions" style="margin:0">
+      ${ed && d.prevCount ? `<button class="btn ghost sm" onclick="cbCopyPrev()">⧉ ${t("cb_copy")} <bdi dir="ltr">${esc(d.prevMonth)}</bdi></button>` : ""}
+      <button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>
+      <button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button></div>`
+    : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`;
+  // Summary: company total, each supplier, each channel.
+  const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("cb_total")}</div><div class="val mono" id="cbK_all">${KD(cbSum(() => true))}</div></div>
+    ${sups.map((sp) => `<div class="card"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div><div class="val mono" id="cbK_${sp.id}">${KD(cbSum((r) => r.supplierId === sp.id))}</div></div>`).join("")}</div>
+    <div class="cb-chips">${chs.map((ch) => `<span class="cb-chip"><b>${t("ch_" + ch)}</b> <span class="mono" id="cbKC_${ch}">${KD(cbSum((r) => r.channel === ch))}</span></span>`).join("")}</div>`;
+  let ri = 0;
+  const supRows = sups.map((sp) => {
+    const lines = types.map((bt) => { const r = ri++;
+      return `<tr><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${chs.map((ch, c) => { const v = cbAmt(sp.id, bt, ch);
+        return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-s="${sp.id}" data-b="${bt}" data-c="${ch}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
+        <td class="cb-tot" id="cbRT_${sp.id}_${bt}">${cbFmt(cbSum((x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`; }).join("");
+    return `<tr class="cb-grp"><td colspan="${chs.length + 2}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}
+      <tr class="cb-sub"><td>${t("total")} — ${esc(sp.name)}</td>${chs.map((ch) => `<td class="cb-tot" id="cbST_${sp.id}_${ch}">${cbFmt(cbSum((x) => x.supplierId === sp.id && x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbSTT_${sp.id}">${cbFmt(cbSum((x) => x.supplierId === sp.id))}</td></tr>`;
   }).join("");
-  const supBtn = isAdmin ? `<button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>` : "";
-  return `<div class="panel"><header><h3>${t("cb_title")}</h3>${supBtn}</header><div class="body"><div class="hint" style="margin-bottom:10px">${t("cb_hint")}</div>${totTable}<div style="margin-top:12px">${blocks}</div></div></div>`;
+  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${chs.length + 2}">${t("cb_total")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${chs.map((ch) => `<td class="cb-tot" id="cbCT_${bt}_${ch}">${cbFmt(cbSum((x) => x.budgetType === bt && x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbCTT_${bt}">${cbFmt(cbSum((x) => x.budgetType === bt))}</td></tr>`).join("")
+    + `<tr class="cb-grand"><td>${t("cb_grand")}</td>${chs.map((ch) => `<td class="cb-tot" id="cbG_${ch}">${KD(cbSum((x) => x.channel === ch))}</td>`).join("")}<td class="cb-tot" id="cbGT">${KD(cbSum(() => true))}</td></tr>`;
+  const sheet = sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)"><thead><tr><th>${t("cb_line")}</th>${chs.map((ch) => `<th>${t("ch_" + ch)}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
+    : `<div class="empty">${t("cb_none")}</div>`;
+  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed ? `<div class="hint" style="margin:10px 0">⌨ ${t("cb_keys")}</div>` : "");
+  return `<div class="panel cb-panel"><header><h3>${t("cb_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${kpis}${note}${sheet}</div></div>`;
 }
-function cbToggle(id, el) { if (el.open) cbOpen.add(id); else cbOpen.delete(id); }
-async function cbSave(sid, bt, ch, el) {
-  const prev = cbAmt(sid, bt, ch);
-  const raw = String(el.value).trim();
+function cbInputs() { return Array.from(document.querySelectorAll(".cb-sheet .cb-in")); }
+function cbCell(r, c) { return document.querySelector(`.cb-sheet .cb-in[data-r="${r}"][data-col="${c}"]`); }
+function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) setTimeout(() => { if (document.activeElement === el) el.select(); }, 0); }
+// Excel-like movement: Enter / ↓ next row, ↑ previous row, ← → between columns
+// when the caret is at the edge of the number (mirrored in Arabic).
+function cbKey(e) {
+  const el = e.target; if (!el.classList || !el.classList.contains("cb-in")) return;
+  const r = +el.dataset.r, c = +el.dataset.col, rtl = document.documentElement.dir === "rtl";
+  let to = null;
+  if (e.key === "Enter" || e.key === "ArrowDown") to = cbCell(e.shiftKey && e.key === "Enter" ? r - 1 : r + 1, c);
+  else if (e.key === "ArrowUp") to = cbCell(r - 1, c);
+  else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    const fwd = (e.key === "ArrowRight") !== rtl, atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length, atStart = el.selectionStart === 0 && el.selectionEnd === 0;
+    if (el.selectionStart === 0 && el.selectionEnd === el.value.length) to = cbCell(r, fwd ? c + 1 : c - 1);
+    else if (fwd && atEnd) to = cbCell(r, c + 1); else if (!fwd && atStart) to = cbCell(r, c - 1);
+  } else if (e.key === "Escape") { const v = cbAmt(+el.dataset.s, el.dataset.b, el.dataset.c); el.value = v == null ? "" : v; el.blur(); return; }
+  if (to) { e.preventDefault(); to.focus(); } // leaving the cell fires its change → save
+}
+function cbParse(v) { const s = String(v == null ? "" : v).replace(/[,\s]/g, "").replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)); return s; }
+function cbChange(e) {
+  const el = e.target; if (!el.classList || !el.classList.contains("cb-in")) return;
+  const raw = cbParse(el.value), prev = cbAmt(+el.dataset.s, el.dataset.b, el.dataset.c);
+  if (raw === "" ? prev == null : +raw === prev) { el.value = raw; return; }
+  cbSaveCells([el], [raw]);
+}
+// Paste a block copied from Excel: fills right and down from the cell.
+function cbPaste(e) {
+  const el = e.target; if (!el.classList || !el.classList.contains("cb-in")) return;
+  const txt = (e.clipboardData || window.clipboardData).getData("text");
+  if (!/[\t\n]/.test(txt.trim())) return;
+  e.preventDefault();
+  const grid = txt.replace(/\r/g, "").split("\n").filter((l, i, a) => l !== "" || i < a.length - 1).map((l) => l.split("\t"));
+  const r0 = +el.dataset.r, c0 = +el.dataset.col, els = [], vals = [];
+  grid.forEach((row, i) => row.forEach((v, j) => { const t2 = cbCell(r0 + i, c0 + j); if (t2) { els.push(t2); vals.push(cbParse(v)); } }));
+  if (els.length) cbSaveCells(els, vals);
+}
+async function cbSaveCells(els, vals) {
+  const bad = vals.findIndex((v) => v !== "" && !(Number.isFinite(+v) && +v >= 0));
+  if (bad >= 0) { els[bad].classList.add("err"); setTimeout(() => els[bad].classList.remove("err"), 1600); toast(t("cb_bad")); const v = cbAmt(+els[bad].dataset.s, els[bad].dataset.b, els[bad].dataset.c); els[bad].value = v == null ? "" : v; return; }
+  const cells = els.map((el, i) => ({ supplierId: +el.dataset.s, budgetType: el.dataset.b, channel: el.dataset.c, amount: vals[i] }));
+  els.forEach((el, i) => { el.value = vals[i]; el.classList.add("busy"); });
   try {
-    await api("/budget-company", { method: "POST", body: { month: cbData.month, supplierId: sid, budgetType: bt, channel: ch, amount: raw } });
-    cbData.rows = cbData.rows.filter((r) => !(r.supplierId === sid && r.budgetType === bt && r.channel === ch));
-    if (raw !== "") cbData.rows.push({ supplierId: sid, budgetType: bt, channel: ch, amount: +raw });
-    cbRefresh(); toast(t("saved"));
-  } catch (e) { el.value = prev == null ? "" : prev; toast(errDisp(e.message)); }
+    await api("/budget-company", { method: "POST", body: { month: cbData.month, cells } });
+    cells.forEach((c) => {
+      cbData.rows = cbData.rows.filter((r) => !(r.supplierId === c.supplierId && r.budgetType === c.budgetType && r.channel === c.channel));
+      if (c.amount !== "") cbData.rows.push({ supplierId: c.supplierId, budgetType: c.budgetType, channel: c.channel, amount: +c.amount });
+    });
+    cbRefresh();
+    els.forEach((el) => { el.classList.remove("busy"); el.classList.add("ok"); setTimeout(() => el.classList.remove("ok"), 900); });
+    if (els.length > 1) toast(t("cb_pasted").replace("{n}", els.length));
+  } catch (e) {
+    els.forEach((el) => { el.classList.remove("busy"); const v = cbAmt(+el.dataset.s, el.dataset.b, el.dataset.c); el.value = v == null ? "" : v; el.classList.add("err"); setTimeout(() => el.classList.remove("err"), 1600); });
+    toast(errDisp(e.message));
+  }
 }
-// Update every total in place (no re-render, so open blocks and focus stay).
+// Recompute every total in place (focus and scroll stay where they are).
 function cbRefresh() {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = KD(v); };
-  const setH = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-  cbData.suppliers.forEach((sp) => {
-    CB_TYPES.forEach((bt) => { const f = (r) => r.supplierId === sp.id && r.budgetType === bt; const bud = cbBud(f), spl = cbSplit(f); set(`cbR_${sp.id}_${bt}`, spl); set(`cbB_${sp.id}_${bt}`, bud); setH(`cbX_${sp.id}_${bt}`, cbRemTxt(bud - spl)); });
-    cbData.channels.forEach((ch) => set(`cbC_${sp.id}_${ch}`, cbSplit((r) => r.supplierId === sp.id && r.channel === ch)));
-    const f = (r) => r.supplierId === sp.id; const bud = cbBud(f), spl = cbSplit(f);
-    set(`cbT_${sp.id}_all`, bud); set(`cbBS_${sp.id}`, bud); set(`cbSumB_${sp.id}`, bud); set(`cbS_${sp.id}`, spl); set(`cbSum_${sp.id}`, spl); setH(`cbXS_${sp.id}`, cbRemTxt(bud - spl));
+  const set = (id, v, plain) => { const el = document.getElementById(id); if (el) el.innerHTML = plain ? KD(v) : cbFmt(v); };
+  const d = cbData;
+  d.suppliers.forEach((sp) => {
+    CB_TYPES.forEach((bt) => set(`cbRT_${sp.id}_${bt}`, cbSum((x) => x.supplierId === sp.id && x.budgetType === bt)));
+    d.channels.forEach((ch) => set(`cbST_${sp.id}_${ch}`, cbSum((x) => x.supplierId === sp.id && x.channel === ch)));
+    const tot = cbSum((x) => x.supplierId === sp.id); set(`cbSTT_${sp.id}`, tot); set(`cbK_${sp.id}`, tot, true);
   });
-  CB_TYPES.forEach((bt) => set(`cbT_all_${bt}`, cbBud((r) => r.budgetType === bt)));
-  set("cbT_all_all", cbBud(() => true));
+  CB_TYPES.forEach((bt) => { d.channels.forEach((ch) => set(`cbCT_${bt}_${ch}`, cbSum((x) => x.budgetType === bt && x.channel === ch))); set(`cbCTT_${bt}`, cbSum((x) => x.budgetType === bt)); });
+  d.channels.forEach((ch) => { const v = cbSum((x) => x.channel === ch); set(`cbG_${ch}`, v, true); set(`cbKC_${ch}`, v, true); });
+  const all = cbSum(() => true); set("cbGT", all, true); set("cbK_all", all, true);
+}
+async function cbCopyPrev() {
+  if (!confirm(t("cb_copyQ").replace("{m}", cbData.prevMonth))) return;
+  try { const r = await api("/budget-company/copy", { method: "POST", body: { month: cbData.month } }); toast(t("cb_copied").replace("{n}", r.copied)); await cbReload(); }
+  catch (e) { toast(errDisp(e.message)); }
+}
+async function cbExcel() {
+  try { const res = await api("/budget-company.xlsx?month=" + encodeURIComponent(cbData.month), { raw: true }); downloadBlob(await res.blob(), `Company-Budget-${cbData.month}.xlsx`); }
+  catch (e) { toast(errDisp(e.message)); }
 }
 function cbOpenSuppliers() {
   const rows = cbData.suppliers.map((sp) => `<tr><td><input id="cbsCode_${sp.id}" value="${esc(sp.code || "")}" style="width:120px;direction:ltr"></td><td><input id="cbsName_${sp.id}" value="${esc(sp.name)}" style="width:200px"></td>

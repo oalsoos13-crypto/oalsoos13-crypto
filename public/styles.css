@@ -628,3 +628,35 @@ body.app-in.nav-collapsed #navArrow{inset-inline-start:2px}
 
 /* Structure builder: rows not matching the search */
 .st-dim{opacity:.35}
+/* ---- Company budget entry sheet ---- */
+.cb-kpis{margin-bottom:10px}
+.cb-code{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(227,178,60,.22);color:inherit;margin-inline-start:6px;vertical-align:middle}
+.cb-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 6px}
+.cb-chip{background:#eef4fb;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--ink2)}
+.cb-wrap{max-height:72vh}
+.cb-sheet{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+.cb-sheet thead th{position:sticky;top:0;z-index:3;text-align:right;direction:ltr;padding-right:16px;box-shadow:0 1px 0 var(--line2)}
+.cb-sheet thead th:first-child,.cb-sheet td:first-child{text-align:start;direction:inherit;min-width:170px}
+.cb-sheet td{padding:3px 6px;border-bottom:1px solid #edf2f8}
+.cb-sheet .cb-lbl{padding-inline-start:22px;color:var(--text)}
+.cb-in{width:100%;min-width:96px;text-align:right;direction:ltr;border:1px solid #e1e9f3;background:#fff;border-radius:7px;padding:7px 9px;font-variant-numeric:tabular-nums;transition:background .25s,border-color .15s,box-shadow .15s}
+.cb-in::placeholder{color:#b5c2d3}
+.cb-in:hover:not(:disabled){border-color:var(--line2);background:#fff}
+.cb-in:focus{outline:none;border-color:#2f6fb5;background:#fff;box-shadow:0 0 0 3px rgba(47,111,181,.16)}
+.cb-in:disabled{background:transparent;color:var(--text)}
+.cb-in.busy{background:#fff8e6}
+.cb-in.ok{background:var(--okbg);border-color:#9fd0b6}
+.cb-in.err{background:var(--dangerbg);border-color:var(--danger)}
+.cb-tot{text-align:right!important;direction:ltr;font-weight:700;padding-right:16px!important;white-space:nowrap}
+.cb-sheet td:first-child{white-space:nowrap}
+.cb-sheet tbody tr:not(.cb-grp):not(.cb-sub):not(.cb-co):not(.cb-grand) td{background:#fff}
+.cb-sheet tbody tr:not(.cb-grp):not(.cb-sub):not(.cb-co):not(.cb-grand):hover td{background:#f7fafe}
+.cb-zero{color:#b5c2d3;font-weight:400}
+.cb-sheet tr.cb-grp td{background:linear-gradient(90deg,#123f70,#1c4e8a);color:#fff;font-weight:800;padding:9px 12px;border:0}
+.cb-sheet tr.cb-grp-co td{background:linear-gradient(90deg,#8a6414,#b8862a)}
+.cb-sheet tr.cb-sub td{background:#eef4fb;font-weight:800;color:var(--ink2);border-bottom:2px solid var(--line2)}
+.cb-sheet tr.cb-co td{background:#fdf9ef}
+.cb-sheet tr.cb-grand td{background:#0e2340;color:#fff;font-weight:800;font-size:15px;border:0}
+.cb-sheet tr.cb-grand td .cb-zero{color:#8aa0bd}
+html[dir="rtl"] .cb-sheet tr.cb-grp td{background:linear-gradient(270deg,#123f70,#1c4e8a)}
+html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6414,#b8862a)}

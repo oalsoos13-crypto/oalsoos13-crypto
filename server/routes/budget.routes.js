@@ -451,6 +451,33 @@ router.post('/budget-spent', requireRole(), asyncH((req, res) => {
 
 // ---- Company budget (all channels, per supplier) ----
 const CHANNELS = ['coop', 'ka', 'tt', 'online'];
+// Budget lines in the order the business uses them.
+const CB_TYPES = ['pallets', 'stands', 'polypack', 'foc', 'pricediff'];
+function prevMonth(m) { const [y, mo] = m.split('-').map(Number); const d = new Date(Date.UTC(y, mo - 2, 1)); return d.toISOString().slice(0, 7); }
+// One amount per supplier × line × channel ('all' rows from an early version are ignored).
+function cbRows(month) {
+  return db.prepare("SELECT supplier_id, budget_type, channel, amount FROM company_budget WHERE month=? AND channel<>'all'").all(month)
+    .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, channel: r.channel, amount: r.amount }));
+}
+// Validate + write one cell; returns the normalised cell. Throws on bad input.
+function cbWrite(month, c, now) {
+  const bt = String(c.budgetType || ''), ch = String(c.channel || '');
+  if (!CB_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+  if (!CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
+  const sup = db.prepare('SELECT id FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
+  if (!sup) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
+  const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
+  if (raw === '') {
+    db.prepare('DELETE FROM company_budget WHERE month=? AND supplier_id=? AND budget_type=? AND channel=?').run(month, sup.id, bt, ch);
+    return { supplierId: sup.id, budgetType: bt, channel: ch, amount: null };
+  }
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
+  db.prepare(`INSERT INTO company_budget (month, supplier_id, budget_type, channel, amount, updated_at) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(month, supplier_id, budget_type, channel) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
+    .run(month, sup.id, bt, ch, amount, now);
+  return { supplierId: sup.id, budgetType: bt, channel: ch, amount };
+}
 const MGMT = ['sales_manager', 'marketing_manager', 'sales_ops'];
 function monthClosed(month) { const r = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month); return !!(r && r.closed); }
 
@@ -458,37 +485,70 @@ function monthClosed(month) { const r = db.prepare('SELECT closed FROM budget_mo
 router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const suppliers = db.prepare('SELECT id, code, name, sort FROM company_suppliers WHERE active=1 ORDER BY sort, id').all();
-  const rows = db.prepare('SELECT supplier_id, budget_type, channel, amount FROM company_budget WHERE month=?').all(month)
-    .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, channel: r.channel, amount: r.amount }));
-  res.json({ month, closed: monthClosed(month), types: CAPPED_TYPES, channels: CHANNELS, suppliers, rows });
+  const rows = cbRows(month);
+  const prev = prevMonth(month);
+  const prevCount = db.prepare("SELECT COUNT(*) c FROM company_budget WHERE month=? AND channel<>'all'").get(prev).c;
+  res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, suppliers, rows, prevMonth: prev, prevCount });
 }));
 
-// POST /api/budget-company (admin) — one cell. Body: { month, supplierId, budgetType, channel, amount }
-// An empty amount clears the cell.
+// POST /api/budget-company (admin) — save cells. Body: { month, cells: [{ supplierId,
+// budgetType, channel, amount }] } (or a single cell's fields at the top level).
+// An empty amount clears the cell. All-or-nothing.
 router.post('/budget-company', requireRole(), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
-  const bt = String(req.body.budgetType || ''), ch = String(req.body.channel || '');
-  if (!CAPPED_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
-  // 'all' = the supplier's budget for the line (entered in the company table);
-  // the channel cells split it.
-  if (ch !== 'all' && !CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
-  const sup = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(req.body.supplierId));
-  if (!sup) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
-  const raw = req.body.amount;
+  const cells = Array.isArray(req.body.cells) ? req.body.cells : [req.body];
+  if (!cells.length || cells.length > 2000) throw badRequest('بيانات ناقصة', 'NO_CELLS');
   const now = nowIso();
-  if (raw === '' || raw == null) {
-    db.prepare('DELETE FROM company_budget WHERE month=? AND supplier_id=? AND budget_type=? AND channel=?').run(month, sup.id, bt, ch);
-  } else {
-    const amount = num(raw, NaN);
-    if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
+  const saved = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-    db.prepare(`INSERT INTO company_budget (month, supplier_id, budget_type, channel, amount, updated_at) VALUES (?,?,?,?,?,?)
-      ON CONFLICT(month, supplier_id, budget_type, channel) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
-      .run(month, sup.id, bt, ch, amount, now);
-  }
-  audit.fromReq(req, 'budget.company', { entityType: 'company_budget', summary: `Company budget ${month} ${sup.name} ${bt}/${ch} = ${raw === '' || raw == null ? '—' : num(raw)}`, details: { month, supplierId: sup.id, bt, ch, amount: raw } });
-  res.json({ ok: true });
+    return cells.map((c) => cbWrite(month, c, now));
+  })();
+  audit.fromReq(req, 'budget.company', { entityType: 'company_budget', summary: `Company budget ${month}: ${saved.length} cell(s)`, details: { month, cells: saved.slice(0, 50) } });
+  res.json({ ok: true, saved });
+}));
+
+// POST /api/budget-company/copy (admin) — fill this month's EMPTY cells from the
+// previous month. Body: { month }
+router.post('/budget-company/copy', requireRole(), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  const prev = prevMonth(month), now = nowIso();
+  const n = db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+    return db.prepare(`INSERT OR IGNORE INTO company_budget (month, supplier_id, budget_type, channel, amount, updated_at)
+      SELECT ?, b.supplier_id, b.budget_type, b.channel, b.amount, ? FROM company_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1
+      WHERE b.month=? AND b.channel<>'all'`).run(month, now, prev).changes;
+  })();
+  audit.fromReq(req, 'budget.company.copy', { entityType: 'company_budget', summary: `Company budget ${month}: copied ${n} cell(s) from ${prev}` });
+  res.json({ ok: true, copied: n, from: prev });
+}));
+
+// GET /api/budget-company.xlsx?month= — the sheet as Excel (suppliers × lines × channels).
+router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
+  const XLSX = require('xlsx');
+  const month = isMonth(req.query.month) ? req.query.month : curMonth();
+  const sups = db.prepare('SELECT id, code, name FROM company_suppliers WHERE active=1 ORDER BY sort, id').all();
+  const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Condition', foc: 'Free (FOC)', pricediff: 'Price diff' };
+  const val = {}; cbRows(month).forEach((r) => { val[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
+  const g = (sid, bt, ch) => val[`${sid}|${bt}|${ch}`] || 0;
+  const head = ['Supplier', 'Supplier code', 'Budget line', 'Coop', 'KA', 'TT', 'Online', 'Total'];
+  const aoa = [[`Company budget — ${month}`], [], head];
+  const line = (a, b, c, vals) => aoa.push([a, b, c, ...vals, vals.reduce((x, y) => x + y, 0)]);
+  sups.forEach((sp) => {
+    CB_TYPES.forEach((bt) => line(sp.name, sp.code, LBL[bt], CHANNELS.map((ch) => g(sp.id, bt, ch))));
+    line(sp.name, sp.code, 'Total', CHANNELS.map((ch) => CB_TYPES.reduce((a, bt) => a + g(sp.id, bt, ch), 0)));
+    aoa.push([]);
+  });
+  CB_TYPES.forEach((bt) => line('Company', '', LBL[bt], CHANNELS.map((ch) => sups.reduce((a, sp) => a + g(sp.id, bt, ch), 0))));
+  line('Company', '', 'Total', CHANNELS.map((ch) => sups.reduce((a, sp) => a + CB_TYPES.reduce((b, bt) => b + g(sp.id, bt, ch), 0), 0)));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [18, 14, 14, 12, 12, 12, 12, 14].map((w) => ({ wch: w }));
+  Object.keys(ws).forEach((k) => { if (k[0] !== '!' && typeof ws[k].v === 'number') ws[k].z = '#,##0.000'; });
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Company budget');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="Company-Budget-${month}.xlsx"`);
+  res.send(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
 }));
 
 // POST /api/budget-company/supplier (admin) — add or edit a supplier. Body: { id?, code, name }
