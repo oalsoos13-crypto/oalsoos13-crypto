@@ -629,7 +629,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
           if (bt === 'pallets') rowOf(label, 'Off-Shelf Display', (sid) => L(sid, 'pallets') + L(sid, 'stands'));
           rowOf(label, LBL[bt], (sid) => L(sid, bt));
         });
-        rowOf(label, 'Distributed', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
+        rowOf(label, 'Allocated to supervisors', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
       }
       rowOf(label, managed ? 'Total budget' : 'Total budget (no manager yet)', B);
       if (managed) rowOf(label, 'Budget left', (sid) => B(sid) - sum(CB_TYPES.map((bt) => L(sid, bt))));

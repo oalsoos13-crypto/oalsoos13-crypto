@@ -621,7 +621,7 @@ const T = {
   cb_linesTitle: { ar: "التوزيع حسب البند — من شاشات المدراء", en: "Split by line — from the channel managers" },
   cb_linesHint: { ar: "مقسوم حسب القسم: لكل قسم البنود حسب البراند، بيتعبّى لحاله من توزيع مدير القسم (الجمعيات: سائد). الأقسام اللي ما إلها مدير بالنظام بيطلع إلها البتجيت بس.", en: "By channel: each channel's lines per brand, filled automatically from that channel manager's split (Coop: the sales manager). Channels without a manager yet show their budget only." },
   cb_noMgr: { ar: "القسم ما إله مدير بالنظام بعد", en: "No manager for this channel yet" },
-  cb_distributed: { ar: "الموزّع", en: "Distributed" },
+  cb_distributed: { ar: "الموزّع على المشرفين", en: "Allocated to supervisors" },
   cb_allCh: { ar: "كل الأقسام", en: "All channels" },
   cb_budgetRow: { ar: "توتال البتجيت", en: "Total budget" },
   bp_cap: { ar: "السقف", en: "Cap" },
