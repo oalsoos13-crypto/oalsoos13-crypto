@@ -574,7 +574,10 @@ const T = {
   bp_reopen: { ar: "🔓 فتح الشهر", en: "🔓 Reopen month" },
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
   cb_title: { ar: "بتجيت الشركة — كل القنوات", en: "Company budget — all channels" },
-  cb_hint: { ar: "لكل مورد قيمة لكل بند موزّعة على القنوات. إجمالي الشركة يُحسب تلقائيًا من الموردين.", en: "Each supplier gets an amount per budget line, split by channel. The company total is calculated from the suppliers." },
+  cb_hint: { ar: "أدخل بتجيت كل مورد لكل بند بالجدول، ثم وزّعه على القنوات تحت. إجمالي الشركة يُحسب تلقائيًا.", en: "Enter each supplier's budget per line in the table, then split it by channel below. The company total is calculated automatically." },
+  cb_budget: { ar: "البتجيت", en: "Budget" },
+  cb_split: { ar: "الموزّع", en: "Split" },
+  cb_left: { ar: "المتبقي", en: "Left" },
   cb_total: { ar: "إجمالي الشركة", en: "Company total" },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
   cb_code: { ar: "كود المورد", en: "Supplier code" },
@@ -2208,20 +2211,27 @@ let cbData = null; const cbOpen = new Set();
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "sales_manager", "marketing_manager", "sales_ops"].includes(currentUser.role); }
 function cbAmt(sid, bt, ch) { const r = cbData.rows.find((x) => x.supplierId === sid && x.budgetType === bt && x.channel === ch); return r ? +r.amount : null; }
-function cbSum(f) { return cbData.rows.filter(f).reduce((a, r) => a + (+r.amount || 0), 0); }
+// Budget = the amount typed in the company table (channel 'all');
+// split = what is spread over the channels underneath.
+function cbBud(f) { return cbData.rows.filter((r) => r.channel === "all" && f(r)).reduce((a, r) => a + (+r.amount || 0), 0); }
+function cbSplit(f) { return cbData.rows.filter((r) => r.channel !== "all" && f(r)).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbSupName(sp) { return `${sp.name}${sp.code ? " · " + sp.code : ""}`; }
+function cbInput(sid, bt, ch, dis) { const v = cbAmt(sid, bt, ch); return `<input type="number" step="0.001" min="0" value="${v == null ? "" : v}" onchange="cbSave(${sid},'${bt}','${ch}',this)" style="width:110px" ${dis}>`; }
+function cbRemTxt(rem) { return `<span style="${rem < 0 ? "color:var(--danger);font-weight:700" : ""}">${KD(rem)}${rem < 0 ? " ⚠" : ""}</span>`; }
 function companyPanel() {
   if (!cbData) return "";
   const d = cbData, isAdmin = currentUser.role === "admin", dis = !isAdmin || d.closed ? "disabled" : "";
   const types = CB_TYPES.filter((bt) => d.types.includes(bt)), chs = d.channels, sups = d.suppliers;
-  const totTable = sups.length ? `<div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th>${sups.map((sp) => `<th>${esc(cbSupName(sp))}</th>`).join("")}<th>${t("cb_total")}</th></tr></thead><tbody>${types.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>${sups.map((sp) => `<td class="mono" id="cbT_${sp.id}_${bt}">${KD(cbSum((r) => r.supplierId === sp.id && r.budgetType === bt))}</td>`).join("")}<td class="mono"><b id="cbT_all_${bt}">${KD(cbSum((r) => r.budgetType === bt))}</b></td></tr>`).join("")}
-      <tr><td><b>${t("total")}</b></td>${sups.map((sp) => `<td class="mono"><b id="cbT_${sp.id}_all">${KD(cbSum((r) => r.supplierId === sp.id))}</b></td>`).join("")}<td class="mono"><b id="cbT_all_all">${KD(cbSum(() => true))}</b></td></tr></tbody></table></div>`
+  const totTable = sups.length ? `<div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th>${sups.map((sp) => `<th>${esc(cbSupName(sp))}</th>`).join("")}<th>${t("cb_total")}</th></tr></thead><tbody>${types.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>${sups.map((sp) => `<td>${cbInput(sp.id, bt, "all", dis)}</td>`).join("")}<td class="mono"><b id="cbT_all_${bt}">${KD(cbBud((r) => r.budgetType === bt))}</b></td></tr>`).join("")}
+      <tr><td><b>${t("total")}</b></td>${sups.map((sp) => `<td class="mono"><b id="cbT_${sp.id}_all">${KD(cbBud((r) => r.supplierId === sp.id))}</b></td>`).join("")}<td class="mono"><b id="cbT_all_all">${KD(cbBud(() => true))}</b></td></tr></tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
   const blocks = sups.map((sp) => {
-    const body = types.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>${chs.map((ch) => { const v = cbAmt(sp.id, bt, ch); return `<td><input type="number" step="0.001" min="0" value="${v == null ? "" : v}" onchange="cbSave(${sp.id},'${bt}','${ch}',this)" style="width:110px" ${dis}></td>`; }).join("")}<td class="mono"><b id="cbR_${sp.id}_${bt}">${KD(cbSum((r) => r.supplierId === sp.id && r.budgetType === bt))}</b></td></tr>`).join("");
-    const foot = `<tr><td><b>${t("total")}</b></td>${chs.map((ch) => `<td class="mono"><b id="cbC_${sp.id}_${ch}">${KD(cbSum((r) => r.supplierId === sp.id && r.channel === ch))}</b></td>`).join("")}<td class="mono"><b id="cbS_${sp.id}">${KD(cbSum((r) => r.supplierId === sp.id))}</b></td></tr>`;
-    return `<div class="mon-node"><details ${cbOpen.has(sp.id) ? "open" : ""} ontoggle="cbToggle(${sp.id},this)"><summary><b>${esc(sp.name)}</b> <span class="hint">${t("cb_code")}: ${esc(sp.code || t("cb_noCode"))}</span> — <span class="mono" id="cbSum_${sp.id}">${KD(cbSum((r) => r.supplierId === sp.id))}</span></summary>
-      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("budgetType")}</th>${chs.map((ch) => `<th>${t("ch_" + ch)}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${body}${foot}</tbody></table></div></details></div>`;
+    const body = types.map((bt) => { const bud = cbBud((r) => r.supplierId === sp.id && r.budgetType === bt), spl = cbSplit((r) => r.supplierId === sp.id && r.budgetType === bt);
+      return `<tr><td>${budgetTypeLabel(bt)}</td>${chs.map((ch) => `<td>${cbInput(sp.id, bt, ch, dis)}</td>`).join("")}<td class="mono"><b id="cbR_${sp.id}_${bt}">${KD(spl)}</b></td><td class="mono" id="cbB_${sp.id}_${bt}">${KD(bud)}</td><td class="mono" id="cbX_${sp.id}_${bt}">${cbRemTxt(bud - spl)}</td></tr>`; }).join("");
+    const bud = cbBud((r) => r.supplierId === sp.id), spl = cbSplit((r) => r.supplierId === sp.id);
+    const foot = `<tr><td><b>${t("total")}</b></td>${chs.map((ch) => `<td class="mono"><b id="cbC_${sp.id}_${ch}">${KD(cbSplit((r) => r.supplierId === sp.id && r.channel === ch))}</b></td>`).join("")}<td class="mono"><b id="cbS_${sp.id}">${KD(spl)}</b></td><td class="mono"><b id="cbBS_${sp.id}">${KD(bud)}</b></td><td class="mono" id="cbXS_${sp.id}">${cbRemTxt(bud - spl)}</td></tr>`;
+    return `<div class="mon-node"><details ${cbOpen.has(sp.id) ? "open" : ""} ontoggle="cbToggle(${sp.id},this)"><summary><b>${esc(sp.name)}</b> <span class="hint">${t("cb_code")}: ${esc(sp.code || t("cb_noCode"))}</span> — ${t("cb_budget")}: <span class="mono" id="cbSumB_${sp.id}">${KD(bud)}</span> · ${t("cb_split")}: <span class="mono" id="cbSum_${sp.id}">${KD(spl)}</span></summary>
+      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("budgetType")}</th>${chs.map((ch) => `<th>${t("ch_" + ch)}</th>`).join("")}<th>${t("cb_split")}</th><th>${t("cb_budget")}</th><th>${t("cb_left")}</th></tr></thead><tbody>${body}${foot}</tbody></table></div></details></div>`;
   }).join("");
   const supBtn = isAdmin ? `<button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>` : "";
   return `<div class="panel"><header><h3>${t("cb_title")}</h3>${supBtn}</header><div class="body"><div class="hint" style="margin-bottom:10px">${t("cb_hint")}</div>${totTable}<div style="margin-top:12px">${blocks}</div></div></div>`;
@@ -2240,13 +2250,15 @@ async function cbSave(sid, bt, ch, el) {
 // Update every total in place (no re-render, so open blocks and focus stay).
 function cbRefresh() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = KD(v); };
+  const setH = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
   cbData.suppliers.forEach((sp) => {
-    CB_TYPES.forEach((bt) => { const v = cbSum((r) => r.supplierId === sp.id && r.budgetType === bt); set(`cbT_${sp.id}_${bt}`, v); set(`cbR_${sp.id}_${bt}`, v); });
-    cbData.channels.forEach((ch) => set(`cbC_${sp.id}_${ch}`, cbSum((r) => r.supplierId === sp.id && r.channel === ch)));
-    const all = cbSum((r) => r.supplierId === sp.id); set(`cbT_${sp.id}_all`, all); set(`cbS_${sp.id}`, all); set(`cbSum_${sp.id}`, all);
+    CB_TYPES.forEach((bt) => { const f = (r) => r.supplierId === sp.id && r.budgetType === bt; const bud = cbBud(f), spl = cbSplit(f); set(`cbR_${sp.id}_${bt}`, spl); set(`cbB_${sp.id}_${bt}`, bud); setH(`cbX_${sp.id}_${bt}`, cbRemTxt(bud - spl)); });
+    cbData.channels.forEach((ch) => set(`cbC_${sp.id}_${ch}`, cbSplit((r) => r.supplierId === sp.id && r.channel === ch)));
+    const f = (r) => r.supplierId === sp.id; const bud = cbBud(f), spl = cbSplit(f);
+    set(`cbT_${sp.id}_all`, bud); set(`cbBS_${sp.id}`, bud); set(`cbSumB_${sp.id}`, bud); set(`cbS_${sp.id}`, spl); set(`cbSum_${sp.id}`, spl); setH(`cbXS_${sp.id}`, cbRemTxt(bud - spl));
   });
-  CB_TYPES.forEach((bt) => set(`cbT_all_${bt}`, cbSum((r) => r.budgetType === bt)));
-  set("cbT_all_all", cbSum(() => true));
+  CB_TYPES.forEach((bt) => set(`cbT_all_${bt}`, cbBud((r) => r.budgetType === bt)));
+  set("cbT_all_all", cbBud(() => true));
 }
 function cbOpenSuppliers() {
   const rows = cbData.suppliers.map((sp) => `<tr><td><input id="cbsCode_${sp.id}" value="${esc(sp.code || "")}" style="width:120px;direction:ltr"></td><td><input id="cbsName_${sp.id}" value="${esc(sp.name)}" style="width:200px"></td>

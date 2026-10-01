@@ -469,7 +469,9 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   const bt = String(req.body.budgetType || ''), ch = String(req.body.channel || '');
   if (!CAPPED_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
-  if (!CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
+  // 'all' = the supplier's budget for the line (entered in the company table);
+  // the channel cells split it.
+  if (ch !== 'all' && !CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
   const sup = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(req.body.supplierId));
   if (!sup) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
