@@ -151,8 +151,11 @@ function monthSpend(month) {
 // ---- Over-budget guards. The UI only warns (red); the server REFUSES. ----
 const DN_TYPES = ['pallets', 'stands', 'pricediff'];
 const fmtKD = (n) => (Math.round(num(n) * 1000) / 1000).toFixed(3);
+// Budget lines' display names [Arabic, English].
+const BT_NAME = { pallets: ['الطبالي', 'Pallets'], stands: ['الستاندات', 'Stands'], pricediff: ['فروق الأسعار', 'Price diff'], polypack: ['ليكويديشن', 'Liquidation'], foc: ['جيف أواي', 'Give Away'] };
 function overMsg(what, limit, would) {
-  return `تجاوز البتجيت — ${what}: الحد ${fmtKD(limit)} د.ك، والمطلوب يوصل ${fmtKD(would)} د.ك | Over budget — ${what}: limit ${fmtKD(limit)} KD, this would make ${fmtKD(would)} KD`;
+  const [ar, en] = BT_NAME[what] || [what, what];
+  return `تجاوز البتجيت — ${ar}: الحد ${fmtKD(limit)} د.ك، والمطلوب يوصل ${fmtKD(would)} د.ك | Over budget — ${en}: limit ${fmtKD(limit)} KD, this would make ${fmtKD(would)} KD`;
 }
 // A supervisor team's effective totals (D.N + مجاني, outlets override their
 // co-op) for a month/type, with a proposed change applied first.
@@ -191,7 +194,7 @@ function assertTeamWithin(month, bt, supName, change) {
     if (focShare && focShare.amount != null) {
       let focTotal = 0;
       for (const k of DN_TYPES) focTotal += teamTotals(month, k, supName, k === bt ? change : null).foc;
-      if (focTotal > num(focShare.amount) + 1e-9) throw badRequest(overMsg('FOC (مجاني)', focShare.amount, focTotal), 'OVER_FOC');
+      if (focTotal > num(focShare.amount) + 1e-9) throw badRequest(overMsg('foc', focShare.amount, focTotal), 'OVER_FOC');
     }
   }
 }
@@ -549,7 +552,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
   const CH = { coop: 'Coop', coop_main: 'Coop Main', coop_branch: 'Coop Branch', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT HoReCa+Schools' };
-  const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Condition', foc: 'Free (FOC)', pricediff: 'Price diff' };
+  const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price diff' };
   const tot = {}; brandTotals(month).forEach((r) => { tot[`${r.supplierId}|${r.channel}`] = +r.amount || 0; });
   sups.forEach((sp) => { tot[`${sp.id}|coop`] = (tot[`${sp.id}|coop_main`] || 0) + (tot[`${sp.id}|coop_branch`] || 0); });
   const ln = {}; channelLines(month).forEach((r) => { ln[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
@@ -563,7 +566,10 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   a1.push(['Company', '', ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), sum(sups.map((sp) => sum(CHANNELS.map((c) => g(sp.id, c)))))]);
   const a2 = [[`Split by line (from the channel managers) — ${month}`], [], ['Brand', 'Code', 'Line', ...LINE_CHANNELS.map((c) => CH[c]), 'Total']];
   sups.forEach((sp) => {
-    CB_TYPES.forEach((bt) => { const v = LINE_CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]); });
+    CB_TYPES.forEach((bt) => {
+      const v = LINE_CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]);
+      if (bt === 'stands') { const o = LINE_CHANNELS.map((c) => (ln[`${sp.id}|pallets|${c}`] || 0) + (ln[`${sp.id}|stands|${c}`] || 0)); a2.push([sp.name, sp.code, 'Off-Shelf Display', ...o, sum(o)]); }
+    });
     const d = LINE_CHANNELS.map((c) => sum(CB_TYPES.map((bt) => ln[`${sp.id}|${bt}|${c}`] || 0))); a2.push([sp.name, sp.code, 'Distributed', ...d, sum(d)]);
     const b = LINE_CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a2.push([sp.name, sp.code, 'Budget', ...b, sum(b)]);
     a2.push([sp.name, sp.code, 'Left', ...b.map((x, i) => x - d[i]), sum(b) - sum(d)]); a2.push([]);

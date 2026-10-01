@@ -550,8 +550,9 @@ const T = {
   bt_pallets: { ar: "الطبالي", en: "Pallets" },
   bt_stands: { ar: "الستاندات", en: "Stands" },
   bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
-  bt_polypack: { ar: "الكوديشن", en: "Condition" },
-  bt_foc: { ar: "مجاني (FOC)", en: "Free (FOC)" },
+  bt_polypack: { ar: "ليكويديشن", en: "Liquidation" },
+  bt_foc: { ar: "جيف أواي", en: "Give Away" },
+  bt_osd: { ar: "أوف شيلف ديسبلي", en: "Off-Shelf Display" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
   // Monthly budget plan.
@@ -561,11 +562,11 @@ const T = {
   r_budgetDist_d: { ar: "توزيع المخصّص على المناديب والجمعيات.", en: "Distribute your allocation to salesmen and coops." },
   bd_received: { ar: "المخصّص لك", en: "Your allocation" },
   bd_dn: { ar: "D.N", en: "D.N" },
-  bd_foc: { ar: "مجاني", en: "FOC" },
-  bd_focDetail: { ar: "المجاني يُدخل داخل الطبالي / الستاند / فروق الأسعار — هنا تفصيله فقط", en: "FOC is entered inside pallets / stands / price diff — this is its breakdown" },
+  bd_foc: { ar: "جيف أواي", en: "Give Away" },
+  bd_focDetail: { ar: "الجيف أواي يُدخل داخل الطبالي / الستاند / فروق الأسعار — هنا تفصيله فقط", en: "Give Away is entered inside pallets / stands / price diff — this is only its breakdown" },
   bd_against: { ar: "مقابل", en: "Against" },
   bp_spent: { ar: "المصروف (يدوي)", en: "Spent (manual)" },
-  bp_focOrigin: { ar: "تفصيل المجاني المخصّص", en: "Allocated FOC breakdown" },
+  bp_focOrigin: { ar: "تفصيل الجيف أواي المخصّص", en: "Allocated Give Away breakdown" },
   bd_target: { ar: "المندوب / الجمعية", en: "Salesman / Coop" },
   bp_month: { ar: "الشهر", en: "Month" },
   bp_closed: { ar: "مسكّر", en: "Closed" },
@@ -1028,7 +1029,7 @@ const MSG_EN = {
   "الكتاب ليس بانتظار اعتماد": "Letter is not awaiting approval", "مرحلة غير صحيحة": "Invalid stage", "الإشعار ليس بانتظار الاعتماد": "Debit note is not awaiting approval",
   "لا يمكن رفض إشعار في هذه الحالة": "This debit note cannot be rejected in its state", "حالة غير صحيحة": "Invalid status", "نوع الكتاب غير صحيح": "Invalid letter type",
   "لا يمكنك تغيير كلمة المرور — يقوم بها المدير فقط": "You cannot change the password — the admin does", "اسم المستخدم مستخدم مسبقًا": "Username already in use", "الملف فارغ": "The file is empty",
-  "المجاني يحتاج جمعية/أوتليت": "FOC needs a co-op/outlet", "غير مصرّح": "Not allowed", "غير مصرح": "Not allowed", "يوجد إشعار خصم فعّال لهذا الكتاب": "This letter already has an active debit note",
+  "المجاني يحتاج جمعية/أوتليت": "Give Away needs a co-op/outlet", "الجيف أواي يحتاج جمعية/أوتليت": "Give Away needs a co-op/outlet", "غير مصرّح": "Not allowed", "غير مصرح": "Not allowed", "يوجد إشعار خصم فعّال لهذا الكتاب": "This letter already has an active debit note",
   "لا يمكن تعطيل أو تنزيل آخر مدير نظام": "Cannot deactivate or demote the last admin", "الشهر مقفل (مسكّر)": "The month is closed", "لا يمكن الأرشفة قبل تسكيرة الشهر": "Cannot archive before the month is closed",
   "غير موجود": "Not found", "العقد غير موجود": "Contract not found", "الملف غير موجود": "File not found", "هذا الأوتلت ليس ضمن نطاقك": "This outlet is outside your scope",
   "هذا المندوب ليس ضمن فريقك": "This salesman is not in your team", "هذه الجمعية ليست ضمن مندوبك": "This co-op is not under your salesman", "هذا الكتاب غير مالي — لا يحتاج إشعار خصم": "This letter is non-monetary — no debit note needed",
@@ -2247,13 +2248,13 @@ function allocSheetPanel() {
   let ri = 0;
   const supRows = sups.map((sp) => {
     const lines = types.map((bt) => { const r = ri++;
-      return `<tr><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(sp.id, bt, sv);
+      return `<tr><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(sp.id, bt, sv);
         return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-s="${sp.id}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
-        <td class="cb-tot" id="alRA_${sp.id}_${bt}">${cbFmt(alSum((x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`; }).join("");
+        <td class="cb-tot" id="alRA_${sp.id}_${bt}">${cbFmt(alSum((x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>${bt === cbOsdLast(types) ? alOsdRow(sp.id) : ""}`; }).join("");
     return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${sp.id}">${alGrpInfo(sp.id)}</span></div></td></tr>${lines}
       <tr class="cb-sub"><td>${t("total")} — ${esc(sp.name)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alST_${sp.id}_${i}">${cbFmt(alSum((x) => x.supplierId === sp.id && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alSA_${sp.id}">${cbFmt(alSum((x) => x.supplierId === sp.id))}</td></tr>`;
   }).join("");
-  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${bt}_${i}">${cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${bt}">${cbFmt(alSum((x) => x.budgetType === bt))}</td></tr>`).join("")
+  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${bt}_${i}">${cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${bt}">${cbFmt(alSum((x) => x.budgetType === bt))}</td></tr>${bt === cbOsdLast(types) ? alOsdRow(null) : ""}`).join("")
     + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${i}">${KD(alSum((x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA">${KD(alSum(() => true))}</td></tr>`;
   const totB = alBud(() => true), totA = alSum(() => true);
   const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("al_budget")}</div><div class="val mono">${KD(totB)}</div></div>
@@ -2266,6 +2267,13 @@ function allocSheetPanel() {
     : `<div class="empty">${t(svs.length ? "cb_none" : "noAssign")}</div>`;
   return `<div class="panel cb-panel"><header><h3>🏬 ${t("al_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3></header><div class="body">${kpis}${note}${sheet}</div></div>`;
 }
+// Off-Shelf Display = Pallets + Stands: a subtotal row right after them.
+const CB_OSD = ["pallets", "stands"];
+function cbOsdLast(types) { const o = types.filter((b) => CB_OSD.includes(b)); return o.length > 1 ? o[o.length - 1] : null; }
+function alOsdRow(sid) {
+  const k = sid == null ? "all" : sid, f = (x) => (sid == null || x.supplierId === sid) && CB_OSD.includes(x.budgetType);
+  return `<tr class="cb-osd-sub"><td>${t("bt_osd")}</td>${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum((x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(f))}</td></tr>`;
+}
 function alRefresh() {
   const d = alData, html = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
   d.suppliers.forEach((sp) => {
@@ -2276,6 +2284,8 @@ function alRefresh() {
   d.types.forEach((bt) => { d.supervisors.forEach((sv, i) => html(`alCT_${bt}_${i}`, cbFmt(alSum((x) => x.budgetType === bt && x.supervisor === sv)))); html(`alCA_${bt}`, cbFmt(alSum((x) => x.budgetType === bt))); });
   d.supervisors.forEach((sv, i) => { const v = alSum((x) => x.supervisor === sv); html(`alG_${i}`, KD(v)); html(`alKS_${i}`, KD(v)); });
   const a = alSum(() => true), b = alBud(() => true); html("alGA", KD(a)); html("alK_a", KD(a)); html("alK_l", alLeft(b - a));
+  d.suppliers.map((sp) => sp.id).concat([null]).forEach((sid) => { const k = sid == null ? "all" : sid, f = (x) => (sid == null || x.supplierId === sid) && CB_OSD.includes(x.budgetType);
+    d.supervisors.forEach((sv, i) => html(`alOS_${k}_${i}`, cbFmt(alSum((x) => f(x) && x.supervisor === sv)))); html(`alOSA_${k}`, cbFmt(alSum(f))); });
 }
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
@@ -2342,19 +2352,21 @@ function cbLinesTable() {
     if (ttc.length) { r1 += `<th colspan="${ttc.length + (ttc.length > 1 ? 1 : 0)}" class="cb-th-grp">TT</th>`; r2 = ttc.map((c) => `<th>${t("ch_" + c)}</th>`).join("") + (ttc.length > 1 ? `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", "TT")}</th>` : ""); }
     return `<thead><tr>${r1}<th rowspan="2">${t("total")}</th></tr><tr>${r2}</tr></thead>`; })();
   const order = lcols.filter((c) => !c.grp && !c.ch.startsWith("tt_")).concat(lcols.filter((c) => c.grp || c.ch.startsWith("tt_")));
-  const row = (label, cls, fLine, fBud, kind, allTot) => `<tr class="${cls}"><td class="${cls ? "" : "cb-lbl"}">${label}</td>${order.map((col) => {
+  const row = (label, cls, fLine, fBud, kind, allTot, lcls) => `<tr class="${cls}"><td class="${cls && !lcls ? "" : "cb-lbl"}${lcls || ""}">${label}</td>${order.map((col) => {
       const gcls = col.grp ? " cb-gtot" : "";
       if (kind === "left") { if (!isMg(col)) return `<td class="cb-tot${gcls}">${dash}</td>`; return `<td class="cb-tot${gcls}">${left(val(col, fLine, fBud, "bud") - val(col, fLine, fBud, "line"))}</td>`; }
       const v = val(col, fLine, fBud, kind); return `<td class="cb-tot${gcls}">${kind === "line" && !isMg(col) ? dash : cbFmt(v)}</td>`; }).join("")}<td class="cb-tot">${allTot}</td></tr>`;
   const brand = sups.map((sp) => {
     const fs = (x) => x.supplierId === sp.id;
-    const lines = types.map((bt) => row(budgetTypeLabel(bt), "", (x) => fs(x) && x.budgetType === bt, fs, "line", cbFmt(cbLn((x) => fs(x) && x.budgetType === bt)))).join("");
+    const lines = types.map((bt) => row(budgetTypeLabel(bt), "", (x) => fs(x) && x.budgetType === bt, fs, "line", cbFmt(cbLn((x) => fs(x) && x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "")
+      + (bt === cbOsdLast(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => fs(x) && CB_OSD.includes(x.budgetType), fs, "line", cbFmt(cbLn((x) => fs(x) && CB_OSD.includes(x.budgetType)))) : "")).join("");
     const dist = cbLn(fs), bud = cbTot(fs);
     return `<tr class="cb-grp"><td colspan="${n}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}`
       + row(t("cb_distributed"), "cb-sub", fs, fs, "line", cbFmt(dist)) + row(t("cb_budgetRow"), "cb-co", fs, fs, "bud", cbFmt(bud)) + row(t("cb_leftLbl"), "cb-co", fs, fs, "left", left(bud - dist));
   }).join("");
   const all = () => true;
-  const co = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_total")}</td></tr>` + types.map((bt) => row(budgetTypeLabel(bt), "cb-co", (x) => x.budgetType === bt, all, "line", cbFmt(cbLn((x) => x.budgetType === bt)))).join("")
+  const co = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_total")}</td></tr>` + types.map((bt) => row(budgetTypeLabel(bt), "cb-co", (x) => x.budgetType === bt, all, "line", cbFmt(cbLn((x) => x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "")
+      + (bt === cbOsdLast(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => CB_OSD.includes(x.budgetType), all, "line", cbFmt(cbLn((x) => CB_OSD.includes(x.budgetType)))) : "")).join("")
     + row(t("cb_distributed"), "cb-grand", all, all, "line", KD(cbLn(all)));
   return sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet">${head}<tbody>${brand}${co}</tbody></table></div>` : "";
 }

@@ -804,7 +804,7 @@ router.post('/letters/:id/budget-type', requireRole('sales_manager'), asyncH((re
   const bt = String(req.body.budgetType || '').trim();
   if (bt && !BUDGET_TYPES.has(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_BUDGET_TYPE');
   // FOC is booked under the co-op's expenses, so it needs a co-op (+ outlet).
-  if (bt === 'foc' && !(L.coop || L.recipient)) throw badRequest('المجاني يحتاج جمعية/أوتليت', 'FOC_NEEDS_COOP');
+  if (bt === 'foc' && !(L.coop || L.recipient)) throw badRequest('الجيف أواي يحتاج جمعية/أوتليت', 'FOC_NEEDS_COOP');
   const now = nowIso();
   db.prepare('UPDATE letters SET budget_type=?, updated_at=? WHERE id=?').run(bt || null, now, L.id);
   // Learn the mapping so the next letter of this type is auto-classified.
