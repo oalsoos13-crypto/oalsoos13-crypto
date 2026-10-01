@@ -680,3 +680,8 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-panel.cb-extra{border:1px solid #e3b23c;box-shadow:0 0 0 3px rgba(227,178,60,.12),var(--shadow)}
 .cb-panel.cb-extra header h3{color:#8a6414}
 .cb-add-extra{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:6px 0 22px;padding:16px 18px;border:2px dashed #e3b23c;border-radius:14px;background:rgba(255,246,223,.55)}
+.cb-sheet td.cb-osd-toggle{cursor:pointer;user-select:none;border-inline-start:3px solid #e3b23c;padding-inline-start:12px!important;white-space:nowrap}
+.cb-sheet td.cb-osd-toggle:hover{background:#ffefc4}
+.cb-osd-arrow{display:inline-block;width:14px;color:#b8862a}
+.cb-sheet tr.cb-osd-child td{background:#fffcf3}
+.cb-sheet tr.cb-osd-child td.cb-osd{padding-inline-start:30px}

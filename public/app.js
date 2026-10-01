@@ -553,6 +553,7 @@ const T = {
   bt_polypack: { ar: "ليكويديشن", en: "Liquidation" },
   bt_foc: { ar: "جيف أواي", en: "Give Away" },
   bt_osd: { ar: "أوف شيلف ديسبلي", en: "Off-Shelf Display" },
+  osd_click: { ar: "اكبس لتشوف الطبالي والستاندات", en: "Click to see Pallets and Stands" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
   // Monthly budget plan.
@@ -2260,14 +2261,15 @@ function allocLayerPanel(L) {
   const n = svs.length + 2, P = `${L}_`;
   let ri = 0;
   const supRows = sups.map((sp) => {
+    const ok = `al${L}_${sp.id}`;
     const lines = types.map((bt) => { const r = ri++;
-      return `<tr><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(L, sp.id, bt, sv);
+      return `${bt === cbOsdFirst(types) ? alOsdRow(L, sp.id) : ""}<tr${cbOsdAttr(bt, ok, types)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(L, sp.id, bt, sv);
         return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
-        <td class="cb-tot" id="alRA_${P}${sp.id}_${bt}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>${bt === cbOsdLast(types) ? alOsdRow(L, sp.id) : ""}`; }).join("");
+        <td class="cb-tot" id="alRA_${P}${sp.id}_${bt}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`; }).join("");
     return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id)}</span></div></td></tr>${lines}
       <tr class="cb-sub"><td>${t("total")} — ${esc(sp.name)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alST_${P}${sp.id}_${i}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alSA_${P}${sp.id}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id))}</td></tr>`;
   }).join("");
-  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `<tr class="cb-co"><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td></tr>${bt === cbOsdLast(types) ? alOsdRow(L, null) : ""}`).join("")
+  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `${bt === cbOsdFirst(types) ? alOsdRow(L, null) : ""}<tr class="cb-co"${cbOsdAttr(bt, `al${L}_all`, types)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td></tr>`).join("")
     + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA_${L}">${KD(alSum(L, () => true))}</td></tr>`;
   const totB = alBud(L, () => true), totA = alSum(L, () => true);
   const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("al_budget")}</div><div class="val mono">${KD(totB)}</div></div>
@@ -2283,9 +2285,19 @@ function allocLayerPanel(L) {
 // Off-Shelf Display = Pallets + Stands: a subtotal row right after them.
 const CB_OSD = ["pallets", "stands"];
 function cbOsdLast(types) { const o = types.filter((b) => CB_OSD.includes(b)); return o.length > 1 ? o[o.length - 1] : null; }
+function cbOsdFirst(types) { const o = types.filter((b) => CB_OSD.includes(b)); return o.length > 1 ? o[0] : null; }
+// Off-Shelf Display is one line; clicking it opens Pallets and Stands beneath.
+const cbOsdOpen = new Set();
+function cbOsdAttr(bt, key, types) { if (!cbOsdFirst(types) || !CB_OSD.includes(bt)) return ""; return ` class="cb-osd-child" data-osd-k="${key}"${cbOsdOpen.has(key) ? "" : ' style="display:none"'}`; }
+function cbOsdHead(key, label) { const open = cbOsdOpen.has(key); return `<td class="cb-osd-toggle" onclick="cbOsdToggle('${key}')" title="${esc(t("osd_click"))}"><span class="cb-osd-arrow" data-osd-a="${key}">${open ? "▾" : "▸"}</span> ${label}</td>`; }
+function cbOsdToggle(key) {
+  const open = !cbOsdOpen.has(key); if (open) cbOsdOpen.add(key); else cbOsdOpen.delete(key);
+  document.querySelectorAll(`tr[data-osd-k="${key}"]`).forEach((tr) => { tr.style.display = open ? "" : "none"; });
+  document.querySelectorAll(`[data-osd-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
+}
 function alOsdRow(L, sid) {
   const k = `${L}_${sid == null ? "all" : sid}`, f = (x) => (sid == null || x.supplierId === sid) && CB_OSD.includes(x.budgetType);
-  return `<tr class="cb-osd-sub"><td>${t("bt_osd")}</td>${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum(L, (x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(L, f))}</td></tr>`;
+  return `<tr class="cb-osd-sub">${cbOsdHead(`al${k}`, t("bt_osd"))}${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum(L, (x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(L, f))}</td></tr>`;
 }
 function alRefresh(L) {
   const d = alData, P = `${L}_`, html = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
@@ -2373,21 +2385,22 @@ function cbLinesTable(L) {
     if (ttc.length) { r1 += `<th colspan="${ttc.length + (ttc.length > 1 ? 1 : 0)}" class="cb-th-grp">TT</th>`; r2 = ttc.map((c) => `<th>${t("ch_" + c)}</th>`).join("") + (ttc.length > 1 ? `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", "TT")}</th>` : ""); }
     return `<thead><tr>${r1}<th rowspan="2">${t("total")}</th></tr><tr>${r2}</tr></thead>`; })();
   const order = lcols.filter((c) => !c.grp && !c.ch.startsWith("tt_")).concat(lcols.filter((c) => c.grp || c.ch.startsWith("tt_")));
-  const row = (label, cls, fLine, fBud, kind, allTot, lcls) => `<tr class="${cls}"><td class="${cls && !lcls ? "" : "cb-lbl"}${lcls || ""}">${label}</td>${order.map((col) => {
+  const row = (label, cls, fLine, fBud, kind, allTot, lcls, attr, head) => `<tr class="${cls}"${attr || ""}>${head || `<td class="${cls && !lcls ? "" : "cb-lbl"}${lcls || ""}">${label}</td>`}${order.map((col) => {
       const gcls = col.grp ? " cb-gtot" : "";
       if (kind === "left") { if (!isMg(col)) return `<td class="cb-tot${gcls}">${dash}</td>`; return `<td class="cb-tot${gcls}">${left(val(col, fLine, fBud, "bud") - val(col, fLine, fBud, "line"))}</td>`; }
       const v = val(col, fLine, fBud, kind); return `<td class="cb-tot${gcls}">${kind === "line" && !isMg(col) ? dash : cbFmt(v)}</td>`; }).join("")}<td class="cb-tot">${allTot}</td></tr>`;
   const brand = sups.map((sp) => {
     const fs = (x) => x.supplierId === sp.id;
-    const lines = types.map((bt) => row(budgetTypeLabel(bt), "", (x) => fs(x) && x.budgetType === bt, fs, "line", cbFmt(cbLn(L, (x) => fs(x) && x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "")
-      + (bt === cbOsdLast(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => fs(x) && CB_OSD.includes(x.budgetType), fs, "line", cbFmt(cbLn(L, (x) => fs(x) && CB_OSD.includes(x.budgetType)))) : "")).join("");
+    const ok = `cl${L}_${sp.id}`;
+    const lines = types.map((bt) => (bt === cbOsdFirst(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => fs(x) && CB_OSD.includes(x.budgetType), fs, "line", cbFmt(cbLn(L, (x) => fs(x) && CB_OSD.includes(x.budgetType))), "", "", cbOsdHead(ok, t("bt_osd"))) : "")
+      + row(budgetTypeLabel(bt), "", (x) => fs(x) && x.budgetType === bt, fs, "line", cbFmt(cbLn(L, (x) => fs(x) && x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "", cbOsdAttr(bt, ok, types).replace(' class="cb-osd-child"', ""))).join("");
     const dist = cbLn(L, fs), bud = cbTot(L, fs);
     return `<tr class="cb-grp"><td colspan="${n}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}`
       + row(t("cb_distributed"), "cb-sub", fs, fs, "line", cbFmt(dist)) + row(t("cb_budgetRow"), "cb-co", fs, fs, "bud", cbFmt(bud)) + row(t("cb_leftLbl"), "cb-co", fs, fs, "left", left(bud - dist));
   }).join("");
   const all = () => true;
-  const co = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_total")}</td></tr>` + types.map((bt) => row(budgetTypeLabel(bt), "cb-co", (x) => x.budgetType === bt, all, "line", cbFmt(cbLn(L, (x) => x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "")
-      + (bt === cbOsdLast(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => CB_OSD.includes(x.budgetType), all, "line", cbFmt(cbLn(L, (x) => CB_OSD.includes(x.budgetType)))) : "")).join("")
+  const co = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_total")}</td></tr>` + types.map((bt) => (bt === cbOsdFirst(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => CB_OSD.includes(x.budgetType), all, "line", cbFmt(cbLn(L, (x) => CB_OSD.includes(x.budgetType))), "", "", cbOsdHead(`cl${L}_all`, t("bt_osd"))) : "")
+      + row(budgetTypeLabel(bt), "cb-co", (x) => x.budgetType === bt, all, "line", cbFmt(cbLn(L, (x) => x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "", cbOsdAttr(bt, `cl${L}_all`, types).replace(' class="cb-osd-child"', ""))).join("")
     + row(t("cb_distributed"), "cb-grand", all, all, "line", KD(cbLn(L, all)));
   return sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet">${head}<tbody>${brand}${co}</tbody></table></div>` : "";
 }
@@ -2426,7 +2439,12 @@ const SHEETS = {
   },
 };
 function shOf(el) { const tb = el.closest("table"); return tb ? SHEETS[tb.dataset.kind] : null; }
-function cbCell(from, r, c) { const tb = from.closest("table"); return tb ? tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`) : null; }
+function cbCell(from, r, c, dir) {
+  const tb = from.closest("table"); if (!tb) return null;
+  // Rows folded away (e.g. Pallets / Stands under a closed Off-Shelf Display) are skipped.
+  for (let i = 0; i < 50; i++) { const el = tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`); if (!el) return null; if (el.offsetParent !== null || !dir) return el; r += dir; }
+  return null;
+}
 function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) { el._fresh = true; const v0 = el.value; setTimeout(() => { if (document.activeElement === el && el.value === v0) el.select(); }, 0); } }
 // The click that focused a cell must not collapse the selection: typing then
 // replaces the number, like Excel.
@@ -2439,8 +2457,8 @@ function cbKey(e) {
   const el = e.target; if (!el.classList || !el.classList.contains("cb-in")) return;
   const r = +el.dataset.r, c = +el.dataset.col, rtl = document.documentElement.dir === "rtl";
   let to = null;
-  if (e.key === "Enter" || e.key === "ArrowDown") to = cbCell(el, e.shiftKey && e.key === "Enter" ? r - 1 : r + 1, c);
-  else if (e.key === "ArrowUp") to = cbCell(el, r - 1, c);
+  if (e.key === "Enter" || e.key === "ArrowDown") { const up = e.shiftKey && e.key === "Enter"; to = cbCell(el, up ? r - 1 : r + 1, c, up ? -1 : 1); }
+  else if (e.key === "ArrowUp") to = cbCell(el, r - 1, c, -1);
   else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     const fwd = (e.key === "ArrowRight") !== rtl, atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length, atStart = el.selectionStart === 0 && el.selectionEnd === 0;
     if (el.selectionStart === 0 && el.selectionEnd === el.value.length) to = cbCell(el, r, fwd ? c + 1 : c - 1);
