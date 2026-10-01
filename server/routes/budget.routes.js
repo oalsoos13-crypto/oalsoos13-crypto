@@ -631,8 +631,8 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
         });
         rowOf(label, 'Distributed', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
       }
-      rowOf(label, managed ? 'Budget' : 'Budget (no manager yet)', B);
-      if (managed) rowOf(label, 'Left', (sid) => B(sid) - sum(CB_TYPES.map((bt) => L(sid, bt))));
+      rowOf(label, managed ? 'Total budget' : 'Total budget (no manager yet)', B);
+      if (managed) rowOf(label, 'Budget left', (sid) => B(sid) - sum(CB_TYPES.map((bt) => L(sid, bt))));
       a2.push([]);
     });
     for (const [aoa, name] of [[a1, `${lname} - brand totals`], [a2, `${lname} - split by line`]]) {
