@@ -2473,7 +2473,7 @@ function renderBudgetPlan() {
   }).join("");
   // The admin's page is for entering the budget: the summary and the supervisor
   // allocation (the sales manager's step) are shown to the sales manager only.
-  const spendPanel = isAdmin ? "" : `<div class="panel"><header><h3>${t("bp_spend")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_allocated")}</th><th>${t("bp_letterSpend")}</th><th>${t("bp_noteSpend")}</th><th>${t("bp_remaining")}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
+  const spendPanel = isAdmin || alData ? "" : `<div class="panel"><header><h3>${t("bp_spend")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_allocated")}</th><th>${t("bp_letterSpend")}</th><th>${t("bp_noteSpend")}</th><th>${t("bp_remaining")}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
   // Allocation (sales manager)
   let allocPanel = "";
   if (isSM && !alData) {
