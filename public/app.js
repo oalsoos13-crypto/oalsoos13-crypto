@@ -221,7 +221,9 @@ const T = {
   genFromBudget: { ar: "توليد الكتب من التوزيعة", en: "Generate from budget" },
   genConfirm: { ar: "سيتم توليد كتب إشعار خصم لكل جمعية/أوتليت إلها بتجيت موزّع هذا الشهر. متابعة؟", en: "This creates a debit-note letter for every co-op/outlet with a budget allocation this month. Continue?" },
   genDone: { ar: "تم توليد الكتب", en: "Letters generated" },
-  genNone: { ar: "ما في توزيعة بتجيت لهذا الشهر (أو الكتب متولّدة مسبقًا)", en: "No budget distribution for this month (or already generated)" },
+  genAllExist: { ar: "لا يوجد جديد لتوليده لشهر {m} — كل الكتب موجودة مسبقًا", en: "Nothing new to generate for {m} — every letter already exists" },
+  genSkipped: { ar: "تم تخطي {n}", en: "{n} skipped" },
+  genNone: { ar: "ما في توزيعة بتجيت لهذا الشهر", en: "No budget distribution for this month" },
   th_type: { ar: "النوع", en: "Type" },
   th_brand: { ar: "البراند", en: "Brand" },
   th_value: { ar: "القيمة", en: "Value" },
@@ -240,6 +242,10 @@ const T = {
   noLetters: {
     ar: "لا يوجد كتب بعد — ابدأ بإنشاء كتاب جديد.",
     en: "No letters yet — start by creating a new one.",
+  },
+  noLettersQueue: {
+    ar: "لا توجد كتب بانتظار اعتمادك.",
+    en: "Nothing is waiting for your approval.",
   },
   noNotes: {
     ar: "لا يوجد إشعارات بعد — تُنشأ من كتاب معتمد في صفحة المندوب.",
@@ -647,7 +653,7 @@ const T = {
   archiveCond: { ar: "تُؤرشف فقط الإشعارات التي أُدخل لها رقم إشعار بالجمعية ولها مرفقات. لكل إشعار ملف PDF (الكتاب + المرفقات + الملخّص) داخل مجلدات: المشرف ← D.N ← المندوب ← الجمعية.", en: "Only debit notes with a co-op DN number and attachments are archived. Each becomes a PDF (letter + attachments + summary) inside folders: supervisor → D.N → salesman → coop." },
   archiveNone: { ar: "لا توجد إشعارات جاهزة للأرشفة لهذا الشهر.", en: "No debit notes ready to archive for this month." },
   archiveBuilding: { ar: "جارٍ تجهيز الأرشيف…", en: "Building the archive…" },
-  archiveDoneMsg: { ar: "تمت الأرشفة — نزّل الملف ثم اختفت من النظام.", en: "Archived — file downloaded; hidden from the system." },
+  archiveDoneMsg: { ar: "تمت الأرشفة — نزل الملف ونُقلت الإشعارات المؤهلة إلى الأرشيف.", en: "Archived — the ZIP is downloaded and the eligible notes are moved to the archive." },
   archiveLibFail: { ar: "تعذّر تحميل أدوات الـ PDF (تحقق من الاتصال)", en: "Could not load the PDF tools (check the connection)" },
   archiveHistory: { ar: "أرشيف الأشهر السابقة", en: "Previous months' archive" },
   archiveConfirm: { ar: "سيتم توليد ملف ZIP وأرشفة الإشعارات (تختفي من النظام). متابعة؟", en: "A ZIP will be generated and the debit notes archived (removed from the active screens). Continue?" },
@@ -818,7 +824,7 @@ const T = {
   pwPending: { ar: "بانتظار تغيير كلمة المرور", en: "password change pending" },
   lastLogin: { ar: "آخر دخول", en: "Last login" },
   edit: { ar: "تعديل", en: "Edit" },
-  returnTo: { ar: "إرجاع إلى", en: "Return to" },
+  returnTo: { ar: "إرجاع إلى مرحلة…", en: "Return to stage…" },
   returnTitle: { ar: "إرجاع الكتاب لمرحلة", en: "Return letter to a stage" },
   returnReason: { ar: "السبب / الملاحظة (اختياري)", en: "Reason / note (optional)" },
   returnBtn: { ar: "إرجاع", en: "Return" },
@@ -1062,7 +1068,10 @@ function toast(m, ms) {
   const t = document.getElementById("toast");
   t.textContent = m;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), ms || 1900);
+  // Longer messages (e.g. a refused amount with its limit) stay up long enough to
+  // read; a new toast restarts the timer instead of being cut short by the old one.
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), ms || Math.min(6000, Math.max(1900, String(m || "").length * 55)));
 }
 function refNo(n) {
   return "LYSAL/" + n + "/" + YEAR;
@@ -1986,7 +1995,7 @@ function vLettersHistory() {
   lhSel.forEach((id) => { if (!ids.has(id)) lhSel.delete(id); });
   const isSpecOrPrice = (L) => L.type === "changeprice" || !!specOf(L.type);
   const isAdmin = currentUser && currentUser.role === "admin";
-  const rows = list.map((L) => `<tr><td><input type="checkbox" class="lhchk" ${lhSel.has(L.id) ? "checked" : ""} onclick="lhToggle('${L.id}',this.checked)"></td><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${escN(L.approvedByName || L.rejectedByName || "")}</td><td>${escN(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
+  const rows = list.map((L) => `<tr><td><input type="checkbox" class="lhchk" ${lhSel.has(L.id) ? "checked" : ""} onclick="lhToggle('${L.id}',this.checked)"></td><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) && !((+L.value || 0) > 0) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${letterApprovalTag(L)}</td><td>${escN(L.approvedByName || L.rejectedByName || "")}</td><td>${escN(L.createdByName || "")}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${letterQuickBtns(L)}</div></td></tr>`).join("");
   const bulkBar = `<div class="actions" style="margin-bottom:10px;align-items:center">
     <span class="pill-info" id="lhSelCount">0 ${t("selCount")}</span>
     <button class="btn primary sm" onclick="lhBulkPdf()">⬇ ${t("dlSelected")}</button>
@@ -2166,11 +2175,14 @@ function vMonitor() {
 }
 /* ---------- monthly budget plan ---------- */
 let bpMonth = null, bpData = null;
-async function vBudgetPlan() {
+async function vBudgetPlan(refresh) {
   const month = bpMonth || new Date().toISOString().slice(0, 7);
   try { bpData = await api("/budget-plan?month=" + month); bpMonth = bpData.month; }
   catch (e) { document.getElementById("rv").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   renderBudgetPlan();
+  // Refreshing the same screen after a save: skip the entrance fade so the page
+  // does not flash.
+  if (refresh === true) document.querySelectorAll("#rv .panel").forEach((p) => { p.style.animation = "none"; });
 }
 function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
 function bpSpend(bt) { return (bpData.spend.byType && bpData.spend.byType[bt]) || { letter: 0, note: 0 }; }
@@ -2217,7 +2229,7 @@ function renderBudgetPlan() {
     const sp = bpSpend(bt), alloc = bpAllocSum(bt);
     const rem = cap != null ? cap - sp.note : null;
     const over = cap != null && sp.note > cap;
-    return `<tr><td>${budgetTypeLabel(bt)}</td><td class="mono">${cap != null ? KD(cap) : "—"}</td><td class="mono">${bt === "offinv" ? "—" : KD(alloc)}</td><td class="mono">${KD(sp.letter)}</td><td class="mono">${KD(sp.note)}</td><td class="mono ${over ? "" : ""}" style="${over ? "color:var(--danger);font-weight:700" : ""}">${rem != null ? KD(rem) : "—"}${over ? " ⚠" : ""}</td></tr>`;
+    return `<tr><td>${budgetTypeLabel(bt)}</td><td class="mono">${cap != null ? KD(cap) : "—"}</td><td class="mono" id="bpSumAlloc_${bt}">${bt === "offinv" ? "—" : KD(alloc)}</td><td class="mono">${KD(sp.letter)}</td><td class="mono">${KD(sp.note)}</td><td class="mono ${over ? "" : ""}" style="${over ? "color:var(--danger);font-weight:700" : ""}">${rem != null ? KD(rem) : "—"}${over ? " ⚠" : ""}</td></tr>`;
   }).join("");
   const spendPanel = `<div class="panel"><header><h3>${t("bp_spend")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_allocated")}</th><th>${t("bp_letterSpend")}</th><th>${t("bp_noteSpend")}</th><th>${t("bp_remaining")}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
   // Allocation (sales manager)
@@ -2237,17 +2249,17 @@ function renderBudgetPlan() {
 async function bpSaveCap(bt) {
   const amount = document.getElementById("cap_" + bt).value;
   const note = document.getElementById("capn_" + bt).value;
-  try { await api("/budget-caps", { method: "POST", body: { month: bpMonth, budgetType: bt, amount, note } }); toast(t("saved")); vBudgetPlan(); }
+  try { await api("/budget-caps", { method: "POST", body: { month: bpMonth, budgetType: bt, amount, note } }); toast(t("saved")); vBudgetPlan(true); }
   catch (e) { toast(e.message); }
 }
 // Admin: the manually entered spend for المجاني / الكوديشن.
 async function bpSaveSpent(bt, amount) {
-  try { await api("/budget-spent", { method: "POST", body: { month: bpMonth, budgetType: bt, amount } }); toast(t("saved")); vBudgetPlan(); }
+  try { await api("/budget-spent", { method: "POST", body: { month: bpMonth, budgetType: bt, amount } }); toast(t("saved")); vBudgetPlan(true); }
   catch (e) { toast(e.message); }
 }
 async function bpCloseMonth(close) {
   if (!confirm((close ? t("bp_close") : t("bp_reopen")) + t("qMark"))) return;
-  try { await api("/budget-month/close", { method: "POST", body: { month: bpMonth, closed: close } }); toast(t("saved")); vBudgetPlan(); }
+  try { await api("/budget-month/close", { method: "POST", body: { month: bpMonth, closed: close } }); toast(t("saved")); vBudgetPlan(true); }
   catch (e) { toast(e.message); }
 }
 async function bpSaveAlloc(bt, sup, amount, el) {
@@ -2261,6 +2273,7 @@ async function bpSaveAlloc(bt, sup, amount, el) {
     const cap = bpData.caps[bt] && bpData.caps[bt].amount != null ? +bpData.caps[bt].amount : null;
     const sumEl = document.getElementById("bpAllocSum_" + bt);
     if (sumEl) { sumEl.textContent = KD(sum) + (cap != null ? " / " + KD(cap) : ""); sumEl.style.color = (cap != null && sum > cap) ? "var(--danger)" : ""; }
+    const sumCell = document.getElementById("bpSumAlloc_" + bt); if (sumCell) sumCell.textContent = KD(sum);
     toast(t("saved"));
   } catch (e) {
     if (el) el.value = bpAllocOf(bt, sup); // refused (over cap): revert
@@ -2553,7 +2566,9 @@ async function vStructure() {
   renderStructure();
 }
 function stName(list, pf) { const x = (list || []).find((u) => u.pf === pf); return x ? x.name : pf; }
-function stCoopLabel(code) { const c = (STR.coops || []).find((x) => x.code === code); return c ? `${c.code} — ${c.name}${c.nameAr ? " · " + c.nameAr : ""}` : code; }
+function stCoopLabel(code) { const c = (STR.coops || []).find((x) => x.code === code); return c ? `${c.code} — ${LANG === "en" ? c.name : (c.nameAr || c.name)}` : code; }
+// "4 salesmen", "1 outlet" … in English; the Arabic label as before.
+function stCount(n, key) { if (LANG !== "en") return `${n} ${t(key)}`; const one = { salesman: "salesman", coopsN: "co-op", st_outlets: "outlet" }[key]; const many = { salesman: "salesmen", coopsN: "co-ops", st_outlets: "outlets" }[key]; return `${n} ${n === 1 ? one : many}`; }
 function stSelSup(cur, onch) { return `<select onchange="${onch}"><option value="">${t("st_none")}</option>${STR.supervisors.map((s) => `<option value="${s.pf}" ${s.pf === cur ? "selected" : ""}>${s.pf} — ${esc(s.name)}</option>`).join("")}</select>`; }
 function stSelSales(cur, onch) { return `<select onchange="${onch}"><option value="">${t("st_none")}</option>${STR.salesmen.map((s) => `<option value="${s.pf}" ${s.pf === cur ? "selected" : ""}>${s.pf} — ${esc(s.name)}</option>`).join("")}</select>`; }
 function stSelCoop(cur, onch) { return `<select onchange="${onch}">${STR.coops.map((c) => `<option value="${c.code}" ${c.code === cur ? "selected" : ""}>${c.code} — ${esc(c.name)}</option>`).join("")}</select>`; }
@@ -2571,17 +2586,17 @@ function renderStructure() {
   const coopBlocks = (outs, smPf) => {
     const byCoop = {}; outs.forEach((o) => { (byCoop[o.coopCode || o.parent] = byCoop[o.coopCode || o.parent] || []).push(o); });
     return Object.keys(byCoop).sort().map((code) => { const k = "c:" + smPf + ":" + code; const rows = byCoop[code];
-      return `<details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary style="padding-inline-start:18px">🏬 <b>${esc(stCoopLabel(code))}</b> <span class="hint">(${rows.length} ${t("st_outlets")})</span>
+      return `<details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary style="padding-inline-start:18px">🏬 <b>${esc(stCoopLabel(code))}</b> <span class="hint">(${stCount(rows.length, "st_outlets")})</span>
         <span style="margin-inline-start:12px" onclick="event.preventDefault()">${t("st_moveCoop")}: ${stSelSales(smPf, `stMoveCoop('${code}',this.value)`)}</span></summary>
         <div class="tbl-wrap"><table><thead><tr><th>${t("st_custId")}</th><th>${t("st_outletName")}</th><th>${t("st_coop")}</th><th>${t("st_salesman")}</th><th></th></tr></thead><tbody>${rows.map(outletRow).join("")}</tbody></table></div></details>`; }).join("");
   };
   const salesBlock = (s) => { const k = "s:" + s.pf; const outs = bySales[s.pf] || []; const coopsN = new Set(outs.map((o) => o.coopCode)).size;
-    return `<details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary style="padding-inline-start:8px">🧑‍💼 <b>${s.pf} — ${esc(s.name)}</b> <span class="hint">(${coopsN} ${t("coopsN")} · ${outs.length} ${t("st_outlets")})</span>
+    return `<details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary style="padding-inline-start:8px">🧑‍💼 <b>${s.pf} — ${esc(s.name)}</b> <span class="hint">(${stCount(coopsN, "coopsN")} · ${stCount(outs.length, "st_outlets")})</span>
       <span style="margin-inline-start:12px" onclick="event.preventDefault()">${t("st_supervisor")}: ${stSelSup(s.fsmPf, `stAssign('${s.pf}',this.value)`)}</span></summary>${coopBlocks(outs, s.pf)}</details>`; };
   const supBlocks = STR.supervisors.map((sup) => { const k = "u:" + sup.pf; const sms = salesBySup[sup.pf] || []; const outN = sms.reduce((a, s) => a + (bySales[s.pf] || []).length, 0);
-    return `<div class="mon-node"><details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary>👤 <b>${sup.pf} — ${esc(sup.name)}</b> <span class="hint">(${sms.length} ${t("salesman")} · ${outN} ${t("st_outlets")})</span></summary>${sms.map(salesBlock).join("") || `<div class="empty">${t("noAssign")}</div>`}</details></div>`; }).join("");
+    return `<div class="mon-node"><details ${STR_OPEN.has(k) || q ? "open" : ""} ontoggle="stToggle('${k}',this)"><summary>👤 <b>${sup.pf} — ${esc(sup.name)}</b> <span class="hint">(${stCount(sms.length, "salesman")} · ${stCount(outN, "st_outlets")})</span></summary>${sms.map(salesBlock).join("") || `<div class="empty">${t("noAssign")}</div>`}</details></div>`; }).join("");
   const unSales = salesBySup[""] || [], unOut = bySales[""] || [];
-  const unassigned = (unSales.length || unOut.length) ? `<div class="mon-node"><details open><summary>⚠️ <b>${t("st_unassigned")}</b> <span class="hint">(${unSales.length} ${t("salesman")} · ${unOut.length} ${t("st_outlets")})</span></summary>${unSales.map(salesBlock).join("")}${unOut.length ? `<div class="tbl-wrap"><table><tbody>${unOut.map(outletRow).join("")}</tbody></table></div>` : ""}</details></div>` : "";
+  const unassigned = (unSales.length || unOut.length) ? `<div class="mon-node"><details open><summary>⚠️ <b>${t("st_unassigned")}</b> <span class="hint">(${stCount(unSales.length, "salesman")} · ${stCount(unOut.length, "st_outlets")})</span></summary>${unSales.map(salesBlock).join("")}${unOut.length ? `<div class="tbl-wrap"><table><tbody>${unOut.map(outletRow).join("")}</tbody></table></div>` : ""}</details></div>` : "";
   document.getElementById("rv").innerHTML = `<div class="panel"><header><h3>🧩 ${t("r_structure")}</h3><div class="actions">
       <input placeholder="${t("st_search")}" value="${esc(STR_Q)}" oninput="STR_Q=this.value;renderStructure()" style="min-width:200px">
       <button class="btn gold sm" onclick="stOpenCoop()">${t("st_addCoop")}</button><button class="btn primary sm" onclick="stOpenOutlet()">${t("st_addOutlet")}</button>
@@ -2631,7 +2646,7 @@ function vPrintQueue() {
   const ready = DB.letters.filter((l) => l.apprStage === "print");
   const pendingPrint = ready.filter((l) => !l.printedAt);
   const rowsHtml = (list) => list.length
-    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><div class="actions lrow-acts"><button class="btn gold sm" onclick="quickPrint('${L.id}')">🖨 ${t("printLetter")}</button><button class="btn primary sm" title="PDF" onclick="quickPdf('${L.id}')">⬇ PDF</button><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></div></td></tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) && !((+L.value || 0) > 0) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><div class="actions lrow-acts"><button class="btn gold sm" onclick="quickPrint('${L.id}')">🖨 ${t("printLetter")}</button><button class="btn primary sm" title="PDF" onclick="quickPdf('${L.id}')">⬇ PDF</button><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></div></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noLetters")}</div>`;
   const printed = ready.filter((l) => l.printedAt);
   document.getElementById("rv").innerHTML =
@@ -2852,7 +2867,7 @@ function stageLettersPanel(stage) {
         const btCell = showBudget ? `<td>${(+L.value || 0) > 0 ? budgetTypeSelect(L) : "—"}</td>` : "";
         return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}${sig}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) && !((+L.value || 0) > 0) ? "—" : KD(L.value)}</td>${btCell}<td>${esc(L.date || "")}</td><td><div class="actions"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button><button class="btn gold sm" onclick="approveLetter('${L.id}','${stage}')">${t("approve")}</button><button class="btn danger sm" onclick="rejectLetter('${L.id}')">${t("reject")}</button></div></td></tr>`;
       }).join("")}</tbody></table>`
-    : `<div class="empty">${t("noLetters")}</div>`;
+    : `<div class="empty">${t("noLettersQueue")}</div>`;
   return `<div class="panel"><header><h3>${t("lettersToApprove")} (${pend.length})</h3></header><div class="tbl-wrap">${body}</div></div>`;
 }
 function letterApprovalTag(L) {
@@ -2996,9 +3011,9 @@ async function generateFromBudget() {
   if (!confirm(t("genConfirm"))) return;
   try {
     const r = await api("/letters/generate-from-budget", { method: "POST", body: {} });
-    if (!r.created) { toast(t("genNone") + (r.month ? " — " + r.month : "")); return; }
+    if (!r.created) { toast(r.skipped ? t("genAllExist").replace("{m}", r.month || "") : t("genNone") + (r.month ? " — " + r.month : "")); return; }
     await loadState(); render();
-    toast(t("genDone") + " (" + r.created + " — " + (r.month || "") + ")");
+    toast(t("genDone") + " (" + r.created + " — " + (r.month || "") + ")" + (r.skipped ? " · " + t("genSkipped").replace("{n}", r.skipped) : ""));
   } catch (e) { toast(e.message); }
 }
 function tblSalesLetters(list) {
@@ -3022,7 +3037,7 @@ function tblSalesLetters(list) {
         if (active) dnBtn = `<button class="btn primary sm" onclick="openDocById('${active.id}')">${t("viewDN")}</button>`;
         else if (printed) dnBtn = `<button class="btn gold sm" onclick="openDNForm('${L.id}')">${t("enterDN")}</button>`;
       }
-      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${esc(L.brand || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
+      return `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${esc(L.brand || (active && active.brand) || "")}</td><td class="mono">${isPrice && !monetary ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td>${statusCell}</td><td><div class="actions lrow-acts"><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button>${dnBtn}${letterQuickBtns(L)}</div></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -4114,6 +4129,12 @@ async function printCur() {
   } else window.print();
 }
 function openDoc(rec, isLetter) {
+  // A debit note is shown as its letter: take the letter's e-signature and
+  // signatory so the stamped signature matches the printed letter.
+  if (!isLetter && rec && rec.letterId && !(rec.meta && rec.meta.signatures)) {
+    const parent = DB.letters.find((l) => l.id === rec.letterId);
+    if (parent && parent.meta) rec = Object.assign({}, rec, { meta: Object.assign({}, parent.meta, rec.meta || {}) });
+  }
   curDoc = { rec, isLetter };
   const isImgAtt = (a) => (a.url || "").startsWith("data:image") || (a.image && a.url) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(a.name || "");
   const att =
@@ -4149,7 +4170,7 @@ function openDoc(rec, isLetter) {
     : "";
   const delCtrl = "";
   modal(
-    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc(rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}${delCtrl}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
+    `<div class="doc-tools"><b style="color:var(--ink)">${isLetter ? t("previewLetter") : t("debitNote") + " " + esc([rec.coopDN, rec.lysal].filter(Boolean).join(" · ") || rec.id)}</b><div class="actions">${lhBtn}${adminCtrls}${printBtn}${delCtrl}<button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div></div><div id="docPrintArea">${docHTML(rec, isLetter)}</div>${att}${trail}`,
   );
 }
 // Download/print the open letter as a PDF via the browser's NATIVE print — this
