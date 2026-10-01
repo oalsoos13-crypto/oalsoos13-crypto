@@ -636,7 +636,7 @@ body.app-in.nav-collapsed #navArrow{inset-inline-start:2px}
 .cb-wrap{max-height:72vh}
 .cb-sheet{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
 .cb-sheet thead th{position:sticky;top:0;z-index:3;text-align:right;direction:ltr;padding-right:16px;box-shadow:0 1px 0 var(--line2)}
-.cb-sheet thead th:first-child,.cb-sheet td:first-child{text-align:start;direction:inherit;min-width:170px}
+.cb-sheet thead tr:first-child th:first-child,.cb-sheet td:first-child{text-align:start;direction:inherit;min-width:170px}
 .cb-sheet td{padding:3px 6px;border-bottom:1px solid #edf2f8}
 .cb-sheet .cb-lbl{padding-inline-start:22px;color:var(--text)}
 .cb-in{width:100%;min-width:96px;text-align:right;direction:ltr;border:1px solid #e1e9f3;background:#fff;border-radius:7px;padding:7px 9px;font-variant-numeric:tabular-nums;transition:background .25s,border-color .15s,box-shadow .15s}
@@ -686,17 +686,49 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-sheet tr.cb-osd-child td{background:#fffcf3}
 .cb-sheet tr.cb-osd-child td.cb-osd{padding-inline-start:30px}
 /* Co-op manager: Main / Branch sub-blocks under each brand */
-.cb-sheet tr.al-ch td{background:#e7eff9;color:var(--ink2);font-weight:800;padding:7px 12px;border-top:2px solid #c9d8ec}
+.cb-sheet tr.al-ch td{background:#e7eff9!important;color:var(--ink2);font-weight:800;padding:7px 12px;border-top:2px solid #c9d8ec}
 .cb-sheet tr.al-ch .cb-grp-info{color:var(--ink2)}
 .cb-sheet tr.al-chsub td{background:#f3f7fc;font-weight:700;border-bottom:1px solid var(--line2)}
 .cb-sheet tr.al-brandtot td{background:#dfe9f6;border-bottom:3px solid #9fb8d8}
 .al-of{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
 /* Admin: split by line, one table per channel group */
-.cb-ln-sec{margin-bottom:18px}
-.cb-ln-h{display:inline-block;background:linear-gradient(90deg,#123f70,#1c4e8a);color:#fff;font-weight:800;padding:6px 16px;border-radius:10px 10px 0 0;font-size:14px}
-.cb-ln-h.cb-ln-all{background:linear-gradient(90deg,#8a6414,#b8862a)}
-.cb-ln .cb-in{min-width:64px}
-.cb-sheet.cb-ln thead th{position:static}
-.cb-sheet.cb-ln th.cb-th-grp{background:#eaf1fa;border-inline-start:2px solid #c9d8ec}
-.cb-sheet.cb-ln th.cb-th-all,.cb-sheet.cb-ln td.cb-alltot{background:#fdf6e3}
-.cb-sheet.cb-ln tr.cb-grand td.cb-alltot{background:#0e2340}
+.cb-ln-sec{margin-bottom:22px}
+.cb-ln-sec:last-child{margin-bottom:0}
+.cb-ln-h{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;color:#123f70;padding:0 2px 8px}
+.cb-ln-h::before{content:"";width:4px;height:18px;border-radius:3px;background:#1c4e8a}
+.cb-ln-h.cb-ln-all{color:#8a6414}.cb-ln-h.cb-ln-all::before{background:#b8862a}
+.cb-ln-note{font-size:12px;font-weight:600;color:var(--muted);background:#eef2f7;border-radius:999px;padding:2px 10px}
+.cb-sheet.cb-ln{table-layout:fixed;width:100%;font-size:13px}
+.cb-sheet.cb-ln col.c-lbl{width:190px}
+.cb-sheet.cb-ln thead th{position:static;padding:7px 8px;font-size:12px;line-height:1.25;white-space:normal;text-align:right;vertical-align:bottom}
+.cb-sheet.cb-ln thead th.cb-th-lbl{vertical-align:middle;text-align:start!important}
+.cb-sheet.cb-ln th.cb-th-grp{text-align:center!important;vertical-align:middle;background:#dfe9f6;font-size:13px;color:#0e2340}
+.cb-sheet.cb-ln th.cb-th-sub{background:#d3e1f2}
+.cb-sheet.cb-ln th.cb-th-all{background:#f7ecd0;color:#6b4e0e}
+.cb-sheet.cb-ln th.cb-th-grp.cb-th-all{background:#f0dfb4}
+.cb-sheet.cb-ln td{padding:6px 8px}
+.cb-sheet.cb-ln td.cb-tot{padding-right:8px!important}
+.cb-sheet.cb-ln .cb-bs{border-inline-start:2px solid #c9d8ec}
+.cb-sheet.cb-ln td.cb-gtot{background:#eef4fb}
+.cb-sheet.cb-ln td.cb-alltot{background:#fdf6e3}
+.cb-sheet.cb-ln td.cb-gtot.cb-alltot{background:#f9ecc8}
+/* sticky label column so wide groups scroll under it */
+.cb-sheet.cb-ln td:first-child,.cb-sheet.cb-ln th.cb-th-lbl{position:sticky;inset-inline-start:0;z-index:2;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cb-sheet.cb-ln th.cb-th-lbl{background:#eef4fb}
+.cb-sheet.cb-ln tr.cb-sum td{background:#f6f9fd;font-weight:700}
+.cb-sheet.cb-ln tr.cb-sum td:first-child{color:var(--ink2)}
+.cb-sheet.cb-ln tr.cb-sum-first td{border-top:2px solid #c9d8ec}
+.cb-sheet.cb-ln tr.cb-sum-left td{background:#eef4fb;font-weight:800;color:#0e2340}
+.cb-sheet.cb-ln tr.cb-sum td.cb-gtot{background:#e6eef8}
+.cb-sheet.cb-ln tr.cb-sum td.cb-alltot{background:#f9efd4}
+.cb-sheet.cb-ln tr.cb-grand td.cb-alltot,.cb-sheet.cb-ln tr.cb-grand td{background:#0e2340}
+/* Admin entry sheet: fixed, even columns that fit the panel */
+.cb-sheet.cb-entry{table-layout:fixed;width:100%;min-width:980px}
+.cb-entry col.c-lbl{width:120px}
+.cb-entry thead th{padding:7px 6px;font-size:12px;line-height:1.25;text-align:right;vertical-align:bottom}
+.cb-entry thead th.cb-th-lbl{vertical-align:middle;text-align:start!important}
+.cb-entry thead th.cb-th-grp{vertical-align:middle;text-align:center!important;background:#dfe9f6;color:#0e2340;font-size:13px}
+.cb-entry .cb-in{min-width:0;width:100%;padding:7px 6px}
+.cb-entry td.cb-tot{font-size:13px;padding-right:8px!important}
+.cb-entry td.cb-brand{overflow:hidden;text-overflow:ellipsis}
+.cb-entry tr.cb-grand td{font-size:13px;padding-top:9px;padding-bottom:9px}
