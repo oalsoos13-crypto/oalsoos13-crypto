@@ -685,3 +685,18 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-osd-arrow{display:inline-block;width:14px;color:#b8862a}
 .cb-sheet tr.cb-osd-child td{background:#fffcf3}
 .cb-sheet tr.cb-osd-child td.cb-osd{padding-inline-start:30px}
+/* Co-op manager: Main / Branch sub-blocks under each brand */
+.cb-sheet tr.al-ch td{background:#e7eff9;color:var(--ink2);font-weight:800;padding:7px 12px;border-top:2px solid #c9d8ec}
+.cb-sheet tr.al-ch .cb-grp-info{color:var(--ink2)}
+.cb-sheet tr.al-chsub td{background:#f3f7fc;font-weight:700;border-bottom:1px solid var(--line2)}
+.cb-sheet tr.al-brandtot td{background:#dfe9f6;border-bottom:3px solid #9fb8d8}
+.al-of{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+/* Admin: split by line, one table per channel group */
+.cb-ln-sec{margin-bottom:18px}
+.cb-ln-h{display:inline-block;background:linear-gradient(90deg,#123f70,#1c4e8a);color:#fff;font-weight:800;padding:6px 16px;border-radius:10px 10px 0 0;font-size:14px}
+.cb-ln-h.cb-ln-all{background:linear-gradient(90deg,#8a6414,#b8862a)}
+.cb-ln .cb-in{min-width:64px}
+.cb-sheet.cb-ln thead th{position:static}
+.cb-sheet.cb-ln th.cb-th-grp{background:#eaf1fa;border-inline-start:2px solid #c9d8ec}
+.cb-sheet.cb-ln th.cb-th-all,.cb-sheet.cb-ln td.cb-alltot{background:#fdf6e3}
+.cb-sheet.cb-ln tr.cb-grand td.cb-alltot{background:#0e2340}

@@ -634,7 +634,8 @@ function migrate() {
       amount      REAL NOT NULL DEFAULT 0,
       updated_at  TEXT,
       layer       INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (month, layer, supplier_id, budget_type, supervisor)
+      channel     TEXT NOT NULL DEFAULT 'coop_main',
+      PRIMARY KEY (month, layer, supplier_id, channel, budget_type, supervisor)
     )`);
   const addLayer = (tbl, cols, pk) => {
     const have = db.prepare(`PRAGMA table_info(${tbl})`).all().map((c) => c.name);
@@ -647,6 +648,22 @@ function migrate() {
   db.transaction(() => {
     addLayer('brand_channel_budget', 'month TEXT NOT NULL, supplier_id INTEGER NOT NULL, channel TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, updated_at TEXT', 'month, layer, supplier_id, channel');
     addLayer('budget_alloc_sup', 'month TEXT NOT NULL, supplier_id INTEGER NOT NULL, budget_type TEXT NOT NULL, supervisor TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, updated_at TEXT', 'month, layer, supplier_id, budget_type, supervisor');
+    // The co-op manager now splits Main and Branch separately: the split gets a
+    // channel; an earlier unsplit allocation is kept under Main.
+    const ac = db.prepare('PRAGMA table_info(budget_alloc_sup)').all().map((c) => c.name);
+    if (ac.length && !ac.includes('channel')) {
+      db.exec('ALTER TABLE budget_alloc_sup RENAME TO budget_alloc_sup_old');
+      db.exec(`CREATE TABLE budget_alloc_sup (month TEXT NOT NULL, supplier_id INTEGER NOT NULL, budget_type TEXT NOT NULL, supervisor TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, updated_at TEXT, layer INTEGER NOT NULL DEFAULT 0, channel TEXT NOT NULL DEFAULT 'coop_main', PRIMARY KEY (month, layer, supplier_id, channel, budget_type, supervisor))`);
+      db.exec("INSERT INTO budget_alloc_sup (month, supplier_id, budget_type, supervisor, amount, updated_at, layer, channel) SELECT month, supplier_id, budget_type, supervisor, amount, updated_at, layer, 'coop_main' FROM budget_alloc_sup_old");
+      db.exec('DROP TABLE budget_alloc_sup_old');
+    }
+    // Any brand total still stored under the old single 'coop' channel joins Main.
+    const leftover = db.prepare("SELECT month, layer, supplier_id, amount FROM brand_channel_budget WHERE channel='coop'").all();
+    leftover.forEach((r) => {
+      db.prepare(`INSERT INTO brand_channel_budget (month, layer, supplier_id, channel, amount, updated_at) VALUES (?,?,?,'coop_main',?,?)
+        ON CONFLICT(month, layer, supplier_id, channel) DO UPDATE SET amount=amount+excluded.amount`).run(r.month, r.layer, r.supplier_id, r.amount, new Date().toISOString());
+    });
+    if (leftover.length) db.exec("DELETE FROM brand_channel_budget WHERE channel='coop'");
   })();
 
   if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
