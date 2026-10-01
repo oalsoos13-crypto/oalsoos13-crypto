@@ -619,9 +619,10 @@ const T = {
   cb_removeExtraQ: { ar: "حذف «{n}» مع توتالاته وتوزيع المدراء عليه؟", en: "Remove “{n}” with its totals and the managers' split of it?" },
   cb_withExtra: { ar: "الإجمالي مع الإضافي", en: "Total incl. extra" },
   cb_linesTitle: { ar: "التوزيع حسب البند — من شاشات المدراء", en: "Split by line — from the channel managers" },
-  cb_linesHint: { ar: "هاد الجدول بيتعبّى لحاله من توزيع مدير كل قسم (الجمعيات: سائد). «·» يعني القسم لسا ما إله مدير بالنظام.", en: "Filled automatically from each channel manager's split (Coop: the sales manager). «·» means the channel has no manager in the system yet." },
+  cb_linesHint: { ar: "مقسوم حسب القسم: لكل قسم البنود حسب البراند، بيتعبّى لحاله من توزيع مدير القسم (الجمعيات: سائد). الأقسام اللي ما إلها مدير بالنظام بيطلع إلها البتجيت بس.", en: "By channel: each channel's lines per brand, filled automatically from that channel manager's split (Coop: the sales manager). Channels without a manager yet show their budget only." },
   cb_noMgr: { ar: "القسم ما إله مدير بالنظام بعد", en: "No manager for this channel yet" },
   cb_distributed: { ar: "الموزّع", en: "Distributed" },
+  cb_allCh: { ar: "كل الأقسام", en: "All channels" },
   cb_budgetRow: { ar: "البتجيت", en: "Budget" },
   bp_cap: { ar: "السقف", en: "Cap" },
   bp_note: { ar: "ملاحظة", en: "Note" },
@@ -2367,42 +2368,35 @@ function companyLayerPanel(L) {
     <div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>📊 ${t("cb_linesTitle")}${L ? " — " + esc(lyName(L)) : ""}</h3></header><div class="body">${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
 }
 // 2) The split by line, read-only: filled from the channel managers' screens.
+// One section per channel (Coop = Main + Branch, which the co-op manager splits
+// together); brands across; then all channels together.
 function cbLinesTable(L) {
   const d = cbData, sups = d.suppliers, types = d.types, lch = d.lineChannels;
-  // The co-op manager splits Main + Branch together, so lines have one Coop column.
-  const lcols = []; lch.forEach((c) => { lcols.push({ ch: c }); }); const ttc = lch.filter((c) => c.startsWith("tt_")); if (ttc.length > 1) lcols.splice(lcols.findIndex((x) => x.ch === ttc[ttc.length - 1]) + 1, 0, { grp: { k: "tt" }, chs: ttc });
-  const n = lcols.length + 2, mg = (ch) => d.managed.includes(ch);
-  const budOf = (f, ch) => cbTot(L, (x) => f(x) && (ch === "coop" ? x.channel.startsWith("coop_") : x.channel === ch));
-  const val = (col, fLine, fBud, kind) => {
-    const chs = col.grp ? col.chs : [col.ch];
-    if (kind === "line") return chs.reduce((a, ch) => a + cbLn(L, (x) => fLine(x) && x.channel === ch), 0);
-    if (kind === "bud") return chs.reduce((a, ch) => a + budOf(fBud, ch), 0);
-  };
-  const dash = `<span class="cb-zero" title="${esc(t("cb_noMgr"))}">·</span>`;
-  const isMg = (col) => (col.grp ? col.chs : [col.ch]).some(mg);
+  const mg = (ch) => d.managed.includes(ch);
+  const inCh = (ch) => (x) => (ch === "coop" ? x.channel.startsWith("coop") : x.channel === ch);
+  const bud = (ch, f) => cbTot(L, (x) => (ch ? inCh(ch)(x) : true) && f(x));
+  const ln = (ch, f) => cbLn(L, (x) => (ch ? inCh(ch)(x) : mg(x.channel)) && f(x));
+  const n = sups.length + 2;
   const left = (v) => `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">–</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`;
-  const head = (() => { let r1 = `<th rowspan="2">${t("cb_line")}</th>`, r2 = ""; lcols.forEach((col) => { if (col.grp) return; if (col.ch.startsWith("tt_")) return; r1 += `<th rowspan="2">${t("ch_" + col.ch)}</th>`; });
-    if (ttc.length) { r1 += `<th colspan="${ttc.length + (ttc.length > 1 ? 1 : 0)}" class="cb-th-grp">TT</th>`; r2 = ttc.map((c) => `<th>${t("ch_" + c)}</th>`).join("") + (ttc.length > 1 ? `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", "TT")}</th>` : ""); }
-    return `<thead><tr>${r1}<th rowspan="2">${t("total")}</th></tr><tr>${r2}</tr></thead>`; })();
-  const order = lcols.filter((c) => !c.grp && !c.ch.startsWith("tt_")).concat(lcols.filter((c) => c.grp || c.ch.startsWith("tt_")));
-  const row = (label, cls, fLine, fBud, kind, allTot, lcls, attr, head) => `<tr class="${cls}"${attr || ""}>${head || `<td class="${cls && !lcls ? "" : "cb-lbl"}${lcls || ""}">${label}</td>`}${order.map((col) => {
-      const gcls = col.grp ? " cb-gtot" : "";
-      if (kind === "left") { if (!isMg(col)) return `<td class="cb-tot${gcls}">${dash}</td>`; return `<td class="cb-tot${gcls}">${left(val(col, fLine, fBud, "bud") - val(col, fLine, fBud, "line"))}</td>`; }
-      const v = val(col, fLine, fBud, kind); return `<td class="cb-tot${gcls}">${kind === "line" && !isMg(col) ? dash : cbFmt(v)}</td>`; }).join("")}<td class="cb-tot">${allTot}</td></tr>`;
-  const brand = sups.map((sp) => {
-    const fs = (x) => x.supplierId === sp.id;
-    const ok = `cl${L}_${sp.id}`;
-    const lines = types.map((bt) => (bt === cbOsdFirst(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => fs(x) && CB_OSD.includes(x.budgetType), fs, "line", cbFmt(cbLn(L, (x) => fs(x) && CB_OSD.includes(x.budgetType))), "", "", cbOsdHead(ok, t("bt_osd"))) : "")
-      + row(budgetTypeLabel(bt), "", (x) => fs(x) && x.budgetType === bt, fs, "line", cbFmt(cbLn(L, (x) => fs(x) && x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "", cbOsdAttr(bt, ok, types).replace(' class="cb-osd-child"', ""))).join("");
-    const dist = cbLn(L, fs), bud = cbTot(L, fs);
-    return `<tr class="cb-grp"><td colspan="${n}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</td></tr>${lines}`
-      + row(t("cb_distributed"), "cb-sub", fs, fs, "line", cbFmt(dist)) + row(t("cb_budgetRow"), "cb-co", fs, fs, "bud", cbFmt(bud)) + row(t("cb_leftLbl"), "cb-co", fs, fs, "left", left(bud - dist));
+  const bySup = (fn, fmt) => sups.map((sp) => `<td class="cb-tot">${fmt(fn((x) => x.supplierId === sp.id))}</td>`).join("") + `<td class="cb-tot">${fmt(fn(() => true))}</td>`;
+  const lineRows = (ch, cls, key) => types.map((bt) => {
+    const f = (g) => (x) => x.budgetType === bt && g(x);
+    const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub">${cbOsdHead(key, t("bt_osd"))}${bySup((g) => ln(ch, (x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
+    return osd + `<tr class="${cls}"${cbOsdAttr(bt, key, types).replace(' class="cb-osd-child"', "")}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${bySup((g) => ln(ch, f(g)), cbFmt)}</tr>`;
   }).join("");
-  const all = () => true;
-  const co = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_total")}</td></tr>` + types.map((bt) => (bt === cbOsdFirst(types) ? row(t("bt_osd"), "cb-osd-sub", (x) => CB_OSD.includes(x.budgetType), all, "line", cbFmt(cbLn(L, (x) => CB_OSD.includes(x.budgetType))), "", "", cbOsdHead(`cl${L}_all`, t("bt_osd"))) : "")
-      + row(budgetTypeLabel(bt), "cb-co", (x) => x.budgetType === bt, all, "line", cbFmt(cbLn(L, (x) => x.budgetType === bt)), CB_OSD.includes(bt) ? " cb-osd" : "", cbOsdAttr(bt, `cl${L}_all`, types).replace(' class="cb-osd-child"', ""))).join("")
-    + row(t("cb_distributed"), "cb-grand", all, all, "line", KD(cbLn(L, all)));
-  return sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet">${head}<tbody>${brand}${co}</tbody></table></div>` : "";
+  const tail = (ch) => `<tr class="cb-sub"><td>${t("cb_distributed")}</td>${bySup((g) => ln(ch, g), cbFmt)}</tr>`
+    + `<tr class="cb-co"><td>${t("cb_budgetRow")}</td>${bySup((g) => bud(ch, g), cbFmt)}</tr>`
+    + `<tr class="cb-co"><td>${t("cb_leftLbl")}</td>${bySup((g) => bud(ch, g) - ln(ch, g), left)}</tr>`;
+  const sections = lch.map((ch) => {
+    const head = `<tr class="cb-grp"><td colspan="${n}">${t("ch_" + ch)}${ch.startsWith("tt_") ? ` <span class="cb-code">TT</span>` : ""}</td></tr>`;
+    if (!mg(ch)) return head + `<tr class="cb-co"><td>${t("cb_budgetRow")} <span class="hint">· ${t("cb_noMgr")}</span></td>${bySup((g) => bud(ch, g), cbFmt)}</tr>`;
+    return head + lineRows(ch, "", `cl${L}_${ch}`) + tail(ch);
+  }).join("");
+  const all = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("cb_allCh")}</td></tr>` + lineRows(null, "cb-co", `cl${L}_all`)
+    + `<tr class="cb-sub"><td>${t("cb_distributed")}</td>${bySup((g) => ln(null, g), cbFmt)}</tr>`
+    + `<tr class="cb-grand"><td>${t("cb_budgetRow")}</td>${bySup((g) => bud(null, g), KD)}</tr>`;
+  const head = `<thead><tr><th>${t("cb_line")}</th>${sups.map((sp) => `<th>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</th>`).join("")}<th>${t("total")}</th></tr></thead>`;
+  return sups.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet">${head}<tbody>${sections}${all}</tbody></table></div>` : "";
 }
 async function cbAddExtra() {
   try { await api("/budget-company/layer", { method: "POST", body: { month: cbData.month } }); toast(t("saved")); await cbReload(); const ex = document.querySelectorAll(".cb-extra"); if (ex.length) ex[ex.length - 2 >= 0 ? ex.length - 2 : 0].scrollIntoView({ behavior: "smooth", block: "start" }); }

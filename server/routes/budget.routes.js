@@ -613,15 +613,22 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const a1 = [[`${lname} budget — brand totals — ${month}`], [], head];
     sups.forEach((sp) => a1.push([sp.name, sp.code, ...COLS.map((c) => g(sp.id, c)), sum(CHANNELS.map((c) => g(sp.id, c)))]));
     a1.push(['Company', '', ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), sum(sups.map((sp) => sum(CHANNELS.map((c) => g(sp.id, c)))))]);
-    const a2 = [[`${lname} budget — split by line (from the channel managers) — ${month}`], [], ['Brand', 'Code', 'Line', ...LINE_CHANNELS.map((c) => CH[c]), 'Total']];
-    sups.forEach((sp) => {
-      CB_TYPES.forEach((bt) => {
-        const v = LINE_CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]);
-        if (bt === 'stands') { const o = LINE_CHANNELS.map((c) => (ln[`${sp.id}|pallets|${c}`] || 0) + (ln[`${sp.id}|stands|${c}`] || 0)); a2.push([sp.name, sp.code, 'Off-Shelf Display', ...o, sum(o)]); }
-      });
-      const d = LINE_CHANNELS.map((c) => sum(CB_TYPES.map((bt) => ln[`${sp.id}|${bt}|${c}`] || 0))); a2.push([sp.name, sp.code, 'Distributed', ...d, sum(d)]);
-      const b = LINE_CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a2.push([sp.name, sp.code, 'Budget', ...b, sum(b)]);
-      a2.push([sp.name, sp.code, 'Left', ...b.map((x, i) => x - d[i]), sum(b) - sum(d)]); a2.push([]);
+    // Split by line, one section per channel; brands across.
+    const bh = ['Channel', 'Line', ...sups.map((sp) => sp.name + (sp.code ? ` (${sp.code})` : '')), 'Total'];
+    const a2 = [[`${lname} budget — split by line, by channel (from the channel managers) — ${month}`], [], bh];
+    const rowOf = (ch, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([CH[ch] || ch, label, ...v, sum(v)]); };
+    LINE_CHANNELS.forEach((ch) => {
+      const managed = !!CHANNEL_MANAGER[ch];
+      if (managed) {
+        CB_TYPES.forEach((bt) => {
+          if (bt === 'pallets') rowOf(ch, 'Off-Shelf Display', (sid) => (ln[`${sid}|pallets|${ch}`] || 0) + (ln[`${sid}|stands|${ch}`] || 0));
+          rowOf(ch, LBL[bt], (sid) => ln[`${sid}|${bt}|${ch}`] || 0);
+        });
+        rowOf(ch, 'Distributed', (sid) => sum(CB_TYPES.map((bt) => ln[`${sid}|${bt}|${ch}`] || 0)));
+      }
+      rowOf(ch, managed ? 'Budget' : 'Budget (no manager yet)', (sid) => tot[`${sid}|${ch}`] || 0);
+      if (managed) rowOf(ch, 'Left', (sid) => (tot[`${sid}|${ch}`] || 0) - sum(CB_TYPES.map((bt) => ln[`${sid}|${bt}|${ch}`] || 0)));
+      a2.push([]);
     });
     for (const [aoa, name] of [[a1, `${lname} - brand totals`], [a2, `${lname} - split by line`]]) {
       const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [16, 12, 14, 12, 12, 12, 12, 12, 16, 14, 14].map((w) => ({ wch: w }));
