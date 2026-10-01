@@ -211,6 +211,7 @@ const T = {
   choose: { ar: "— اختر —", en: "— select —" },
   coopsRef: { ar: "الجمعيات (مرجع)", en: "Co-ops (reference)" },
   coopsN: { ar: "جمعية", en: "co-ops" },
+  c_salesmen: { ar: "المناديب", en: "Salesmen" }, c_coops: { ar: "الجمعيات", en: "Co-ops" }, c_outlets: { ar: "الأوتلتات", en: "Outlets" },
   coop: { ar: "الجمعية", en: "Co-op" },
   mainOut: { ar: "أوتليت المين", en: "Main outlets" },
   branches: { ar: "الفروع", en: "Branches" },
@@ -1251,14 +1252,14 @@ function notifItems() {
 function openSettings() {
   const sec = SECTIONS.find((s) => s.k === "settings");
   const keys = (sec ? sec.screens : ["users", "backup", "audit"]);
-  const rows = keys.map((k) => `<div class="notif-row"><span>${esc(t("r_" + k))}</span><button class="btn ghost sm" onclick="closeModal();go('${k}')">${t("notifGo")} ←</button></div>`).join("");
+  const rows = keys.map((k) => `<div class="notif-row"><span>${esc(t("r_" + k))}</span><button class="btn ghost sm" onclick="closeModal();go('${k}')">${t("notifGo")} ${LANG === "en" ? "→" : "←"}</button></div>`).join("");
   modal(`<div class="doc-tools"><b style="color:var(--ink)">⚙️ ${t("settingsBtn")}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
     <div style="padding:16px 22px">${rows}</div>`);
 }
 function openNotifs() {
   const items = notifItems();
   const body = items.length
-    ? items.map((it) => `<div class="notif-row"><span>${esc(it.t)}</span><button class="btn ghost sm" onclick="closeModal();go('${it.go}')">${t("notifGo")} ←</button></div>`).join("")
+    ? items.map((it) => `<div class="notif-row"><span>${esc(it.t)}</span><button class="btn ghost sm" onclick="closeModal();go('${it.go}')">${t("notifGo")} ${LANG === "en" ? "→" : "←"}</button></div>`).join("")
     : `<div class="empty">${t("notifsNone")}</div>`;
   modal(`<div class="doc-tools"><b style="color:var(--ink)">🔔 ${t("notifTitle")} (${items.length})</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
     <div style="padding:16px 22px;max-height:70vh;overflow:auto">${body}</div>`);
@@ -1972,7 +1973,7 @@ async function vSupervisor() {
     return names.map((c, i) => `<tr>${i === 0 ? `<td rowspan="${names.length}"><b>${escN(sm)}</b></td>` : ""}<td>${esc(LANG === "en" ? c : (coopAr(c) || c))}</td><td class="mono">${(coops[c] || []).length}</td></tr>`).join("");
   }).join("");
   rv.innerHTML =
-    `<div class="cards">${card("accent", t("c_recv") + (plan ? " · " + esc(plan.month) : ""), KD(recv), 1)}${card("", t("salesman"), salesmen.length, 0)}${card("", t("coopsN"), coopSet.size, 0)}${card("", t("st_outlets"), outN, 0)}</div>
+    `<div class="cards">${card("accent", t("c_recv") + (plan ? " · " + esc(plan.month) : ""), KD(recv), 1)}${card("", t("c_salesmen"), salesmen.length, 0)}${card("", t("c_coops"), coopSet.size, 0)}${card("", t("c_outlets"), outN, 0)}</div>
   ${stageLettersPanel("supervisor")}
   <div class="panel"><header><h3>${t("myTeam")}</h3><span class="pill-info">${t("st_fromStructure")}</span></header><div class="tbl-wrap"><table><thead><tr><th>${t("salesman")}</th><th>${t("coop")}</th><th>${t("st_outlets")}</th></tr></thead><tbody>${rows || `<tr><td colspan="3"><div class="empty">${t("noAssign")}</div></td></tr>`}</tbody></table></div></div>`;
 }
@@ -3029,7 +3030,7 @@ let dnAttach = [];
 function openDNForm(id) {
   const L = DB.letters.find((x) => x.id === id);
   dnAttach = [];
-  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("enterDN")} — ${esc(L.coop)}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
+  modal(`<div class="doc-tools"><b style="color:var(--ink)">${t("enterDN")} — ${esc(coopDisp(L))}</b><button class="btn ghost sm" onclick="closeModal()">✕ ${t("close")}</button></div>
   <div style="padding:22px 24px;max-height:74vh;overflow:auto">
    <div class="grid g3">
      <div class="field"><label>${t("coopDN")}</label><input id="dnNo" placeholder="${t("egNo")}"></div>
@@ -3115,7 +3116,7 @@ function tblLetters(list) {
   return `<table><thead><tr><th>${t("th_type")}</th><th>${t("coop")}</th><th>${t("th_brand")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list
     .map((L) => {
       const done = L.status === "noted";
-      return `<tr><td>${esc(ltName(L.type))}</td><td>${esc(L.coop)}</td><td>${esc(L.brand || "")}</td><td class="mono">${KD(L.value)}</td><td>${esc(L.date || "")}</td><td><span class="tag ${done ? "done" : "draft"}">${done ? t("st_done") : t("st_pending")}</span></td><td><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button></td></tr>`;
+      return `<tr><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${esc(L.brand || "")}</td><td class="mono">${KD(L.value)}</td><td>${esc(L.date || "")}</td><td><span class="tag ${done ? "done" : "draft"}">${done ? t("st_done") : t("st_pending")}</span></td><td><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("printLetter")}</button></td></tr>`;
     })
     .join("")}</tbody></table>`;
 }
@@ -3703,7 +3704,7 @@ function openAuditModal() {
 }
 function tblNotes(list) {
   if (!list.length) return `<div class="empty">${t("noNotes")}</div>`;
-  return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("th_type")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(n.coop)}</td><td>${esc(ltName(n.type))}</td><td class="mono">${KD(n.value)}</td><td>${esc(n.date)}</td><td>${noteStatusTag(n)}</td><td><button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewPrint")}</button></td></tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr><th>${t("letterNo")}</th><th>${t("coopDN")}</th><th>${t("coop")}</th><th>${t("th_type")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_status")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.map((n) => `<tr><td class="mono">${esc(n.lysal || "")}</td><td class="mono">${esc(n.coopDN || "")}</td><td>${esc(coopNameDisp(n.coop))}</td><td>${esc(ltName(n.type))}</td><td class="mono">${KD(n.value)}</td><td>${esc(n.date)}</td><td>${noteStatusTag(n)}</td><td><button class="btn primary sm" onclick="openDocById('${n.id}')">${t("viewPrint")}</button></td></tr>`).join("")}</tbody></table>`;
 }
 /* ---------- printable (Arabic official, on company letterhead) ---------- */
 // Sales manager who signs the official letters (change here if it differs).
