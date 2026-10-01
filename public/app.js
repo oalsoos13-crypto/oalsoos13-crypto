@@ -2386,10 +2386,12 @@ function renderBudgetPlan() {
     const over = cap != null && sp.note > cap;
     return `<tr><td>${budgetTypeLabel(bt)}</td><td class="mono">${cap != null ? KD(cap) : "—"}</td><td class="mono" id="bpSumAlloc_${bt}">${bt === "offinv" ? "—" : KD(alloc)}</td><td class="mono">${KD(sp.letter)}</td><td class="mono">${KD(sp.note)}</td><td class="mono ${over ? "" : ""}" style="${over ? "color:var(--danger);font-weight:700" : ""}">${rem != null ? KD(rem) : "—"}${over ? " ⚠" : ""}</td></tr>`;
   }).join("");
-  const spendPanel = `<div class="panel"><header><h3>${t("bp_spend")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_allocated")}</th><th>${t("bp_letterSpend")}</th><th>${t("bp_noteSpend")}</th><th>${t("bp_remaining")}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
+  // The admin's page is for entering the budget: the summary and the supervisor
+  // allocation (the sales manager's step) are shown to the sales manager only.
+  const spendPanel = isAdmin ? "" : `<div class="panel"><header><h3>${t("bp_spend")}</h3></header><div class="tbl-wrap"><table><thead><tr><th>${t("budgetType")}</th><th>${t("bp_cap")}</th><th>${t("bp_allocated")}</th><th>${t("bp_letterSpend")}</th><th>${t("bp_noteSpend")}</th><th>${t("bp_remaining")}</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
   // Allocation (sales manager)
   let allocPanel = "";
-  if (isSM || isAdmin) {
+  if (isSM) {
     const sups = d.supervisors || [];
     const blocks = d.capped.map((bt) => {
       const cap = d.caps[bt] && d.caps[bt].amount != null ? +d.caps[bt].amount : null;
