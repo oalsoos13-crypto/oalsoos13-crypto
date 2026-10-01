@@ -2630,7 +2630,7 @@ function vPrintQueue() {
   const ready = DB.letters.filter((l) => l.apprStage === "print");
   const pendingPrint = ready.filter((l) => !l.printedAt);
   const rowsHtml = (list) => list.length
-    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><button class="btn primary sm" onclick="printLetter('${L.id}')">🖨 ${t("printLetter")}</button></td></tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>${t("letterNo")}</th><th>${t("th_type")}</th><th>${t("recipient")}</th><th>${t("salesman")}</th><th>${t("th_value")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th></tr></thead><tbody>${list.slice().reverse().map((L) => `<tr><td class="mono">${esc(L.lysal || "")}</td><td>${esc(ltName(L.type))}</td><td>${esc(coopDisp(L))}</td><td>${escN(L.sales || "")}</td><td class="mono">${isSpecOrPrice(L) ? "—" : KD(L.value)}</td><td>${esc(L.date || "")}</td><td><div class="actions lrow-acts"><button class="btn gold sm" onclick="quickPrint('${L.id}')">🖨 ${t("printLetter")}</button><button class="btn primary sm" title="PDF" onclick="quickPdf('${L.id}')">⬇ PDF</button><button class="btn ghost sm" onclick="printLetter('${L.id}')">${t("view")}</button></div></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">${t("noLetters")}</div>`;
   const printed = ready.filter((l) => l.printedAt);
   document.getElementById("rv").innerHTML =
@@ -4134,8 +4134,11 @@ function openDoc(rec, isLetter) {
   // For a LETTER the print/PDF/delete/letterhead actions live on the row, so the
   // viewer is kept clean (only workflow controls + close). Debit notes keep their
   // own print/PDF here.
-  const printBtn = isLetter ? "" : `<button class="btn gold sm" onclick="printCur()">${t("print")}</button>`
-    + `<button class="btn primary sm no-print" onclick="pdfCur()">⬇ PDF</button>`;
+  // A letter prints through the standalone window (records the print for the
+  // admin when the letter is ready); a debit note prints from this viewer.
+  const printBtn = isLetter
+    ? `<button class="btn gold sm no-print" onclick="quickPrint('${rec.id}')">🖨 ${t("print")}</button><button class="btn primary sm no-print" onclick="quickPdf('${rec.id}')">⬇ PDF</button>`
+    : `<button class="btn gold sm" onclick="printCur()">${t("print")}</button><button class="btn primary sm no-print" onclick="pdfCur()">⬇ PDF</button>`;
   // Admin controls on a letter still in the workflow (not printed, not rejected):
   // edit the text, reject, or return it to any earlier stage.
   const adminCtrls = (isLetter && currentUser.role === "admin" && !rec.printedAt && rec.approval !== "rejected")
