@@ -723,7 +723,7 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-sheet.cb-ln tr.cb-sum td.cb-alltot{background:#f9efd4}
 .cb-sheet.cb-ln tr.cb-grand td.cb-alltot,.cb-sheet.cb-ln tr.cb-grand td{background:#0e2340}
 /* Admin entry sheet: fixed, even columns that fit the panel */
-.cb-sheet.cb-entry{table-layout:fixed;width:100%;min-width:980px}
+.cb-sheet.cb-entry{table-layout:fixed;width:100%;min-width:1010px}
 .cb-entry col.c-lbl{width:120px}
 .cb-entry thead th{padding:7px 6px;font-size:12px;line-height:1.25;text-align:right;vertical-align:bottom}
 .cb-entry thead th.cb-th-lbl{vertical-align:middle;text-align:start!important}
@@ -732,3 +732,14 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-entry td.cb-tot{font-size:13px;padding-right:8px!important}
 .cb-entry td.cb-brand{overflow:hidden;text-overflow:ellipsis}
 .cb-entry tr.cb-grand td{font-size:13px;padding-top:9px;padding-bottom:9px}
+/* Supplier total (typed first) and what is left of it to split */
+.cb-entry col.c-sup{width:100px}
+.cb-sheet.cb-entry thead th.cb-th-supt{background:#f7ecd0;color:#6b4e0e;vertical-align:middle;text-align:center!important;border-inline-end:2px solid #e3b23c}
+.cb-entry td.cb-supt{background:#fffaf0!important;border-inline-end:2px solid #e3b23c}
+.cb-entry td.cb-supt .cb-in{border-color:#ecd28f;font-weight:800;color:#0e2340}
+.cb-entry td.cb-supt .cb-in:focus{border-color:#b8862a;box-shadow:0 0 0 3px rgba(227,178,60,.22)}
+.cb-sheet.cb-entry thead th.cb-th-split{vertical-align:middle;background:#d3e1f2;white-space:normal}
+.cb-entry td.cb-split{background:#f3f7fc!important}
+.cb-entry tr.cb-grand td.cb-split{background:#0e2340!important}
+.cb-k-sub{font-size:12px;color:var(--muted);margin-top:4px;min-height:16px}
+.cb-k-sub b{font-weight:700;color:var(--ink2)}

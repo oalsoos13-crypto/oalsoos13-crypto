@@ -614,6 +614,13 @@ function migrate() {
       layer       INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (month, layer, supplier_id, channel)
     )`);
+  // Admin: each supplier's total for the month (per layer), entered first and
+  // then split across the channels (brand_channel_budget) — never over it.
+  db.exec(`CREATE TABLE IF NOT EXISTS supplier_budget (
+      month TEXT NOT NULL, layer INTEGER NOT NULL DEFAULT 0, supplier_id INTEGER NOT NULL,
+      amount REAL NOT NULL DEFAULT 0, updated_at TEXT,
+      PRIMARY KEY (month, layer, supplier_id)
+    )`);
   // Budget layers per month: 0 = the main budget, 1..n = extra budgets the
   // admin adds; each layer mirrors the whole flow (brand totals → managers'
   // split). Older tables without a layer column are rebuilt with layer 0.

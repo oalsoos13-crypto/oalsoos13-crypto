@@ -593,6 +593,9 @@ const T = {
   cb_bad: { ar: "أدخل رقمًا موجبًا", en: "Enter a positive number" },
   cb_locked: { ar: "الشهر مسكّر — البتجيت للعرض فقط", en: "The month is closed — the budget is view-only" },
   cb_total: { ar: "إجمالي الشركة", en: "Company total" },
+  cb_supTotal: { ar: "توتال المورد", en: "Supplier total" },
+  cb_leftSplit: { ar: "المتبقي للتوزيع", en: "Left to split" },
+  cb_supHint: { ar: "اكتب توتال كل مورد أول، بعدين وزّعه على الأقسام — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total first, then split it across the channels — the channels together cannot go over the supplier total." },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
   cb_code: { ar: "كود المورد", en: "Supplier code" },
   cb_name: { ar: "اسم المورد", en: "Supplier name" },
@@ -2324,6 +2327,13 @@ function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbDa
 function cbAmt(L, sid, ch) { const r = cbData.totals.find((x) => (x.layer || 0) === L && x.supplierId === sid && x.channel === ch); return r ? +r.amount : null; }
 function cbTot(L, f) { return cbData.totals.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbLn(L, f) { return cbData.lines.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
+// Supplier total (typed first) and its effective value: the typed total, or the
+// channels' sum where none was typed yet.
+function cbSup(L, sid) { const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
+function cbEff(L, sid) { const v = cbSup(L, sid); return v == null ? cbTot(L, (x) => x.supplierId === sid) : v; }
+function cbEffAll(L) { return cbData.suppliers.reduce((a, sp) => a + cbEff(L, sp.id), 0); }
+function cbLeftSplit(L, sid) { const v = cbSup(L, sid); return v == null ? null : v - cbTot(L, (x) => x.supplierId === sid); }
+function cbLeftFmt(v) { return v == null ? `<span class="cb-zero">–</span>` : `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">0</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`; }
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
 // Channel groups: Coop (Main · Branch · Coop total), KA, Online, TT (Grocery · WS ·
 // Horeca+Schools · TT total). Group totals are calculated, never typed.
@@ -2334,12 +2344,12 @@ function cbCols(chs) {
   CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return; mine.forEach((c) => cols.push({ ch: c, g })); if (mine.length > 1) cols.push({ grp: g, chs: mine }); });
   return cols;
 }
-function cbHead(chs, first) {
-  let r1 = `<th rowspan="2" class="cb-th-lbl">${first}</th>`, r2 = "";
+function cbHead(chs, first, pre = "", post = `<th rowspan="2">${t("total")}</th>`) {
+  let r1 = `<th rowspan="2" class="cb-th-lbl">${first}</th>${pre}`, r2 = "";
   CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return;
     if (mine.length === 1) r1 += `<th rowspan="2">${t("ch_" + mine[0])}</th>`;
     else { r1 += `<th colspan="${mine.length + 1}" class="cb-th-grp">${t("ch_" + g.k)}</th>`; r2 += mine.map((c) => `<th>${t("ch_" + c)}</th>`).join("") + `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", t("ch_" + g.k))}</th>`; } });
-  return `<thead><tr>${r1}<th rowspan="2">${t("total")}</th></tr><tr>${r2}</tr></thead>`;
+  return `<thead><tr>${r1}${post}</tr><tr>${r2}</tr></thead>`;
 }
 function companyPanel() {
   if (!cbData) return "";
@@ -2355,19 +2365,19 @@ function companyLayerPanel(L) {
       ${ed && prevN ? `<button class="btn ghost sm" onclick="cbCopyPrev(${L})">⧉ ${t("cb_copy")} <bdi dir="ltr">${esc(d.prevMonth)}</bdi></button>` : ""}
       ${L ? (ed ? `<button class="btn danger sm" onclick="cbRemoveExtra(${L})">🗑 ${t("cb_removeExtra")}</button>` : "") : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button><button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>`}</div>`
     : (L ? "" : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`);
-  const grand = (d.layers || []).length > 1 && !L ? `<div class="card ok"><div class="lbl">${t("cb_withExtra")}</div><div class="val mono" id="cbK_withExtra">${KD(d.totals.reduce((a, r) => a + (+r.amount || 0), 0))}</div></div>` : "";
-  const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${L ? esc(lyName(L)) : t("cb_total")}</div><div class="val mono" id="cbK_all_${L}">${KD(cbTot(L, () => true))}</div></div>
-    ${sups.map((sp) => `<div class="card"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div><div class="val mono" id="cbK_${P}${sp.id}">${KD(cbTot(L, (r) => r.supplierId === sp.id))}</div></div>`).join("")}${grand}</div>`;
+  const grand = (d.layers || []).length > 1 && !L ? `<div class="card ok"><div class="lbl">${t("cb_withExtra")}</div><div class="val mono" id="cbK_withExtra">${KD(d.layers.reduce((a, y) => a + cbEffAll(y.layer), 0))}</div></div>` : "";
+  const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${L ? esc(lyName(L)) : t("cb_total")}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
+    ${sups.map((sp) => `<div class="card"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div><div class="val mono" id="cbK_${P}${sp.id}">${KD(cbEff(L, sp.id))}</div><div class="cb-k-sub" id="cbKs_${P}${sp.id}">${cbSup(L, sp.id) == null ? "" : `${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b>`}</div></div>`).join("")}${grand}</div>`;
   // 1) Brand totals per channel — the only thing the admin types.
   const entry = sups.length ? `<div class="tbl-wrap"><table class="cb-sheet cb-entry" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
-      <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"))}<tbody>
-      ${sups.map((sp, r) => { let c = 0; return `<tr><td class="cb-brand"><b>${esc(sp.name)}</b>${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cols.map((col) => {
+      <colgroup><col class="c-lbl"><col class="c-sup">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"), `<th rowspan="2" class="cb-th-supt">${t("cb_supTotal")}</th>`, `<th rowspan="2" class="cb-th-split">${t("cb_leftSplit")}</th>`)}<tbody>
+      ${sups.map((sp, r) => { let c = 1; const sv = cbSup(L, sp.id); return `<tr><td class="cb-brand"><b>${esc(sp.name)}</b>${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td><td class="cb-supt"><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="total" data-r="${r}" data-col="0" value="${sv == null ? "" : sv}" placeholder="0" ${ed ? "" : "disabled"}></td>${cols.map((col) => {
         if (col.grp) return `<td class="cb-tot cb-gtot" id="cbGr_${P}${sp.id}_${col.grp.k}">${cbFmt(cbTot(L, (x) => x.supplierId === sp.id && col.chs.includes(x.channel)))}</td>`;
         const v = cbAmt(L, sp.id, col.ch);
-        return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${col.ch}" data-r="${r}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot" id="cbBT_${P}${sp.id}">${cbFmt(cbTot(L, (x) => x.supplierId === sp.id))}</td></tr>`; }).join("")}
-      <tr class="cb-grand"><td>${L ? esc(lyName(L)) : t("cb_total")}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbGT_${L}">${KD(cbTot(L, () => true))}</td></tr></tbody></table></div>`
+        return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${col.ch}" data-r="${r}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot cb-split" id="cbLS_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`; }).join("")}
+      <tr class="cb-grand"><td>${L ? esc(lyName(L)) : t("cb_total")}</td><td class="cb-tot" id="cbST_${L}">${KD(cbEffAll(L))}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
-  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed && !L ? `<div class="hint" style="margin:10px 0">⌨ ${t("cb_keys")}</div>` : "");
+  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed && !L ? `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">${t("cb_supHint")}</div>` : "");
   const title = L ? `➕ ${esc(lyName(L))}` : t("cb_title");
   return `<div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${kpis}${note}${entry}</div></div>
     <div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>${t("cb_linesTitle")}${L ? " — " + esc(lyName(L)) : ""}</h3></header><div class="body">${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
@@ -2437,10 +2447,15 @@ async function cbRemoveExtra(L) {
 // kind's adapter knows how to read, save and re-total its cells.
 const SHEETS = {
   company: {
-    amt: (el) => cbAmt(+el.dataset.l || 0, +el.dataset.s, el.dataset.c),
+    amt: (el) => (el.dataset.c === "total" ? cbSup(+el.dataset.l || 0, +el.dataset.s) : cbAmt(+el.dataset.l || 0, +el.dataset.s, el.dataset.c)),
     cell: (el, v) => ({ layer: +el.dataset.l || 0, supplierId: +el.dataset.s, channel: el.dataset.c, amount: v }),
     post: (cells) => api("/budget-company", { method: "POST", body: { month: cbData.month, cells } }),
     apply: (cells) => cells.forEach((c) => {
+      if (c.channel === "total") {
+        cbData.supTotals = (cbData.supTotals || []).filter((r) => !((r.layer || 0) === c.layer && r.supplierId === c.supplierId));
+        if (c.amount !== "") cbData.supTotals.push({ layer: c.layer, supplierId: c.supplierId, amount: +c.amount });
+        return;
+      }
       cbData.totals = cbData.totals.filter((r) => !((r.layer || 0) === c.layer && r.supplierId === c.supplierId && r.channel === c.channel));
       if (c.amount !== "") cbData.totals.push({ layer: c.layer, supplierId: c.supplierId, channel: c.channel, amount: +c.amount });
     }),
@@ -2464,7 +2479,7 @@ function cbCell(from, r, c, dir) {
   for (let i = 0; i < 50; i++) { const el = tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`); if (!el) return null; if (el.offsetParent !== null || !dir) return el; r += dir; }
   return null;
 }
-function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) { el._fresh = true; const v0 = el.value; setTimeout(() => { if (document.activeElement === el && el.value === v0) el.select(); }, 0); } }
+function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) { el._fresh = true; el.select(); const v0 = el.value; setTimeout(() => { if (document.activeElement === el && el.value === v0) el.select(); }, 0); } }
 // The click that focused a cell must not collapse the selection: typing then
 // replaces the number, like Excel.
 function cbMouseUp(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in") && el._fresh) { e.preventDefault(); el._fresh = false; el.select(); } }
@@ -2521,15 +2536,14 @@ async function cbSaveCells(els, vals) {
     toast(errDisp(e.message));
   }
 }
-// Recompute a layer's totals in place (focus and scroll stay where they are).
+// Recompute a layer's totals in place (focus and scroll stay where they are):
+// render it off-screen and copy every totals cell; layer 0 also carries the
+// "with extra budgets" card.
 function cbRefresh(L) {
-  const d = cbData, P = `${L}_`, html = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-  d.suppliers.forEach((sp) => { const v = cbTot(L, (x) => x.supplierId === sp.id); html(`cbBT_${P}${sp.id}`, cbFmt(v)); html(`cbK_${P}${sp.id}`, KD(v)); });
-  d.channels.forEach((ch) => html(`cbCT_${P}${ch}`, KD(cbTot(L, (x) => x.channel === ch))));
-  CB_GROUPS.forEach((g) => { d.suppliers.forEach((sp) => html(`cbGr_${P}${sp.id}_${g.k}`, cbFmt(cbTot(L, (x) => x.supplierId === sp.id && g.chs.includes(x.channel))))); html(`cbGrT_${P}${g.k}`, KD(cbTot(L, (x) => g.chs.includes(x.channel)))); });
-  const all = cbTot(L, () => true); html(`cbGT_${L}`, KD(all)); html(`cbK_all_${L}`, KD(all));
-  html("cbK_withExtra", KD(d.totals.reduce((a, r) => a + (+r.amount || 0), 0)));
-  html(`cbLinesWrap_${L}`, cbLinesTable(L));
+  [L].concat(L ? [0] : []).forEach((y) => {
+    const tmp = document.createElement("div"); tmp.innerHTML = companyLayerPanel(y);
+    tmp.querySelectorAll("[id]").forEach((n) => { const el = document.getElementById(n.id); if (el && el.innerHTML !== n.innerHTML) el.innerHTML = n.innerHTML; });
+  });
 }
 async function cbCopyPrev(L) {
   if (!confirm(t("cb_copyQ").replace("{m}", cbData.prevMonth))) return;
