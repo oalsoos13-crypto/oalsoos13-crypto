@@ -610,7 +610,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     sups.forEach((sp) => { tot[`${sp.id}|coop`] = (tot[`${sp.id}|coop_main`] || 0) + (tot[`${sp.id}|coop_branch`] || 0); });
     const ln = {}; allLn.filter((r) => r.layer === layer).forEach((r) => { ln[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
     const g = (sid, c) => c === 'tt' ? sum(TT.map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
-    const head = ['Brand', 'Code', ...COLS.map((c) => c === 'coop' ? 'Coop total' : c === 'tt' ? 'TT total' : CH[c]), 'Total'];
+    const head = ['Supplier name', 'Code', ...COLS.map((c) => c === 'coop' ? 'Coop total' : c === 'tt' ? 'TT total' : CH[c]), 'Total'];
     const a1 = [[`${lname} budget — brand totals — ${month}`], [], head];
     sups.forEach((sp) => a1.push([sp.name, sp.code, ...COLS.map((c) => g(sp.id, c)), sum(CHANNELS.map((c) => g(sp.id, c)))]));
     a1.push(['Company', '', ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), sum(sups.map((sp) => sum(CHANNELS.map((c) => g(sp.id, c)))))]);
