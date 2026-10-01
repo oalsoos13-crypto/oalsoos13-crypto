@@ -506,6 +506,15 @@ router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, suppliers, rows, prevMonth: prev, prevCount });
 }));
 
+// GET /api/budget-company/coop?month= — the co-op channel only, per supplier
+// (what the sales manager runs; his caps are these totals).
+router.get('/budget-company/coop', requireRole('sales_manager', ...MGMT), asyncH((req, res) => {
+  const month = isMonth(req.query.month) ? req.query.month : curMonth();
+  const suppliers = db.prepare('SELECT id, code, name, sort FROM company_suppliers WHERE active=1 ORDER BY sort, id').all();
+  const rows = cbRows(month).filter((r) => r.channel === 'coop');
+  res.json({ month, types: CB_TYPES, suppliers, rows });
+}));
+
 // POST /api/budget-company (admin) — save cells. Body: { month, cells: [{ supplierId,
 // budgetType, channel, amount }] } (or a single cell's fields at the top level).
 // An empty amount clears the cell. All-or-nothing.

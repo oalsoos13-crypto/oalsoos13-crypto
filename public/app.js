@@ -575,6 +575,9 @@ const T = {
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
   cb_title: { ar: "بتجيت الشركة — كل القنوات", en: "Company budget — all channels" },
   cb_line: { ar: "بند البتجيت", en: "Budget line" },
+  cb_coopTitle: { ar: "بتجيت الجمعيات حسب المورد", en: "Co-op budget by supplier" },
+  cb_coopHint: { ar: "حصة قناة الجمعيات لكل مورد من بتجيت الشركة. المجموع هو سقف كل بند اللي بتوزّعه على المشرفين.", en: "Each supplier's co-op channel share of the company budget. The total is each line's cap that you split between supervisors." },
+  cb_coopCap: { ar: "المجموع (السقف)", en: "Total (cap)" },
   cb_coopNote: { ar: "عمود الجمعيات هو سقف بتجيت الجمعيات اللي بيوزعه مدير المبيعات على المشرفين — بيتحدث تلقائيًا.", en: "The Coop column is the co-op budget cap the sales manager splits between supervisors — it updates automatically." },
   cb_grand: { ar: "الإجمالي الكلي للشركة", en: "Company grand total" },
   cb_keys: { ar: "اكتب الرقم واضغط Enter للنزول · Tab للانتقال يمين/يسار · تقدر تلصق جدول كامل من Excel مباشرة · كل خانة بتنحفظ لحالها", en: "Type a number and press Enter to go down · Tab to move across · paste a whole block straight from Excel · every cell saves itself" },
@@ -2205,6 +2208,8 @@ async function vBudgetPlan(refresh) {
   catch (e) { document.getElementById("rv").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   cbData = null;
   if (cbCanSee()) { try { cbData = await api("/budget-company?month=" + bpMonth); } catch (e) { cbData = null; } }
+  cbCoop = null;
+  if (currentUser.role === "sales_manager") { try { cbCoop = await api("/budget-company/coop?month=" + bpMonth); } catch (e) { cbCoop = null; } }
   renderBudgetPlan();
   // Refreshing the same screen after a save: skip the entrance fade so the page
   // does not flash.
@@ -2212,7 +2217,16 @@ async function vBudgetPlan(refresh) {
 }
 function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
 /* ---- Company budget: one entry sheet, supplier × budget line × channel ---- */
-let cbData = null;
+let cbData = null, cbCoop = null;
+// Sales manager: the co-op channel of the company sheet, per supplier (read-only).
+function coopSupplierPanel() {
+  if (!cbCoop) return "";
+  const d = cbCoop, sups = d.suppliers, types = d.types;
+  const v = (sid, bt) => d.rows.filter((r) => (sid == null || r.supplierId === sid) && (bt == null || r.budgetType === bt)).reduce((a, r) => a + (+r.amount || 0), 0);
+  const body = types.map((bt) => `<tr><td>${budgetTypeLabel(bt)}</td>${sups.map((sp) => `<td class="cb-tot">${KD(v(sp.id, bt))}</td>`).join("")}<td class="cb-tot"><b>${KD(v(null, bt))}</b></td></tr>`).join("")
+    + `<tr class="cb-sub"><td><b>${t("total")}</b></td>${sups.map((sp) => `<td class="cb-tot"><b>${KD(v(sp.id, null))}</b></td>`).join("")}<td class="cb-tot"><b>${KD(v(null, null))}</b></td></tr>`;
+  return `<div class="panel"><header><h3>🏬 ${t("cb_coopTitle")}</h3></header><div class="body"><div class="hint" style="margin-bottom:10px">${t("cb_coopHint")}</div><div class="tbl-wrap"><table class="cb-sheet"><thead><tr><th>${t("cb_line")}</th>${sups.map((sp) => `<th>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</th>`).join("")}<th>${t("cb_coopCap")}</th></tr></thead><tbody>${body}</tbody></table></div></div></div>`;
+}
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
 function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbData.closed; }
@@ -2404,7 +2418,7 @@ function renderBudgetPlan() {
     }).join("");
     allocPanel = `<div class="panel"><header><h3>${t("bp_alloc")}</h3></header><div class="body">${blocks}</div></div>`;
   }
-  document.getElementById("rv").innerHTML = monthBar + companyPanel() + capsPanel + spendPanel + allocPanel;
+  document.getElementById("rv").innerHTML = monthBar + companyPanel() + coopSupplierPanel() + capsPanel + spendPanel + allocPanel;
 }
 async function bpSaveCap(bt) {
   const amount = document.getElementById("cap_" + bt).value;
