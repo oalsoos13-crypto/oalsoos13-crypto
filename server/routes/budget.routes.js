@@ -454,7 +454,9 @@ router.post('/budget-spent', requireRole(), asyncH((req, res) => {
 // channel's manager splits his brand totals by line and supervisor
 // (budget_alloc_sup — the co-op channel / sales manager today), and the
 // admin's line view is built from those splits.
-const CHANNELS = ['coop', 'ka', 'online', 'tt_grocery', 'tt_ws', 'tt_horeca'];
+const CHANNELS = ['coop_main', 'coop_branch', 'ka', 'online', 'tt_grocery', 'tt_ws', 'tt_horeca'];
+// The managers split a whole channel group (the co-op manager: Main + Branch together).
+const LINE_CHANNELS = ['coop', 'ka', 'online', 'tt_grocery', 'tt_ws', 'tt_horeca'];
 // Channel → the role that splits it (only the co-op channel has one so far).
 const CHANNEL_MANAGER = { coop: 'sales_manager' };
 // Budget lines in the order the business uses them.
@@ -492,7 +494,7 @@ router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const prev = prevMonth(month);
   res.json({
-    month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, managed: Object.keys(CHANNEL_MANAGER),
+    month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, lineChannels: LINE_CHANNELS, managed: Object.keys(CHANNEL_MANAGER),
     suppliers: activeSuppliers(), totals: brandTotals(month), lines: channelLines(month),
     prevMonth: prev, prevCount: db.prepare('SELECT COUNT(*) c FROM brand_channel_budget WHERE month=?').get(prev).c,
   });
@@ -546,20 +548,24 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const XLSX = require('xlsx');
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
-  const CH = { coop: 'Coop', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT HoReCa+Schools' };
+  const CH = { coop: 'Coop', coop_main: 'Coop Main', coop_branch: 'Coop Branch', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT HoReCa+Schools' };
   const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Condition', foc: 'Free (FOC)', pricediff: 'Price diff' };
   const tot = {}; brandTotals(month).forEach((r) => { tot[`${r.supplierId}|${r.channel}`] = +r.amount || 0; });
+  sups.forEach((sp) => { tot[`${sp.id}|coop`] = (tot[`${sp.id}|coop_main`] || 0) + (tot[`${sp.id}|coop_branch`] || 0); });
   const ln = {}; channelLines(month).forEach((r) => { ln[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
   const sum = (a) => a.reduce((x, y) => x + y, 0);
-  const head = ['Brand', 'Code', ...CHANNELS.map((c) => CH[c]), 'Total'];
+  const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];
+  const COLS = ['coop_main', 'coop_branch', 'coop', 'ka', 'online', ...TT, 'tt'];
+  const g = (sid, c) => c === 'tt' ? sum(TT.map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
+  const head = ['Brand', 'Code', ...COLS.map((c) => c === 'coop' ? 'Coop total' : c === 'tt' ? 'TT total' : CH[c]), 'Total'];
   const a1 = [[`Brand budgets — ${month}`], [], head];
-  sups.forEach((sp) => { const v = CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a1.push([sp.name, sp.code, ...v, sum(v)]); });
-  const cv = CHANNELS.map((c) => sum(sups.map((sp) => tot[`${sp.id}|${c}`] || 0))); a1.push(['Company', '', ...cv, sum(cv)]);
-  const a2 = [[`Split by line (from the channel managers) — ${month}`], [], ['Brand', 'Code', 'Line', ...CHANNELS.map((c) => CH[c]), 'Total']];
+  sups.forEach((sp) => a1.push([sp.name, sp.code, ...COLS.map((c) => g(sp.id, c)), sum(CHANNELS.map((c) => g(sp.id, c)))]));
+  a1.push(['Company', '', ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), sum(sups.map((sp) => sum(CHANNELS.map((c) => g(sp.id, c)))))]);
+  const a2 = [[`Split by line (from the channel managers) — ${month}`], [], ['Brand', 'Code', 'Line', ...LINE_CHANNELS.map((c) => CH[c]), 'Total']];
   sups.forEach((sp) => {
-    CB_TYPES.forEach((bt) => { const v = CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]); });
-    const d = CHANNELS.map((c) => sum(CB_TYPES.map((bt) => ln[`${sp.id}|${bt}|${c}`] || 0))); a2.push([sp.name, sp.code, 'Distributed', ...d, sum(d)]);
-    const b = CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a2.push([sp.name, sp.code, 'Budget', ...b, sum(b)]);
+    CB_TYPES.forEach((bt) => { const v = LINE_CHANNELS.map((c) => ln[`${sp.id}|${bt}|${c}`] || 0); a2.push([sp.name, sp.code, LBL[bt], ...v, sum(v)]); });
+    const d = LINE_CHANNELS.map((c) => sum(CB_TYPES.map((bt) => ln[`${sp.id}|${bt}|${c}`] || 0))); a2.push([sp.name, sp.code, 'Distributed', ...d, sum(d)]);
+    const b = LINE_CHANNELS.map((c) => tot[`${sp.id}|${c}`] || 0); a2.push([sp.name, sp.code, 'Budget', ...b, sum(b)]);
     a2.push([sp.name, sp.code, 'Left', ...b.map((x, i) => x - d[i]), sum(b) - sum(d)]); a2.push([]);
   });
   const wb = XLSX.utils.book_new();
@@ -577,7 +583,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
 // and supervisor ----
 function coopBudget(month) { // { sid: amount } — each brand's co-op total
   const m = {};
-  db.prepare("SELECT supplier_id, amount FROM brand_channel_budget WHERE month=? AND channel='coop'").all(month).forEach((r) => { m[r.supplier_id] = +r.amount || 0; });
+  db.prepare("SELECT supplier_id, SUM(amount) s FROM brand_channel_budget WHERE month=? AND channel IN ('coop_main','coop_branch') GROUP BY supplier_id").all(month).forEach((r) => { m[r.supplier_id] = +r.s || 0; });
   return m;
 }
 // budget_alloc (line × supervisor), which the supervisors distribute from, is

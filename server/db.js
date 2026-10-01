@@ -613,6 +613,9 @@ function migrate() {
       updated_at  TEXT,
       PRIMARY KEY (month, supplier_id, channel)
     )`);
+  // The co-op channel was split into Main and Branch: an earlier single 'coop'
+  // total is kept as Main (idempotent).
+  db.exec("UPDATE OR IGNORE brand_channel_budget SET channel='coop_main' WHERE channel='coop'");
   // The sales manager splits each supplier's co-op budget line between the
   // supervisors; budget_alloc (per line × supervisor) is kept as the sum of these.
   db.exec(`CREATE TABLE IF NOT EXISTS budget_alloc_sup (

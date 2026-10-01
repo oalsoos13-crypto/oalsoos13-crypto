@@ -666,3 +666,10 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-sheet .cb-th-grp{text-align:center!important;direction:inherit;border-bottom:1px solid var(--line2)}
 .cb-entry thead th{position:static}
 .cb-entry td.cb-brand{white-space:nowrap;padding-inline-start:12px}
+.cb-sheet td.cb-gtot{background:#eef4fb;font-weight:800;color:var(--ink2)}
+.cb-sheet tr.cb-grand td.cb-gtot{background:#16406e;color:#fff}
+.cb-sheet th.cb-th-sub{background:#dfe9f6}
+.cb-entry .cb-in{min-width:64px;padding:7px 6px}
+.cb-entry td{padding:3px 4px}
+.cb-entry .cb-tot{padding-right:10px!important}
+.cb-entry .cb-th-sub,.cb-entry th{white-space:normal}
