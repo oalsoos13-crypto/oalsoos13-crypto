@@ -582,6 +582,32 @@ function migrate() {
   if (!acCols.includes('foc_amount')) db.exec('ALTER TABLE budget_alloc_coop ADD COLUMN foc_amount REAL NOT NULL DEFAULT 0');
   const aoCols = db.prepare("PRAGMA table_info(budget_alloc_outlet)").all().map((c) => c.name);
   if (!aoCols.includes('foc_amount')) db.exec('ALTER TABLE budget_alloc_outlet ADD COLUMN foc_amount REAL NOT NULL DEFAULT 0');
+  // Company-wide budget (all channels): per month, each supplier (Lay's,
+  // Frito-Lay, Biscuni, … each with its own supplier code) gets an amount per
+  // budget line (pallets / stands / condition / FOC / price diff) per sales
+  // channel (coop / KA / TT / online). Entry only — the company total is the sum.
+  db.exec(`CREATE TABLE IF NOT EXISTS company_suppliers (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      code       TEXT NOT NULL DEFAULT '',
+      name       TEXT NOT NULL,
+      sort       INTEGER NOT NULL DEFAULT 0,
+      active     INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT, updated_at TEXT
+    )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS company_budget (
+      month       TEXT NOT NULL,
+      supplier_id INTEGER NOT NULL,
+      budget_type TEXT NOT NULL,
+      channel     TEXT NOT NULL,
+      amount      REAL NOT NULL DEFAULT 0,
+      updated_at  TEXT,
+      PRIMARY KEY (month, supplier_id, budget_type, channel)
+    )`);
+  if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
+    const ins = db.prepare('INSERT INTO company_suppliers (code, name, sort, created_at) VALUES (?,?,?,?)');
+    const ts = new Date().toISOString();
+    [["Lay's", 1], ['Frito-Lay', 2], ['Biscuni', 3]].forEach(([n, i]) => ins.run('', n, i, ts));
+  }
   const bcCols = db.prepare("PRAGMA table_info(budget_caps)").all().map((c) => c.name);
   if (!bcCols.includes('spent')) db.exec('ALTER TABLE budget_caps ADD COLUMN spent REAL');
   // The 'rental' budget type was split into 'pallets' and 'stands'. Migrate any

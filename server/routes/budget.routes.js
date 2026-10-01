@@ -449,4 +449,73 @@ router.post('/budget-spent', requireRole(), asyncH((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---- Company budget (all channels, per supplier) ----
+const CHANNELS = ['coop', 'ka', 'tt', 'online'];
+const MGMT = ['sales_manager', 'marketing_manager', 'sales_ops'];
+function monthClosed(month) { const r = db.prepare('SELECT closed FROM budget_months WHERE month=?').get(month); return !!(r && r.closed); }
+
+// GET /api/budget-company?month=YYYY-MM — suppliers + every entered amount.
+router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
+  const month = isMonth(req.query.month) ? req.query.month : curMonth();
+  const suppliers = db.prepare('SELECT id, code, name, sort FROM company_suppliers WHERE active=1 ORDER BY sort, id').all();
+  const rows = db.prepare('SELECT supplier_id, budget_type, channel, amount FROM company_budget WHERE month=?').all(month)
+    .map((r) => ({ supplierId: r.supplier_id, budgetType: r.budget_type, channel: r.channel, amount: r.amount }));
+  res.json({ month, closed: monthClosed(month), types: CAPPED_TYPES, channels: CHANNELS, suppliers, rows });
+}));
+
+// POST /api/budget-company (admin) — one cell. Body: { month, supplierId, budgetType, channel, amount }
+// An empty amount clears the cell.
+router.post('/budget-company', requireRole(), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  const bt = String(req.body.budgetType || ''), ch = String(req.body.channel || '');
+  if (!CAPPED_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+  if (!CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
+  const sup = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(req.body.supplierId));
+  if (!sup) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
+  if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  const raw = req.body.amount;
+  const now = nowIso();
+  if (raw === '' || raw == null) {
+    db.prepare('DELETE FROM company_budget WHERE month=? AND supplier_id=? AND budget_type=? AND channel=?').run(month, sup.id, bt, ch);
+  } else {
+    const amount = num(raw, NaN);
+    if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
+    db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+    db.prepare(`INSERT INTO company_budget (month, supplier_id, budget_type, channel, amount, updated_at) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(month, supplier_id, budget_type, channel) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
+      .run(month, sup.id, bt, ch, amount, now);
+  }
+  audit.fromReq(req, 'budget.company', { entityType: 'company_budget', summary: `Company budget ${month} ${sup.name} ${bt}/${ch} = ${raw === '' || raw == null ? '—' : num(raw)}`, details: { month, supplierId: sup.id, bt, ch, amount: raw } });
+  res.json({ ok: true });
+}));
+
+// POST /api/budget-company/supplier (admin) — add or edit a supplier. Body: { id?, code, name }
+router.post('/budget-company/supplier', requireRole(), asyncH((req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 80);
+  const code = String(req.body.code || '').trim().slice(0, 40);
+  if (!name) throw badRequest('اسم المورد مطلوب | Supplier name is required', 'NO_NAME');
+  const now = nowIso();
+  let id = Number(req.body.id) || 0;
+  if (id) {
+    if (!db.prepare('SELECT id FROM company_suppliers WHERE id=? AND active=1').get(id)) throw notFound('المورد غير موجود | Supplier not found');
+    db.prepare('UPDATE company_suppliers SET name=?, code=?, updated_at=? WHERE id=?').run(name, code, now, id);
+  } else {
+    const sort = (db.prepare('SELECT MAX(sort) m FROM company_suppliers').get().m || 0) + 1;
+    id = db.prepare('INSERT INTO company_suppliers (code, name, sort, created_at) VALUES (?,?,?,?)').run(code, name, sort, now).lastInsertRowid;
+  }
+  audit.fromReq(req, 'budget.company.supplier', { entityType: 'company_supplier', entityId: String(id), summary: `Supplier ${name} (${code || 'no code'})` });
+  res.json({ ok: true, id });
+}));
+
+// POST /api/budget-company/supplier/:id/remove (admin) — hide a supplier (its
+// entered amounts are kept for history).
+router.post('/budget-company/supplier/:id/remove', requireRole(), asyncH((req, res) => {
+  const id = Number(req.params.id);
+  const sup = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(id);
+  if (!sup) throw notFound('المورد غير موجود | Supplier not found');
+  db.prepare('UPDATE company_suppliers SET active=0, updated_at=? WHERE id=?').run(nowIso(), id);
+  audit.fromReq(req, 'budget.company.supplier.remove', { entityType: 'company_supplier', entityId: String(id), summary: `Removed supplier ${sup.name}` });
+  res.json({ ok: true });
+}));
+
 module.exports = router;
