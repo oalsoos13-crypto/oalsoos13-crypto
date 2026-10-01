@@ -664,6 +664,21 @@ function migrate() {
         ON CONFLICT(month, layer, supplier_id, channel) DO UPDATE SET amount=amount+excluded.amount`).run(r.month, r.layer, r.supplier_id, r.amount, new Date().toISOString());
     });
     if (leftover.length) db.exec("DELETE FROM brand_channel_budget WHERE channel='coop'");
+    // Once: budgets typed in the older company sheet (brand × line × channel) become
+    // brand totals (Coop → Main), where no total was typed yet — so splits made
+    // against them keep their budget. TT stays out: it is now three sub-channels.
+    if (!db.prepare("SELECT 1 FROM meta WHERE key='cb_from_company_budget'").get()) {
+      const map = { coop: 'coop_main', ka: 'ka', online: 'online' };
+      db.prepare(`SELECT month, supplier_id, channel, SUM(amount) s FROM company_budget WHERE channel IN ('coop','ka','online') GROUP BY month, supplier_id, channel`).all()
+        .forEach((r) => {
+          const nc = map[r.channel];
+          const have = r.channel === 'coop'
+            ? db.prepare("SELECT 1 FROM brand_channel_budget WHERE month=? AND layer=0 AND supplier_id=? AND channel IN ('coop_main','coop_branch')").get(r.month, r.supplier_id)
+            : db.prepare('SELECT 1 FROM brand_channel_budget WHERE month=? AND layer=0 AND supplier_id=? AND channel=?').get(r.month, r.supplier_id, nc);
+          if (!have && +r.s > 0) db.prepare('INSERT INTO brand_channel_budget (month, layer, supplier_id, channel, amount, updated_at) VALUES (?,0,?,?,?,?)').run(r.month, r.supplier_id, nc, +r.s, new Date().toISOString());
+        });
+      db.prepare("INSERT INTO meta(key,value) VALUES('cb_from_company_budget','1')").run();
+    }
   })();
 
   if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
