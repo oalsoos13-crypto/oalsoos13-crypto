@@ -182,19 +182,21 @@ function teamTotals(month, bt, supName, change) {
 }
 // Refuse a co-op / outlet change that would push the team past the
 // supervisor's allocation for the type, or past their FOC allocation.
+// A change that does not raise the team's total is always allowed, so a team
+// already over its share (e.g. after the share was lowered) can still be cut back.
 function assertTeamWithin(month, bt, supName, change) {
   if (!supName) return;
   const share = db.prepare('SELECT amount FROM budget_alloc WHERE month=? AND budget_type=? AND supervisor=?').get(month, bt, supName);
   if (share && share.amount != null) {
     const t = teamTotals(month, bt, supName, change);
-    if (t.total > num(share.amount) + 1e-9) throw badRequest(overMsg(bt, share.amount, t.total), 'OVER_ALLOC');
+    if (t.total > num(share.amount) + 1e-9 && t.total > teamTotals(month, bt, supName, null).total + 1e-9) throw badRequest(overMsg(bt, share.amount, t.total), 'OVER_ALLOC');
   }
   if (DN_TYPES.includes(bt)) {
     const focShare = db.prepare('SELECT amount FROM budget_alloc WHERE month=? AND budget_type=? AND supervisor=?').get(month, 'foc', supName);
     if (focShare && focShare.amount != null) {
-      let focTotal = 0;
-      for (const k of DN_TYPES) focTotal += teamTotals(month, k, supName, k === bt ? change : null).foc;
-      if (focTotal > num(focShare.amount) + 1e-9) throw badRequest(overMsg('foc', focShare.amount, focTotal), 'OVER_FOC');
+      let focTotal = 0, focNow = 0;
+      for (const k of DN_TYPES) { focTotal += teamTotals(month, k, supName, k === bt ? change : null).foc; focNow += teamTotals(month, k, supName, null).foc; }
+      if (focTotal > num(focShare.amount) + 1e-9 && focTotal > focNow + 1e-9) throw badRequest(overMsg('foc', focShare.amount, focTotal), 'OVER_FOC');
     }
   }
 }
@@ -353,7 +355,8 @@ router.post('/budget-alloc-sales', requireRole('supervisor'), asyncH((req, res) 
   const supShare = db.prepare('SELECT amount FROM budget_alloc WHERE month=? AND budget_type=? AND supervisor=?').get(month, bt, supName);
   if (supShare && supShare.amount != null) {
     const others = num(db.prepare('SELECT COALESCE(SUM(amount),0) s FROM budget_alloc_sales WHERE month=? AND budget_type=? AND supervisor=? AND salesman<>?').get(month, bt, supName, salesman).s);
-    if (others + amount > num(supShare.amount) + 1e-9) throw badRequest(overMsg(bt, supShare.amount, others + amount), 'OVER_ALLOC');
+    const before = num((db.prepare('SELECT amount FROM budget_alloc_sales WHERE month=? AND budget_type=? AND supervisor=? AND salesman=?').get(month, bt, supName, salesman) || {}).amount);
+    if (others + amount > num(supShare.amount) + 1e-9 && amount > before + 1e-9) throw badRequest(overMsg(bt, supShare.amount, others + amount), 'OVER_ALLOC');
   }
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
