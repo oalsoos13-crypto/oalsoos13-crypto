@@ -723,7 +723,7 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-sheet.cb-ln tr.cb-sum td.cb-alltot{background:#f9efd4}
 .cb-sheet.cb-ln tr.cb-grand td.cb-alltot,.cb-sheet.cb-ln tr.cb-grand td{background:#0e2340}
 /* Admin entry sheet: fixed, even columns that fit the panel */
-.cb-sheet.cb-entry{table-layout:fixed;width:100%;min-width:1010px}
+.cb-sheet.cb-entry{table-layout:fixed;width:100%;min-width:940px}
 .cb-entry col.c-lbl{width:120px}
 .cb-entry thead th{padding:7px 6px;font-size:12px;line-height:1.25;text-align:right;vertical-align:bottom}
 .cb-entry thead th.cb-th-lbl{vertical-align:middle;text-align:start!important}
@@ -743,3 +743,7 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-entry tr.cb-grand td.cb-split{background:#0e2340!important}
 .cb-k-sub{font-size:12px;color:var(--muted);margin-top:4px;min-height:16px}
 .cb-k-sub b{font-weight:700;color:var(--ink2)}
+.cb-supcard .cb-supin{font-size:22px;font-weight:800;color:#0e2340;padding:6px 10px;margin:2px 0 0;border:2px solid #ecd28f;background:#fffaf0;border-radius:10px;min-width:0;text-align:start}
+.cb-supcard .cb-supin:focus{border-color:#b8862a;box-shadow:0 0 0 3px rgba(227,178,60,.22);background:#fff}
+.cb-supcard .cb-supin:disabled{border-color:transparent;background:transparent;padding-inline:0}
+.cb-supcard .cb-supin::placeholder{color:#c9b98c;font-weight:600}
