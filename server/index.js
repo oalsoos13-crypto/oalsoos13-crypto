@@ -67,7 +67,12 @@ app.use('/api', require('./routes/methodology.routes'));
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found', code: 'NO_ROUTE' }));
 
 // Static frontend.
-app.use(express.static(path.join(config.root, 'public'), { index: 'index.html', extensions: ['html'] }));
+// The app's own pages, scripts and styles are revalidated on every load (a cheap
+// 304 when unchanged), so a deploy shows up without a hard refresh.
+app.use(express.static(path.join(config.root, 'public'), {
+  index: 'index.html', extensions: ['html'],
+  setHeaders: (res, file) => { if (/\.(html|js|css|json)$/i.test(file)) res.setHeader('Cache-Control', 'no-cache'); },
+}));
 
 // SPA fallback (non-API GETs) -> index.html.
 app.get('*', (req, res, next) => {
