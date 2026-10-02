@@ -160,11 +160,13 @@ function overMsg(what, limit, would) {
 // A supervisor team's effective totals (D.N + مجاني, outlets override their
 // co-op) for a month/type, with a proposed change applied first.
 // change = { salesman?, coop, custId|null, amount|null, focAmount|null } (null = keep stored)
-function teamTotals(month, bt, supName, change) {
+// sc = { sid, ch } — one supplier × co-op channel; default: the earlier rows
+// made before the split by supplier (supplier 0, channel '').
+function teamTotals(month, bt, supName, change, sc = { sid: 0, ch: '' }) {
   const team = distStructure()[supName] || {};
-  const coopMap = new Map(db.prepare('SELECT salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=?').all(month, bt)
+  const coopMap = new Map(db.prepare('SELECT salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND supplier_id=? AND channel=?').all(month, bt, sc.sid, sc.ch)
     .map((r) => [r.salesman + '|' + r.coop, { dn: num(r.amount), foc: num(r.foc_amount) }]));
-  const outMap = new Map(db.prepare('SELECT coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=?').all(month, bt)
+  const outMap = new Map(db.prepare('SELECT coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND supplier_id=? AND channel=?').all(month, bt, sc.sid, sc.ch)
     .map((r) => [r.coop + '|' + r.cust_id, { dn: num(r.amount), foc: num(r.foc_amount) }]));
   if (change) {
     const key = change.custId ? change.coop + '|' + change.custId : change.salesman + '|' + change.coop;
@@ -215,10 +217,15 @@ router.get('/budget-plan', asyncH((req, res) => {
   const allocSales = db.prepare('SELECT budget_type, supervisor, salesman, amount FROM budget_alloc_sales WHERE month=?').all(month)
     .map((r) => ({ budgetType: r.budget_type, supervisor: r.supervisor, salesman: r.salesman, amount: r.amount }));
   // `amount` is the D.N part (becomes a letter); `focAmount` the مجاني part.
-  const allocCoop = db.prepare('SELECT budget_type, salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=?').all(month)
-    .map((r) => ({ budgetType: r.budget_type, salesman: r.salesman, coop: r.coop, amount: r.amount, focAmount: r.foc_amount || 0 }));
-  const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=?').all(month)
-    .map((r) => ({ budgetType: r.budget_type, coop: r.coop, custId: r.cust_id, amount: r.amount, focAmount: r.foc_amount || 0 }));
+  const allocCoop = db.prepare('SELECT budget_type, supplier_id, channel, salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, supplierId: r.supplier_id, channel: r.channel, salesman: r.salesman, coop: r.coop, amount: r.amount, focAmount: r.foc_amount || 0 }));
+  const allocOutlet = db.prepare('SELECT budget_type, supplier_id, channel, coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, supplierId: r.supplier_id, channel: r.channel, coop: r.coop, custId: r.cust_id, amount: r.amount, focAmount: r.foc_amount || 0 }));
+  // What each supervisor received from the sales manager, per supplier × co-op
+  // channel × line (all budget layers together).
+  const distShares = db.prepare(`SELECT a.supervisor, a.supplier_id, a.channel, a.budget_type, SUM(a.amount) s FROM budget_alloc_sup a
+      JOIN company_suppliers c ON c.id=a.supplier_id AND c.active=1 WHERE a.month=? GROUP BY a.supervisor, a.supplier_id, a.channel, a.budget_type`).all(month)
+    .map((r) => ({ supervisor: r.supervisor, supplierId: r.supplier_id, channel: r.channel, budgetType: r.budget_type, amount: +r.s || 0 }));
   // The distribution structure (supervisor -> salesmen -> coops -> outlets).
   // SCOPING: a supervisor must only ever receive their OWN branch — never the
   // other supervisors' salesmen / co-ops / outlets. A salesman has no budget
@@ -236,7 +243,7 @@ router.get('/budget-plan', asyncH((req, res) => {
   }
   let structure = fullStructure;
   let outAlloc = alloc, outAllocSales = allocSales, outAllocCoop = allocCoop, outAllocOutlet = allocOutlet;
-  let outSupervisors = supervisors, outSpend = fullSpend;
+  let outSupervisors = supervisors, outSpend = fullSpend, outShares = distShares;
   if (role === 'supervisor') {
     const me = req.user.name;
     const myBranch = fullStructure[me] || {};
@@ -252,6 +259,7 @@ router.get('/budget-plan', asyncH((req, res) => {
     });
     outSupervisors = [me];
     outAlloc = alloc.filter((a) => a.supervisor === me);
+    outShares = distShares.filter((a) => a.supervisor === me);
     outAllocSales = allocSales.filter((a) => a.supervisor === me || mySales.has(a.salesman));
     outAllocCoop = allocCoop.filter((a) => mySales.has(a.salesman) || myCoops.has(a.coop));
     outAllocOutlet = allocOutlet.filter((a) => myCoops.has(a.coop) || myCust.has(String(a.custId)));
@@ -266,13 +274,14 @@ router.get('/budget-plan', asyncH((req, res) => {
     // salesman (or any other non-management role): no distribution tree at all.
     structure = {};
     outSupervisors = [];
-    outAlloc = []; outAllocSales = []; outAllocCoop = []; outAllocOutlet = [];
+    outAlloc = []; outAllocSales = []; outAllocCoop = []; outAllocOutlet = []; outShares = [];
     outSpend = { byType: {}, bySup: [], bySales: [], byCoop: [], byOutlet: [] };
   }
   res.json({
     month, closed: !!(m && m.closed), types: ALL_BUDGET_TYPES, capped: CAPPED_TYPES,
     caps, alloc: outAlloc, allocSales: outAllocSales, allocCoop: outAllocCoop,
     allocOutlet: outAllocOutlet, supervisors: outSupervisors, structure,
+    distShares: outShares, suppliers: activeSuppliers(), distChannels: COOP_CHANNELS,
     me: req.user ? { name: req.user.name, role: req.user.role } : null,
     spend: outSpend,
     months: db.prepare('SELECT month, closed FROM budget_months ORDER BY month DESC').all(),
@@ -388,14 +397,14 @@ router.post('/budget-alloc-coop', requireRole('supervisor'), asyncH((req, res) =
   }
   // Partial update: the UI saves the D.N (`amount`) and مجاني (`focAmount`)
   // parts from separate inputs, so a missing field keeps its stored value.
-  const prev = db.prepare('SELECT amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND salesman=? AND coop=?').get(month, bt, salesman, coop) || {};
+  const prev = db.prepare("SELECT amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND supplier_id=0 AND channel='' AND salesman=? AND coop=?").get(month, bt, salesman, coop) || {};
   const amount = req.body.amount != null ? num(req.body.amount) : num(prev.amount);
   const focAmount = req.body.focAmount != null ? num(req.body.focAmount) : num(prev.foc_amount);
   assertTeamWithin(month, bt, supName || salesSupMap()[salesman], { salesman, coop, custId: null, amount, focAmount });
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
   db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, salesman, coop, amount, foc_amount, updated_at) VALUES (?,?,?,?,?,?,?)
-    ON CONFLICT(month, budget_type, salesman, coop) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
+    ON CONFLICT(month, budget_type, supplier_id, channel, salesman, coop) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
     .run(month, bt, salesman, coop, amount, focAmount, now);
   audit.fromReq(req, 'budget.alloc.coop', { entityType: 'budget_alloc_coop', summary: `Alloc ${bt} ${month} ${salesman}->${coop} = DN ${amount} / FOC ${focAmount}`, details: { month, bt, salesman, coop, amount, focAmount } });
   res.json({ ok: true, amount, focAmount });
@@ -419,7 +428,7 @@ router.post('/budget-alloc-outlet', requireRole('supervisor'), asyncH((req, res)
     if (!ok) throw forbidden('هذا الأوتلت ليس ضمن نطاقك', 'NOT_MINE');
   }
   // Partial update (D.N `amount` / مجاني `focAmount` saved from separate inputs).
-  const prev = db.prepare('SELECT amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND coop=? AND cust_id=?').get(month, bt, coop, custId) || {};
+  const prev = db.prepare("SELECT amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND supplier_id=0 AND channel='' AND coop=? AND cust_id=?").get(month, bt, coop, custId) || {};
   const amount = req.body.amount != null ? num(req.body.amount) : num(prev.amount);
   const focAmount = req.body.focAmount != null ? num(req.body.focAmount) : num(prev.foc_amount);
   {
@@ -431,10 +440,98 @@ router.post('/budget-alloc-outlet', requireRole('supervisor'), asyncH((req, res)
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
   db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, coop, cust_id, amount, foc_amount, updated_at) VALUES (?,?,?,?,?,?,?)
-    ON CONFLICT(month, budget_type, coop, cust_id) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
+    ON CONFLICT(month, budget_type, supplier_id, channel, coop, cust_id) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
     .run(month, bt, coop, custId, amount, focAmount, now);
   audit.fromReq(req, 'budget.alloc.outlet', { entityType: 'budget_alloc_outlet', summary: `Alloc ${bt} ${month} ${coop}/${custId} = DN ${amount} / FOC ${focAmount}`, details: { month, bt, coop, custId, amount, focAmount } });
   res.json({ ok: true, amount, focAmount });
+}));
+
+// What a supervisor received for one supplier × co-op channel × line (all layers).
+function distShare(month, supName, sid, ch, bt) {
+  return num(db.prepare(`SELECT COALESCE(SUM(a.amount),0) s FROM budget_alloc_sup a JOIN company_suppliers c ON c.id=a.supplier_id AND c.active=1
+    WHERE a.month=? AND a.supervisor=? AND a.supplier_id=? AND a.channel=? AND a.budget_type=?`).get(month, supName, sid, ch, bt).s);
+}
+const SC_NAME = { coop_main: ['مين', 'Main'], coop_branch: ['برانش', 'Branch'] };
+
+// POST /api/budget-dist (supervisor) — distribute what the sales manager gave,
+// per supplier × co-op channel × line, to the team's co-ops / outlets.
+// Body: { month, cells: [{ supplierId, channel, budgetType, salesman, coop,
+// custId?, field: 'amount' | 'focAmount', amount }] } (supplierId 0 / channel ''
+// = the earlier distribution made before the split by supplier). All-or-nothing:
+// a line's D.N parts may not go over what was received for that line, and the
+// Give Away parts (on pallets / stands / price diff) together may not go over
+// the Give Away received — unless the change only lowers the total (so an
+// over-allocated team can be cut back).
+router.post('/budget-dist', requireRole('supervisor'), asyncH((req, res) => {
+  const month = isMonth(req.body.month) ? req.body.month : curMonth();
+  if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
+  const cells = Array.isArray(req.body.cells) ? req.body.cells : [];
+  if (!cells.length || cells.length > 2000) throw badRequest('بيانات ناقصة', 'NO_CELLS');
+  const struct = distStructure();
+  const isAdmin = req.user.role === 'admin';
+  const supOfSales = salesSupMap();
+  const parsed = cells.map((c) => {
+    const bt = String(c.budgetType || '');
+    if (!CAPPED_TYPES.includes(bt) || bt === 'foc') throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+    const sid = Number(c.supplierId) || 0, ch = sid ? String(c.channel || '') : '';
+    if (sid && !COOP_CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
+    if (sid && !db.prepare('SELECT 1 FROM company_suppliers WHERE id=? AND active=1').get(sid)) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
+    const salesman = String(c.salesman || '').trim(), coop = String(c.coop || '').trim(), custId = c.custId ? String(c.custId).trim() : null;
+    if (!salesman || !coop) throw badRequest('اختر المندوب والجمعية', 'NO_TARGET');
+    const supName = isAdmin ? supOfSales[salesman] : req.user.name;
+    const coops = (struct[supName] || {})[salesman] || {};
+    if (!Object.prototype.hasOwnProperty.call(coops, coop)) throw forbidden('هذه الجمعية ليست ضمن فريقك', 'NOT_MINE');
+    if (custId && !(coops[coop] || []).some((o) => String(o.custId) === custId)) throw forbidden('هذا الأوتلت ليس ضمن نطاقك', 'NOT_MINE');
+    const field = c.field === 'focAmount' ? 'focAmount' : 'amount';
+    if (field === 'focAmount' && !DN_TYPES.includes(bt)) throw badRequest('الجيف أواي بس للطبالي والستاندات وفروق الأسعار', 'NO_FOC');
+    const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
+    const amount = raw === '' ? 0 : Number(raw);
+    if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
+    return { bt, sid, ch, salesman, coop, custId, field, amount, supName };
+  });
+  // Totals before the change, per touched supervisor × supplier × channel.
+  const groups = new Map();
+  parsed.forEach((p) => { const k = `${p.supName}|${p.sid}|${p.ch}`; if (!groups.has(k)) groups.set(k, { supName: p.supName, sid: p.sid, ch: p.ch, bts: new Set() }); groups.get(k).bts.add(p.bt); });
+  // Each line's D.N part counts against that line; the Give Away parts (on
+  // pallets / stands / price diff) count against the Give Away line.
+  const snap = (g) => { const o = {}; let foc = 0; DN_TYPES.concat(['polypack']).forEach((bt) => { const t = teamTotals(month, bt, g.supName, null, { sid: g.sid, ch: g.ch }); o[bt] = t.total - t.foc; foc += t.foc; }); o.foc = foc; return o; };
+  const now = nowIso();
+  db.transaction(() => {
+    const before = new Map([...groups].map(([k, g]) => [k, snap(g)]));
+    db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
+    for (const p of parsed) {
+      const col = p.field === 'focAmount' ? 'foc_amount' : 'amount';
+      if (p.custId) {
+        db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, supplier_id, channel, coop, cust_id, ${col}, updated_at) VALUES (?,?,?,?,?,?,?,?)
+          ON CONFLICT(month, budget_type, supplier_id, channel, coop, cust_id) DO UPDATE SET ${col}=excluded.${col}, updated_at=excluded.updated_at`).run(month, p.bt, p.sid, p.ch, p.coop, p.custId, p.amount, now);
+      } else {
+        db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, supplier_id, channel, salesman, coop, ${col}, updated_at) VALUES (?,?,?,?,?,?,?,?)
+          ON CONFLICT(month, budget_type, supplier_id, channel, salesman, coop) DO UPDATE SET ${col}=excluded.${col}, updated_at=excluded.updated_at`).run(month, p.bt, p.sid, p.ch, p.salesman, p.coop, p.amount, now);
+      }
+    }
+    for (const [k, g] of groups) {
+      const was = before.get(k), is = snap(g);
+      const sp = g.sid ? db.prepare('SELECT name FROM company_suppliers WHERE id=?').get(g.sid) : null;
+      const where = sp ? ` — ${sp.name} / ${SC_NAME[g.ch][0]}` : '';
+      const whereEn = sp ? ` — ${sp.name} / ${SC_NAME[g.ch][1]}` : '';
+      // Earlier rows (before the split by supplier) have no share of their own: they can only go down.
+      const limit = (bt) => (g.sid ? distShare(month, g.supName, g.sid, g.ch, bt) : 0);
+      const legacyUp = () => badRequest('التوزيع السابق (قبل التقسيم حسب المورد) بس بتقدر تنزّله أو تمسحه — وزّع من جديد تحت المورد والقسم | The earlier distribution (before the split by supplier) can only be lowered or cleared — distribute again under a supplier and channel', 'OLD_DIST');
+      for (const bt of [...g.bts]) {
+        const lim = limit(bt);
+        if (!g.sid && is[bt] > was[bt] + 1e-9) throw legacyUp();
+        if (is[bt] > lim + 1e-9 && is[bt] > was[bt] + 1e-9) {
+          const [ar, en] = BT_NAME[bt];
+          throw badRequest(`تجاوز البتجيت — ${ar}${where}: المخصّص ${fmtKD(lim)} د.ك، والمطلوب يوصل ${fmtKD(is[bt])} د.ك | Over budget — ${en}${whereEn}: received ${fmtKD(lim)} KD, this would make ${fmtKD(is[bt])} KD`, 'OVER_ALLOC');
+        }
+      }
+      const flim = limit('foc');
+      if (!g.sid && is.foc > was.foc + 1e-9) throw legacyUp();
+      if (is.foc > flim + 1e-9 && is.foc > was.foc + 1e-9) throw badRequest(`تجاوز الجيف أواي${where}: المخصّص ${fmtKD(flim)} د.ك، والمطلوب يوصل ${fmtKD(is.foc)} د.ك | Over the Give Away${whereEn}: received ${fmtKD(flim)} KD, this would make ${fmtKD(is.foc)} KD`, 'OVER_FOC');
+    }
+  })();
+  audit.fromReq(req, 'budget.dist', { entityType: 'budget_alloc_coop', summary: `Distribution ${month}: ${parsed.length} cell(s)`, details: { month, cells: parsed.slice(0, 50).map(({ supName, ...r }) => r) } });
+  res.json({ ok: true, saved: parsed.length });
 }));
 
 // POST /api/budget-spent (admin) — the month's manually entered spend for a

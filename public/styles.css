@@ -747,3 +747,28 @@ html[dir="rtl"] .cb-sheet tr.cb-grp-co td{background:linear-gradient(270deg,#8a6
 .cb-supcard .cb-supin:focus{border-color:#b8862a;box-shadow:0 0 0 3px rgba(227,178,60,.22);background:#fff}
 .cb-supcard .cb-supin:disabled{border-color:transparent;background:transparent;padding-inline:0}
 .cb-supcard .cb-supin::placeholder{color:#c9b98c;font-weight:600}
+/* Supervisor distribution: per supplier × Main / Branch sheets */
+.ds-sup{margin-bottom:22px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+.ds-sup-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(90deg,#123f70,#1c4e8a);color:#fff;font-weight:800;padding:10px 14px}
+html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
+.ds-sup-h .cb-grp-info,.ds-sup-h .cb-grp-info b,.ds-sup-h .cb-grp-info span{color:#fff}
+.ds-sup-h .cb-grp-info span[style*="danger"]{color:#ffb4a6!important}
+.ds-ch-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:#e7eff9;color:var(--ink2);font-weight:700;padding:8px 14px;border-top:2px solid #c9d8ec}
+.ds-ch-h .cb-grp-info{color:var(--ink2)}
+.ds-sup .cb-wrap{border-radius:0;margin:0}
+.ds-legacy .ds-sup-h{background:linear-gradient(90deg,#7a5a12,#b8862a)}
+.ds-legacy .hint{padding:0 12px}
+.cb-sheet.ds-sheet col.c-lbl{width:220px}
+.cb-sheet.ds-sheet th.ds-osd{background:#f7ecd0;color:#6b4e0e}
+.cb-sheet.ds-sheet th.ds-ga{background:#e6f3ec;color:#1d6b45}
+.cb-sheet.ds-sheet td.ds-ga{background:#f1f9f4!important}
+.cb-sheet.ds-sheet tr.ds-sm td{background:#eef4fb;font-weight:800;color:var(--ink2)}
+.cb-sheet.ds-sheet tr.ds-coop td:first-child{padding-inline-start:14px}
+.cb-sheet.ds-sheet tr.ds-out td:first-child{padding-inline-start:44px;font-size:12.5px;color:var(--muted)}
+.cb-sheet.ds-sheet tr.ds-out td{background:#fbfcfe}
+.cb-sheet.ds-sheet td.ds-roll{color:#6b4e0e;font-style:italic}
+.ds-tog{border:1px solid var(--line2);background:#fff;border-radius:6px;width:22px;height:22px;line-height:18px;padding:0;cursor:pointer;color:#1c4e8a;font-size:11px;vertical-align:middle}
+.ds-tog:hover{background:#eef4fb}
+.ds-tog-sp{display:inline-block;width:22px}
+.cb-sheet.ds-sheet .cb-in{min-width:0}
+.cb-sheet.ds-sheet tr.ds-sumtop td{border-bottom:3px solid #9fb8d8}

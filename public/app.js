@@ -593,6 +593,13 @@ const T = {
   cb_bad: { ar: "أدخل رقمًا موجبًا", en: "Enter a positive number" },
   cb_locked: { ar: "الشهر مسكّر — البتجيت للعرض فقط", en: "The month is closed — the budget is view-only" },
   cb_total: { ar: "إجمالي الشركة", en: "Company total" },
+  ds_on: { ar: "على {x}", en: "on {x}" },
+  ds_outlets: { ar: "اعرض الأوتلتات ووزّع عليها", en: "Show the outlets and distribute to them" },
+  ds_roll: { ar: "مجموع الأوتلتات", en: "Sum of its outlets" },
+  ds_legacy: { ar: "توزيع سابق (قبل التقسيم حسب المورد)", en: "Earlier distribution (before the split by supplier)" },
+  ds_legacyHint: { ar: "هاد توزيع عملته قبل ما يصير التوزيع حسب المورد ومين / برانش، فما إله بتجيت لحاله. بتقدر تنزّله أو تمسحه بس — ووزّعه من جديد تحت المورد والقسم الصح فوق.", en: "This was distributed before the split by supplier and Main / Branch, so it has no budget of its own. You can only lower or clear it — distribute it again under the right supplier and channel above." },
+  ds_none: { ar: "مدير المبيعات لسا ما وزّع عليك بتجيت لهالشهر.", en: "The sales manager has not allocated you a budget for this month yet." },
+  ds_hint: { ar: "كل مورد وكل قسم (مين / برانش) إله بتجيته من مدير المبيعات. وزّع على الجمعيات، أو افتح ▸ ووزّع على الأوتلتات. الـ D.N بينخصم من بنده، والجيف أواي (على الطبالي / الستاندات / فروق الأسعار) بينخصم من بند الجيف أواي. الكتب بتطلع لكل مورد لحاله.", en: "Each supplier and channel (Main / Branch) has its own budget from the sales manager. Distribute to the co-ops, or open ▸ to distribute to the outlets. D.N counts against its line; Give Away (on pallets / stands / price diff) counts against the Give Away line. Letters come out per supplier." },
   cb_supTotal: { ar: "توتال المورد", en: "Supplier total" },
   cb_leftSplit: { ar: "المتبقي للتوزيع", en: "Left to split" },
   cb_supHint: { ar: "اكتب توتال كل مورد فوق بالبطاقة تبعه أول، بعدين وزّعه على الأقسام بالجدول — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total in its card above first, then split it across the channels in the table — the channels together cannot go over the supplier total." },
@@ -2472,11 +2479,26 @@ const SHEETS = {
     refresh: (cells) => alRefresh(cells[0].layer),
   },
 };
+// Supervisor distribution sheet: one cell = a co-op's (or outlet's) D.N or
+// Give Away part of a line, for one supplier × co-op channel.
+SHEETS.dist = {
+  amt: (el) => { const d = el.dataset, sid = +d.sid || 0, row = d.cid ? dsOutRow(d.bt, sid, d.ch, d.coop, d.cid) : dsCoopRow(d.bt, sid, d.ch, d.sm, d.coop); const v = row ? +row[d.f] || 0 : 0; return v ? v : null; },
+  cell: (el, v) => { const d = el.dataset; return { supplierId: +d.sid || 0, channel: d.ch, budgetType: d.bt, field: d.f, salesman: d.sm, coop: d.coop, custId: d.cid || null, amount: v }; },
+  post: (cells) => api("/budget-dist", { method: "POST", body: { month: bpData.month, cells } }),
+  apply: (cells) => cells.forEach((c) => {
+    const arr = c.custId ? (bpData.allocOutlet || (bpData.allocOutlet = [])) : (bpData.allocCoop || (bpData.allocCoop = []));
+    let row = c.custId ? dsOutRow(c.budgetType, c.supplierId, c.channel, c.coop, c.custId) : dsCoopRow(c.budgetType, c.supplierId, c.channel, c.salesman, c.coop);
+    if (!row) { row = { budgetType: c.budgetType, supplierId: c.supplierId, channel: c.channel, coop: c.coop, amount: 0, focAmount: 0 }; if (c.custId) row.custId = c.custId; else row.salesman = c.salesman; arr.push(row); }
+    row[c.field] = c.amount === "" ? 0 : +c.amount;
+  }),
+  refresh: () => dsRefresh(),
+};
 function shOf(el) { const tb = el.closest("[data-kind]"); return tb ? SHEETS[tb.dataset.kind] : null; }
 function cbCell(from, r, c, dir) {
   const tb = from.closest("[data-kind]"); if (!tb) return null;
   // Rows folded away (e.g. Pallets / Stands under a closed Off-Shelf Display) are skipped.
-  for (let i = 0; i < 50; i++) { const el = tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`); if (!el) return null; if (el.offsetParent !== null || !dir) return el; r += dir; }
+  // Rows without an input in that column (a co-op rolled up from its outlets) are skipped too.
+  for (let i = 0; i < 400; i++) { const el = tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`); if (!el) { if (!dir || r < 0) return null; r += dir; continue; } if (el.offsetParent !== null || !dir) return el; r += dir; }
   return null;
 }
 function cbFocus(e) { const el = e.target; if (el.classList && el.classList.contains("cb-in")) { el._fresh = true; el.select(); const v0 = el.value; setTimeout(() => { if (document.activeElement === el && el.value === v0) el.select(); }, 0); } }
@@ -2680,176 +2702,140 @@ async function vBudgetDist() {
   renderBudgetDist();
 }
 function bpSetMonth2(m) { bpMonth = m; vBudgetDist(); }
-function bdSalesAlloc(bt, sm) { const a = (bpData.allocSales || []).find((x) => x.budgetType === bt && x.salesman === sm); return a ? a.amount : ""; }
-function bdCoopAlloc(bt, sm, c) { const a = (bpData.allocCoop || []).find((x) => x.budgetType === bt && x.salesman === sm && x.coop === c); return a ? a.amount : ""; }
-function bdSalesSpend(bt, sm) { const a = (bpData.spend.bySales || []).find((x) => x.budgetType === bt && x.salesman === sm); return a ? a.note : 0; }
-function bdCoopSpend(bt, c) { const a = (bpData.spend.byCoop || []).find((x) => x.budgetType === bt && x.coop === c); return a ? a.note : 0; }
-function bdOutletAlloc(bt, coop, cid) { const a = (bpData.allocOutlet || []).find((x) => x.budgetType === bt && x.coop === coop && x.custId === cid); return a ? a.amount : ""; }
-// The مجاني (FOC) part of a co-op / outlet allocation. FOC is a settlement
-// method for the D.N-able types, entered beside the D.N part by the supervisor.
+// The Give Away (مجاني) part is entered beside the D.N part of these lines.
 const DN_TYPES = ["pallets", "stands", "pricediff"];
-function bdCoopFoc(bt, sm, c) { const a = (bpData.allocCoop || []).find((x) => x.budgetType === bt && x.salesman === sm && x.coop === c); return a && a.focAmount ? a.focAmount : ""; }
-function bdOutletFoc(bt, coop, cid) { const a = (bpData.allocOutlet || []).find((x) => x.budgetType === bt && x.coop === coop && x.custId === cid); return a && a.focAmount ? a.focAmount : ""; }
-// Allocated FOC summed by the type it was given against (over the allocation
-// rows the server already scoped to the viewer).
+// Allocated Give Away by the line it was given against (old caps panel, kept for reference).
 function focByOrigin() {
   const out = { total: 0 };
-  DN_TYPES.forEach((bt) => {
-    let s = 0;
-    (bpData.allocCoop || []).forEach((a) => { if (a.budgetType === bt && !coopHasOutlet(bt, a.coop)) s += +a.focAmount || 0; });
-    (bpData.allocOutlet || []).forEach((a) => { if (a.budgetType === bt) s += +a.focAmount || 0; });
-    out[bt] = s; out.total += s;
-  });
+  DN_TYPES.forEach((bt) => { let s = 0; (bpData.allocCoop || []).forEach((a) => { if (a.budgetType === bt) s += +a.focAmount || 0; }); out[bt] = s; out.total += s; });
   return out;
 }
-function bdOutletSpend(bt, cid) { const a = (bpData.spend.byOutlet || []).find((x) => x.budgetType === bt && x.custId === cid); return a ? a.note : 0; }
-function coopHasOutlet(bt, coop) { return (bpData.allocOutlet || []).some((x) => x.budgetType === bt && x.coop === coop && ((+x.amount || 0) !== 0 || (+x.focAmount || 0) !== 0)); }
-// Totals count BOTH parts (D.N + مجاني) against the type's received allocation.
-function coopOutletSum(bt, coop, outlets) { return (outlets || []).reduce((s, o) => s + (+bdOutletAlloc(bt, coop, o.custId) || 0) + (+bdOutletFoc(bt, coop, o.custId) || 0), 0); }
-// A coop's effective allocation: the sum of its outlets when any is set,
-// otherwise the value entered directly at coop level.
-function coopEffective(bt, sm, coop, outlets) { return coopHasOutlet(bt, coop) ? coopOutletSum(bt, coop, outlets) : ((+bdCoopAlloc(bt, sm, coop) || 0) + (+bdCoopFoc(bt, sm, coop) || 0)); }
-// The allocation cell for a co-op: read-only rollup when its outlets are set;
-// a D.N + مجاني pair for the D.N-able types; a single input otherwise.
-function bdCoopCell(bt, sm, coop, outlets, gid, dis) {
-  const q = (s) => String(s).replace(/'/g, "\\'");
-  if (coopHasOutlet(bt, coop)) return `<span class="mono" style="font-weight:700">${KD(coopOutletSum(bt, coop, outlets))}</span>`;
-  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}',this)" style="width:100px" ${dis || ""}>`;
-  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdCoopAlloc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','amount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}>
-    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdCoopFoc(bt, sm, coop)}" onchange="bdSaveCoop('${bt}','${q(sm)}','${q(coop)}','focAmount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}></span>`;
-}
-function bdOutletCell(bt, sm, coop, o, gid, dis) {
-  const q = (s) => String(s).replace(/'/g, "\\'");
-  if (!DN_TYPES.includes(bt)) return `<input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}',this)" style="width:100px" ${dis || ""}>`;
-  return `<span class="bd-split"><label>${t("bd_dn")}</label><input type="number" step="0.001" value="${bdOutletAlloc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','amount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}>
-    <label>${t("bd_foc")}</label><input type="number" step="0.001" value="${bdOutletFoc(bt, coop, o.custId)}" onchange="bdSaveOutlet('${bt}','${q(sm)}','${q(coop)}','${q(o.custId)}','focAmount',this.value,'${gid}',this)" style="width:88px" ${dis || ""}></span>`;
-}
 function bdMeStruct() { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.structure && bpData.structure[me]) || {}; }
+/* ---- Supervisor distribution: the sales manager's split as it came — per
+   supplier × co-op channel (Main / Branch) × line — down to co-ops / outlets.
+   One sheet per supplier × channel: rows = salesmen → co-ops (→ outlets),
+   columns = the lines. A line's D.N counts against that line; the Give Away
+   parts (on pallets / stands / price diff) count against the Give Away line. ---- */
+const DS_COLS = [
+  { bt: "pallets", f: "amount", grp: "osd" }, { bt: "stands", f: "amount", grp: "osd" },
+  { bt: "polypack", f: "amount" },
+  { bt: "pallets", f: "focAmount", grp: "ga" }, { bt: "stands", f: "focAmount", grp: "ga" }, { bt: "pricediff", f: "focAmount", grp: "ga" },
+  { bt: "pricediff", f: "amount" },
+];
+const dsOpen = new Set(); // co-ops whose outlets are shown
+const dsSame = (a, bt, sid, ch) => a.budgetType === bt && (a.supplierId || 0) === sid && (a.channel || "") === ch;
+function dsShare(sid, ch, bt) { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.distShares || []).filter((x) => x.supervisor === me && x.supplierId === sid && x.channel === ch && x.budgetType === bt).reduce((a, x) => a + (+x.amount || 0), 0); }
+function dsCoopRow(bt, sid, ch, sm, coop) { return (bpData.allocCoop || []).find((a) => dsSame(a, bt, sid, ch) && a.salesman === sm && a.coop === coop); }
+function dsOutRow(bt, sid, ch, coop, cid) { return (bpData.allocOutlet || []).find((a) => dsSame(a, bt, sid, ch) && a.coop === coop && String(a.custId) === String(cid)); }
+// A co-op whose outlets carry any value rolls up from them (per line).
+function dsHasOut(bt, sid, ch, coop) { return (bpData.allocOutlet || []).some((a) => dsSame(a, bt, sid, ch) && a.coop === coop && ((+a.amount || 0) !== 0 || (+a.focAmount || 0) !== 0)); }
+function dsCoopVal(c, sid, ch, sm, coop, outlets) {
+  if (dsHasOut(c.bt, sid, ch, coop)) return (outlets || []).reduce((s, o) => { const r = dsOutRow(c.bt, sid, ch, coop, o.custId); return s + (r ? +r[c.f] || 0 : 0); }, 0);
+  const r = dsCoopRow(c.bt, sid, ch, sm, coop); return r ? +r[c.f] || 0 : 0;
+}
+function dsSum(sid, ch, colF, smF) {
+  const st = bdMeStruct(); let s = 0;
+  Object.keys(st).forEach((sm) => { if (smF && !smF(sm)) return; Object.keys(st[sm]).forEach((coop) => DS_COLS.forEach((c) => { if (colF(c)) s += dsCoopVal(c, sid, ch, sm, coop, st[sm][coop]); })); });
+  return s;
+}
+const dsLineCols = (key) => (key === "foc" ? (c) => c.f === "focAmount" : (c) => c.f === "amount" && c.bt === key);
+const DS_LINES = ["pallets", "stands", "polypack", "foc", "pricediff"];
+function dsRecv(sid, ch) { return DS_LINES.reduce((a, k) => a + dsShare(sid, ch, k), 0); }
+function dsDist(sid, ch) { return dsSum(sid, ch, () => true); }
+function dsInfo(recv, dist) { return `${t("bd_received")}: <b class="mono">${KD(recv)}</b> · ${t("bp_allocated")}: <b class="mono">${KD(dist)}</b> · ${t("cb_leftLbl")}: <b class="mono">${alLeft(recv - dist)}</b>`; }
+// Which supplier × channel sheets to show: anything received, or anything already distributed.
+function dsSheets() {
+  const out = [], sups = bpData.suppliers || [], chs = bpData.distChannels || ["coop_main", "coop_branch"];
+  const has = (sid, ch) => (bpData.allocCoop || []).concat(bpData.allocOutlet || []).some((a) => (a.supplierId || 0) === sid && (a.channel || "") === ch && ((+a.amount || 0) || (+a.focAmount || 0)));
+  sups.forEach((sp) => { const list = chs.filter((ch) => dsRecv(sp.id, ch) > 0 || has(sp.id, ch)); if (list.length) out.push({ sp, chs: list }); });
+  return { out, legacy: has(0, "") };
+}
+function dsTable(sid, ch, legacy) {
+  const st = bdMeStruct(), dis = bpData.closed ? "disabled" : "", sk = `${sid}_${ch || "x"}`;
+  const head = `<thead><tr><th rowspan="2" class="cb-th-lbl">${t("bd_target")}</th><th colspan="2" class="cb-th-grp ds-osd">${t("bt_osd")}</th><th rowspan="2">${budgetTypeLabel("polypack")}</th><th colspan="3" class="cb-th-grp ds-ga">${budgetTypeLabel("foc")}</th><th rowspan="2">${budgetTypeLabel("pricediff")}</th><th rowspan="2" class="cb-th-sub">${t("total")}</th></tr>
+    <tr><th>${budgetTypeLabel("pallets")}</th><th>${budgetTypeLabel("stands")}</th><th class="ds-ga">${t("ds_on").replace("{x}", budgetTypeLabel("pallets"))}</th><th class="ds-ga">${t("ds_on").replace("{x}", budgetTypeLabel("stands"))}</th><th class="ds-ga">${t("ds_on").replace("{x}", budgetTypeLabel("pricediff"))}</th></tr></thead>`;
+  const colg = `<colgroup><col class="c-lbl">${DS_COLS.map(() => "<col>").join("")}<col class="c-tot"></colgroup>`;
+  let r = 0;
+  const q = (s) => esc(String(s));
+  const inp = (c, sm, coop, cid, v, ri) => `<input class="cb-in" inputmode="decimal" autocomplete="off" data-sheet="${sk}" data-sid="${sid}" data-ch="${ch}" data-bt="${c.bt}" data-f="${c.f}" data-sm="${q(sm)}" data-coop="${q(coop)}"${cid ? ` data-cid="${q(cid)}"` : ""} data-r="${ri}" data-col="${DS_COLS.indexOf(c)}" value="${v ? v : ""}" placeholder="0" ${dis}>`;
+  // The earlier distribution lists only the co-ops that still carry a value.
+  const anyVal = (sm, coop) => DS_COLS.some((c) => dsCoopVal(c, sid, ch, sm, coop, (st[sm] || {})[coop]) || (((st[sm] || {})[coop]) || []).some((o) => { const x = dsOutRow(c.bt, sid, ch, coop, o.custId); return x && (+x[c.f] || 0); }));
+  const rows = Object.keys(st).sort().filter((sm) => !legacy || Object.keys(st[sm] || {}).some((coop) => anyVal(sm, coop))).map((sm) => {
+    const coops = Object.fromEntries(Object.entries(st[sm] || {}).filter(([coop]) => !legacy || anyVal(sm, coop)));
+    const smRow = `<tr class="cb-sub ds-sm"><td>${escN(sm)}</td>${DS_COLS.map((c) => `<td class="cb-tot">${cbFmt(dsSum(sid, ch, (x) => x === c, (s) => s === sm))}</td>`).join("")}<td class="cb-tot">${cbFmt(dsSum(sid, ch, () => true, (s) => s === sm))}</td></tr>`;
+    const coopRows = Object.keys(coops).sort().map((coop) => {
+      const outlets = coops[coop] || [], ok = `${sk}|${sm}|${coop}`, open = dsOpen.has(ok);
+      const name = esc(LANG === "en" ? coop : (coopAr(coop) || coop));
+      const tog = outlets.length ? `<button class="ds-tog" onclick="dsToggle(this)" data-k="${q(ok)}" title="${esc(t("ds_outlets"))}">${open ? "▾" : "▸"}</button>` : `<span class="ds-tog-sp"></span>`;
+      const cr = r++;
+      const cells = DS_COLS.map((c) => {
+        if (dsHasOut(c.bt, sid, ch, coop)) return `<td class="cb-tot ds-roll" title="${esc(t("ds_roll"))}">${cbFmt(dsCoopVal(c, sid, ch, sm, coop, outlets))}</td>`;
+        const row = dsCoopRow(c.bt, sid, ch, sm, coop); return `<td>${inp(c, sm, coop, null, row ? +row[c.f] || 0 : 0, cr)}</td>`;
+      }).join("");
+      const coopRow = `<tr class="ds-coop"><td>${tog} ${name}</td>${cells}<td class="cb-tot">${cbFmt(DS_COLS.reduce((a, c) => a + dsCoopVal(c, sid, ch, sm, coop, outlets), 0))}</td></tr>`;
+      const outRows = outlets.map((o) => {
+        const orr = r++;
+        return `<tr class="ds-out" data-ok="${q(ok)}"${open ? "" : ' style="display:none"'}><td>${esc(o.name)}</td>${DS_COLS.map((c) => { const row = dsOutRow(c.bt, sid, ch, coop, o.custId); return `<td>${inp(c, sm, coop, o.custId, row ? +row[c.f] || 0 : 0, orr)}</td>`; }).join("")}<td class="cb-tot">${cbFmt(DS_COLS.reduce((a, c) => { const row = dsOutRow(c.bt, sid, ch, coop, o.custId); return a + (row ? +row[c.f] || 0 : 0); }, 0))}</td></tr>`;
+      }).join("");
+      return coopRow + outRows;
+    }).join("");
+    return smRow + coopRows;
+  }).join("");
+  // Footer: distributed per column; received / left per line (Give Away spans its three columns).
+  const dist = `<tr class="cb-sum"><td>${t("bp_allocated")}</td>${DS_COLS.map((c) => `<td class="cb-tot">${cbFmt(dsSum(sid, ch, (x) => x === c))}</td>`).join("")}<td class="cb-tot">${cbFmt(dsDist(sid, ch))}</td></tr>`;
+  const lineRow = (label, fn, fmt, cls, tot) => {
+    let h = "", gaDone = false;
+    DS_COLS.forEach((c) => {
+      if (c.f === "focAmount") { if (!gaDone) { gaDone = true; h += `<td class="cb-tot ds-ga" colspan="3">${fmt(fn("foc"))}</td>`; } return; }
+      h += `<td class="cb-tot">${fmt(fn(c.bt))}</td>`;
+    });
+    return `<tr class="${cls}"><td>${label}</td>${h}<td class="cb-tot">${fmt(tot)}</td></tr>`;
+  };
+  const recv = (k) => (legacy ? 0 : dsShare(sid, ch, k)), used = (k) => dsSum(sid, ch, dsLineCols(k));
+  // The summary sits on top, so it stays in view however long the team is.
+  const foot = legacy ? dist.replace('class="cb-sum"', 'class="cb-sum ds-sumtop"')
+    : lineRow(t("bd_received"), recv, cbFmt, "cb-sum", dsRecv(sid, ch)) + dist + lineRow(t("cb_leftLbl"), (k) => recv(k) - used(k), alLeft, "cb-sum cb-sum-left ds-sumtop", dsRecv(sid, ch) - dsDist(sid, ch));
+  return `<div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln ds-sheet" data-kind="dist" data-sheet="${sk}" style="min-width:${220 + DS_COLS.length * 92}px" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">${colg}${head}<tbody>${foot}${rows}</tbody></table></div>`;
+}
+function dsToggle(btn) {
+  const k = btn.dataset.k, open = !dsOpen.has(k); if (open) dsOpen.add(k); else dsOpen.delete(k);
+  btn.textContent = open ? "▾" : "▸";
+  btn.closest("tbody").querySelectorAll("tr.ds-out").forEach((tr) => { if (tr.dataset.ok === k) tr.style.display = open ? "" : "none"; });
+}
+function dsPanel() {
+  const { out, legacy } = dsSheets(), chs = bpData.distChannels || ["coop_main", "coop_branch"];
+  const totRecv = (bpData.suppliers || []).reduce((a, sp) => a + chs.reduce((b, ch) => b + dsRecv(sp.id, ch), 0), 0);
+  const totDist = out.reduce((a, g) => a + g.chs.reduce((b, ch) => b + dsDist(g.sp.id, ch), 0), 0);
+  const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("bd_received")}</div><div class="val mono">${KD(totRecv)}</div></div>
+    ${chs.map((ch) => { const rv = (bpData.suppliers || []).reduce((a, sp) => a + dsRecv(sp.id, ch), 0), dv = (bpData.suppliers || []).reduce((a, sp) => a + dsDist(sp.id, ch), 0); return `<div class="card"><div class="lbl">${t("ch_" + ch)}</div><div class="val mono">${KD(dv)}</div><span class="al-of">/ ${KD(rv)}</span></div>`; }).join("")}
+    <div class="card"><div class="lbl">${t("bp_allocated")}</div><div class="val mono">${KD(totDist)}</div></div>
+    <div class="card"><div class="lbl">${t("cb_leftLbl")}</div><div class="val mono">${alLeft(totRecv - totDist)}</div></div></div>`;
+  const sheets = out.map(({ sp, chs: list }) => {
+    const r = list.reduce((a, ch) => a + dsRecv(sp.id, ch), 0), d = list.reduce((a, ch) => a + dsDist(sp.id, ch), 0);
+    return `<div class="ds-sup"><div class="ds-sup-h"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info">${dsInfo(r, d)}</span></div>
+      ${list.map((ch) => `<div class="ds-ch-h"><span>${esc(sp.name)} · <b>${t("ch_" + ch)}</b></span><span class="cb-grp-info">${dsInfo(dsRecv(sp.id, ch), dsDist(sp.id, ch))}</span></div>${dsTable(sp.id, ch, false)}`).join("")}</div>`;
+  }).join("");
+  const old = legacy ? `<div class="ds-sup ds-legacy"><div class="ds-sup-h"><span>${t("ds_legacy")}</span></div><div class="hint" style="margin:8px 2px">${t("ds_legacyHint")}</div>${dsTable(0, "", true)}</div>` : "";
+  const body = out.length || legacy ? sheets + old : `<div class="empty">${t("ds_none")}</div>`;
+  return `${kpis}<div class="hint" style="margin:6px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 12px">${t("ds_hint")}</div>${body}`;
+}
 function renderBudgetDist() {
-  const d = bpData, me = (d.me && d.me.name) || currentUser.name;
-  const closed = d.closed, dis = closed ? "disabled" : "";
-  const struct = (d.structure && d.structure[me]) || {};
-  const salesmen = Object.keys(struct).sort();
-  // The supervisor generates the D.N letters from here (short chain:
-  // supervisor -> sales manager -> print). The مجاني part never becomes a letter.
+  const d = bpData, closed = d.closed;
   const genBtn = currentUser.role === "supervisor" ? `<button class="btn primary sm" onclick="generateFromBudget()">⚡ ${t("genFromBudget")}</button>` : "";
   const monthBar = `<div class="panel"><div class="body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <label>${t("bp_month")}:</label><input type="month" value="${esc(d.month)}" onchange="bpSetMonth2(this.value)">
     <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span>${genBtn}</div></div>`;
-  if (!salesmen.length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
-  // Only the capped types are distributed. FOC is not distributed as its own
-  // block: it is entered as the مجاني part inside pallets / stands / price diff,
-  // and its block below is a read-only breakdown against what was received.
-  const types = (d.capped || []);
-  const smSumOf = (bt, sm) => { const coops = struct[sm] || {}; return Object.keys(coops).reduce((a, c) => a + coopEffective(bt, sm, c, coops[c]), 0); };
-  const blocks = types.map((bt) => {
-    const received = +bpAllocOf(bt, me) || 0;
-    if (bt === "foc") {
-      const fo = focByOrigin();
-      const over = received > 0 && fo.total > received;
-      return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_foc" style="${over ? "color:var(--danger)" : ""}">${KD(fo.total)}</span></summary>
-        <div class="hint" style="margin:8px 0 4px">${t("bd_focDetail")}</div>
-        <div class="tbl-wrap"><table><thead><tr><th>${t("bd_against")}</th><th>${t("bp_allocated")}</th></tr></thead><tbody>
-        ${DN_TYPES.map((k) => `<tr><td>${budgetTypeLabel(k)}</td><td class="mono" id="bdfoc_${k}">${KD(fo[k])}</td></tr>`).join("")}
-        </tbody></table></div></details></div>`;
-    }
-    const distSum = salesmen.reduce((s, sm) => s + smSumOf(bt, sm), 0);
-    const over = received > 0 && distSum > received;
-    const isDn = DN_TYPES.includes(bt);
-    const smRows = salesmen.map((sm, si) => {
-      const coops = struct[sm] || {};
-      const coopNames = Object.keys(coops).sort();
-      const coopBlocks = coopNames.map((coop, ci) => {
-        const outlets = coops[coop] || [];
-        const gid = `${bt}_${si}_${ci}`;
-        const coopRow = `<tr><td style="padding-inline-start:24px"><button class="btn ghost sm out-toggle" style="padding:0 7px" onclick="bdToggleOut('${gid}',this)">▸</button> ${esc(LANG === "en" ? coop : (coopAr(coop) || coop))}</td>
-          <td id="coopwrap_${gid}">${bdCoopCell(bt, sm, coop, outlets, gid, dis)}</td><td class="mono">${KD(bdCoopSpend(bt, coop))}</td></tr>`;
-        const outRows = outlets.map((o) => `<tr class="outrow og_${gid}" style="display:none"><td style="padding-inline-start:52px;font-size:12.5px;color:var(--muted)">${esc(o.name)}</td>
-          <td>${bdOutletCell(bt, sm, coop, o, gid, dis)}</td>
-          <td class="mono">${KD(bdOutletSpend(bt, o.custId))}</td></tr>`).join("");
-        return coopRow + outRows;
-      }).join("");
-      return `<tr style="background:var(--bg)"><td><b>${escN(sm)}</b></td>
-        <td class="mono" id="smroll_${bt}_${si}" style="font-weight:700">${KD(smSumOf(bt, sm))}</td>
-        <td class="mono">${KD(bdSalesSpend(bt, sm))}</td></tr>${coopBlocks}`;
-    }).join("");
-    const allocHead = isDn ? `${t("bp_allocated")} (${t("bd_dn")} + ${t("bd_foc")})` : t("bp_allocated");
-    return `<div class="mon-node"><details open><summary><b>${budgetTypeLabel(bt)}</b> — ${t("bd_received")}: <span class="mono">${KD(received)}</span> · ${t("bp_allocated")}: <span class="mono" id="bddist_${bt}" style="${over ? "color:var(--danger)" : ""}">${KD(distSum)}</span></summary>
-      <div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>${t("bd_target")}</th><th>${allocHead}</th><th>${t("bp_noteSpend")}</th></tr></thead><tbody>${smRows}</tbody></table></div></details></div>`;
-  }).join("");
-  document.getElementById("rv").innerHTML = monthBar + `<div class="panel"><header><h3>${t("r_budgetDist")}</h3></header><div class="body">${blocks}</div></div>`;
+  if (!Object.keys(bdMeStruct()).length) { document.getElementById("rv").innerHTML = monthBar + `<div class="empty">${t("noAssign")}</div>`; return; }
+  document.getElementById("rv").innerHTML = monthBar + `<div class="panel cb-panel"><header><h3>${t("r_budgetDist")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3></header><div class="body" id="dsBody">${dsPanel()}</div></div>`;
 }
-function bdToggleOut(gid, btn) {
-  let shown = false;
-  document.querySelectorAll(".og_" + gid).forEach((r) => { const v = r.style.display === "none"; r.style.display = v ? "" : "none"; shown = v; });
-  if (btn) btn.textContent = shown ? "▾" : "▸";
-}
-// Recompute the salesman rollups and the block total for a type, in place.
-function bdUpdateTotals(bt) {
-  const me = (bpData.me && bpData.me.name) || currentUser.name;
-  const struct = bdMeStruct();
-  const salesmen = Object.keys(struct).sort();
-  let total = 0;
-  salesmen.forEach((sm, i) => {
-    const coops = struct[sm] || {};
-    const sum = Object.keys(coops).reduce((a, c) => a + coopEffective(bt, sm, c, coops[c]), 0);
-    total += sum;
-    const cell = document.getElementById("smroll_" + bt + "_" + i);
-    if (cell) cell.textContent = KD(sum);
-  });
-  const dcell = document.getElementById("bddist_" + bt);
-  if (dcell) {
-    dcell.textContent = KD(total);
-    const received = +bpAllocOf(bt, me) || 0;
-    dcell.style.color = (received > 0 && total > received) ? "var(--danger)" : "";
-  }
-  // A D.N-able type also feeds the FOC breakdown block — refresh it in place.
-  if (DN_TYPES.includes(bt)) {
-    const fo = focByOrigin();
-    DN_TYPES.forEach((k) => { const c = document.getElementById("bdfoc_" + k); if (c) c.textContent = KD(fo[k]); });
-    const fc = document.getElementById("bddist_foc");
-    if (fc) { fc.textContent = KD(fo.total); const r = +bpAllocOf("foc", me) || 0; fc.style.color = (r > 0 && fo.total > r) ? "var(--danger)" : ""; }
-  }
-}
-// `field` is 'amount' (the D.N part) or 'focAmount' (the مجاني part); the
-// server keeps the other part as stored.
-async function bdSaveCoop(bt, sm, coop, field, value, gid, el) {
-  try {
-    const body = { month: bpMonth, budgetType: bt, salesman: sm, coop }; body[field] = value;
-    await api("/budget-alloc-coop", { method: "POST", body });
-    const v = +value || 0;
-    const arr = bpData.allocCoop || (bpData.allocCoop = []);
-    let ex = arr.find((x) => x.budgetType === bt && x.salesman === sm && x.coop === coop);
-    if (!ex) { ex = { budgetType: bt, salesman: sm, coop, amount: 0, focAmount: 0 }; arr.push(ex); }
-    ex[field] = v;
-    bdUpdateTotals(bt);
-    toast(t("saved"));
-  } catch (e) {
-    // Refused (e.g. over budget): put the stored value back in the input.
-    if (el) el.value = field === "amount" ? bdCoopAlloc(bt, sm, coop) : bdCoopFoc(bt, sm, coop);
-    toast(e.message);
-  }
-}
-async function bdSaveOutlet(bt, sm, coop, custId, field, value, gid, el) {
-  try {
-    const body = { month: bpMonth, budgetType: bt, coop, custId }; body[field] = value;
-    await api("/budget-alloc-outlet", { method: "POST", body });
-    const v = +value || 0;
-    const arr = bpData.allocOutlet || (bpData.allocOutlet = []);
-    let ex = arr.find((x) => x.budgetType === bt && x.coop === coop && x.custId === custId);
-    if (!ex) { ex = { budgetType: bt, coop, custId, amount: 0, focAmount: 0 }; arr.push(ex); }
-    ex[field] = v;
-    // The coop now rolls up from its outlets: replace its cell with the sum
-    // (or restore the direct input(s) if all outlets were cleared).
-    const outlets = (bdMeStruct()[sm] || {})[coop] || [];
-    const wrap = document.getElementById("coopwrap_" + gid);
-    if (wrap) wrap.innerHTML = bdCoopCell(bt, sm, coop, outlets, gid, "");
-    bdUpdateTotals(bt);
-    toast(t("saved"));
-  } catch (e) {
-    if (el) el.value = field === "amount" ? bdOutletAlloc(bt, coop, custId) : bdOutletFoc(bt, coop, custId);
-    toast(e.message);
-  }
+// Re-render after a save, keeping the focused cell and the scroll position.
+function dsRefresh() {
+  const a = document.activeElement, keep = a && a.classList && a.classList.contains("cb-in") && a.dataset.sheet ? { s: a.dataset.sheet, r: a.dataset.r, c: a.dataset.col } : null;
+  const wraps = [...document.querySelectorAll("#dsBody .cb-wrap")].map((w) => [w.scrollLeft, w.scrollTop]);
+  const body = document.getElementById("dsBody"); if (!body) return;
+  body.innerHTML = dsPanel();
+  document.querySelectorAll("#dsBody .cb-wrap").forEach((w, i) => { if (wraps[i]) { w.scrollLeft = wraps[i][0]; w.scrollTop = wraps[i][1]; } });
+  if (keep) { const el = document.querySelector(`#dsBody .cb-in[data-sheet="${keep.s}"][data-r="${keep.r}"][data-col="${keep.c}"]`); if (el) { el.focus({ preventScroll: true }); el.select(); } }
 }
 // Placeholder sections (content to be defined later).
 function vDailyReports() {

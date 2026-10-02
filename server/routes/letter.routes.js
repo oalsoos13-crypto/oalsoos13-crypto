@@ -421,54 +421,63 @@ router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((
   }
 
   // D.N parts only (`amount`) — the FOC part (`foc_amount`) is never a letter.
-  const allocCoop = db.prepare(`SELECT budget_type, salesman, coop, amount FROM budget_alloc_coop WHERE month=? AND salesman IN (${ph})`).all(month, ...mySales);
-  const allocOutlet = db.prepare('SELECT budget_type, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month);
-  const outletByKey = new Map(); // `${bt}|${coop}|${custId}` -> amount
-  const coopHasOutlet = new Set(); // `${bt}|${coop}`
+  // Distributed per supplier × co-op channel: one letter per supplier (its
+  // Main and Branch parts together), the supplier's name as the letter's brand.
+  // Supplier 0 = the earlier distribution made before the split by supplier.
+  const supName = new Map(db.prepare('SELECT id, name FROM company_suppliers').all().map((r) => [r.id, r.name]));
+  const allocCoop = db.prepare(`SELECT budget_type, supplier_id, channel, salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=? AND salesman IN (${ph})`).all(month, ...mySales);
+  const allocOutlet = db.prepare('SELECT budget_type, supplier_id, channel, coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=?').all(month);
+  const outletByKey = new Map(); // `${bt}|${sid}|${coop}|${custId}` -> amount (channels summed)
+  const coopHasOutlet = new Set(); // `${bt}|${sid}|${ch}|${coop}` — its outlets drive it instead
   for (const o of allocOutlet) {
+    if (num(o.amount) !== 0 || num(o.foc_amount) !== 0) coopHasOutlet.add(`${o.budget_type}|${o.supplier_id}|${o.channel}|${o.coop}`);
     if (!(num(o.amount) > 0)) continue;
-    outletByKey.set(`${o.budget_type}|${o.coop}|${o.cust_id}`, num(o.amount));
-    coopHasOutlet.add(`${o.budget_type}|${o.coop}`);
+    const k = `${o.budget_type}|${o.supplier_id}|${o.coop}|${o.cust_id}`;
+    outletByKey.set(k, (outletByKey.get(k) || 0) + num(o.amount));
   }
 
   // Dedupe against every letter already generated for this month, whoever
   // generated it: key type|scopeCoop|custId.
   const doneKeys = new Set();
-  db.prepare("SELECT type, coop, cust_id, meta FROM letters WHERE meta LIKE '%genBudget%'").all().forEach((L) => {
+  db.prepare("SELECT type, coop, cust_id, brand, meta FROM letters WHERE meta LIKE '%genBudget%'").all().forEach((L) => {
     let mj = null; try { mj = L.meta ? JSON.parse(L.meta) : null; } catch (e) { mj = null; }
-    if (mj && mj.genBudget === month) doneKeys.add(`${L.type}|${L.coop}|${L.cust_id || ''}`);
+    if (mj && mj.genBudget === month) doneKeys.add(`${L.type}|${L.coop}|${L.cust_id || ''}|${L.brand || ''}`);
   });
 
   const targets = []; // { type, bt, sales, scopeCoop, recipient, custId, market, value }
   for (const bt of Object.keys(GEN_TYPE_OF)) {
     const type = GEN_TYPE_OF[bt];
-    // Coop-level D.N allocations for this type.
+    // Coop-level D.N allocations for this type, per supplier (Main + Branch summed).
+    const coopSum = new Map();
     for (const row of allocCoop) {
       if (row.budget_type !== bt || !(num(row.amount) > 0)) continue;
       const coops = team.get(row.salesman);
       const info = coops && coops.get(row.coop);
       if (!info) continue; // coop not in this team
-      if (coopHasOutlet.has(`${bt}|${row.coop}`)) continue; // outlets drive it instead
-      targets.push({ type, bt, sales: row.salesman, scopeCoop: info.scopeCoop, recipient: info.recipient, custId: null, market: '', value: num(row.amount) });
+      if (coopHasOutlet.has(`${bt}|${row.supplier_id}|${row.channel}|${row.coop}`)) continue; // outlets drive it instead
+      const k = `${row.salesman}|${row.coop}|${row.supplier_id}`;
+      if (!coopSum.has(k)) coopSum.set(k, { sm: row.salesman, info, sid: row.supplier_id, value: 0 });
+      coopSum.get(k).value += num(row.amount);
     }
+    for (const c of coopSum.values()) targets.push({ type, bt, sales: c.sm, scopeCoop: c.info.scopeCoop, recipient: c.info.recipient, custId: null, market: '', value: c.value, brand: supName.get(c.sid) || '' });
     // Outlet-level D.N allocations for this type — find the salesman serving it.
     for (const [key, amount] of outletByKey) {
-      const [kbt, kcoop, kcust] = key.split('|');
+      const [kbt, ksid, kcoop, kcust] = key.split('|');
       if (kbt !== bt) continue;
       let hit = null;
       for (const [sm, coops] of team) { const info = coops.get(kcoop); if (info && info.outlets.has(kcust)) { hit = { sm, info }; break; } }
       if (!hit) continue; // not this team's outlet
-      targets.push({ type, bt, sales: hit.sm, scopeCoop: hit.info.scopeCoop, recipient: hit.info.recipient, custId: kcust, market: marketLabelServer(hit.info.outlets.get(kcust)), value: amount });
+      targets.push({ type, bt, sales: hit.sm, scopeCoop: hit.info.scopeCoop, recipient: hit.info.recipient, custId: kcust, market: marketLabelServer(hit.info.outlets.get(kcust)), value: amount, brand: supName.get(+ksid) || '' });
     }
   }
 
   const created = [];
   const insert = db.prepare(`INSERT INTO letters
       (id, num, lysal, type, coop, brand, sales, date, principal, note, value, base, pct, items, recipient, meta, cust_id, status, approval, appr_stage, budget_type, approved_by, approved_at, created_by, created_at)
-      VALUES (@id,@num,@lysal,@type,@coop,'',@sales,@date,'','',@value,NULL,NULL,NULL,@recipient,@meta,@custId,'pending','pending','supervisor',@bt,NULL,NULL,@by,@now)`);
+      VALUES (@id,@num,@lysal,@type,@coop,@brand,@sales,@date,'','',@value,NULL,NULL,NULL,@recipient,@meta,@custId,'pending','pending','supervisor',@bt,NULL,NULL,@by,@now)`);
   const tx = db.transaction(() => {
     for (const g of targets) {
-      const dedupeKey = `${g.type}|${g.scopeCoop}|${g.custId || ''}`;
+      const dedupeKey = `${g.type}|${g.scopeCoop}|${g.custId || ''}|${g.brand || ''}`;
       if (doneKeys.has(dedupeKey)) continue;
       doneKeys.add(dedupeKey);
       const id = genId('L');
@@ -478,10 +487,10 @@ router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((
       if (g.market) meta.market = g.market;
       insert.run({
         id, num: n, lysal: refNo(n), type: g.type, coop: g.scopeCoop,
-        sales: g.sales, date: now.slice(0, 10), value: g.value,
+        sales: g.sales, brand: g.brand || '', date: now.slice(0, 10), value: g.value,
         recipient: g.recipient, meta: toJson(meta), custId: g.custId, bt: g.bt, by: req.user.id, now,
       });
-      created.push({ id, lysal: refNo(n), type: g.type, coop: g.scopeCoop, sales: g.sales, custId: g.custId, value: g.value });
+      created.push({ id, lysal: refNo(n), type: g.type, coop: g.scopeCoop, brand: g.brand || '', sales: g.sales, custId: g.custId, value: g.value });
     }
   });
   tx();

@@ -582,6 +582,24 @@ function migrate() {
   if (!acCols.includes('foc_amount')) db.exec('ALTER TABLE budget_alloc_coop ADD COLUMN foc_amount REAL NOT NULL DEFAULT 0');
   const aoCols = db.prepare("PRAGMA table_info(budget_alloc_outlet)").all().map((c) => c.name);
   if (!aoCols.includes('foc_amount')) db.exec('ALTER TABLE budget_alloc_outlet ADD COLUMN foc_amount REAL NOT NULL DEFAULT 0');
+  // The supervisor distributes the sales manager's split as it came: per
+  // supplier and co-op channel (Main / Branch). Rows from before that split
+  // keep supplier_id 0 / channel '' ("earlier distribution").
+  const addSupCh = (tbl, keyCols) => {
+    const have = db.prepare(`PRAGMA table_info(${tbl})`).all().map((c) => c.name);
+    if (have.includes('supplier_id')) return;
+    db.transaction(() => {
+      db.exec(`ALTER TABLE ${tbl} RENAME TO ${tbl}_old`);
+      db.exec(`CREATE TABLE ${tbl} (month TEXT NOT NULL, budget_type TEXT NOT NULL, supplier_id INTEGER NOT NULL DEFAULT 0, channel TEXT NOT NULL DEFAULT '',
+        ${keyCols.map((k) => `${k} TEXT NOT NULL`).join(', ')}, amount REAL NOT NULL DEFAULT 0, foc_amount REAL NOT NULL DEFAULT 0, updated_at TEXT,
+        PRIMARY KEY (month, budget_type, supplier_id, channel, ${keyCols.join(', ')}))`);
+      const cols = ['month', 'budget_type', ...keyCols, 'amount', 'foc_amount', 'updated_at'];
+      db.exec(`INSERT INTO ${tbl} (${cols.join(',')}) SELECT ${cols.join(',')} FROM ${tbl}_old`);
+      db.exec(`DROP TABLE ${tbl}_old`);
+    })();
+  };
+  addSupCh('budget_alloc_coop', ['salesman', 'coop']);
+  addSupCh('budget_alloc_outlet', ['coop', 'cust_id']);
   // Company-wide budget (all channels): per month, each supplier (Lay's,
   // Frito-Lay, Biscuni, … each with its own supplier code) gets an amount per
   // budget line (pallets / stands / condition / FOC / price diff) per sales
