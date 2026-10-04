@@ -144,6 +144,12 @@ const T = {
     en: "Approve letters and manage the budget across channels.",
   },
   r_sales_ops: { ar: "مدير عمليات البيع والتسويق", en: "Sales & Marketing Ops" },
+  r_ka_manager: { ar: "مدير KA", en: "KA Manager" },
+  r_ka_manager_d: { ar: "يوزّع بتجيت قسم KA على المشرفين.", en: "Splits the KA channel budget to supervisors." },
+  r_online_manager: { ar: "مدير الأونلاين", en: "Online Manager" },
+  r_online_manager_d: { ar: "يوزّع بتجيت قسم الأونلاين على المشرفين.", en: "Splits the Online channel budget to supervisors." },
+  r_tt_manager: { ar: "مدير TT", en: "TT Manager" },
+  r_tt_manager_d: { ar: "يوزّع بتجيت قسم TT (بقالات / WS / هوريكا + مدارس) على المشرفين.", en: "Splits the TT channel budget (Grocery / WS / Horeca + Schools) to supervisors." },
   r_sales_ops_d: {
     ar: "اعتماد الكتب والتوقيع عند الحاجة، وتوزيع الميزانية والتقارير.",
     en: "Approve letters (sign when required), distribute budget, and reports.",
@@ -577,12 +583,12 @@ const T = {
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
   cb_title: { ar: "البتجيت", en: "Budget" },
   cb_line: { ar: "بند البتجيت", en: "Budget line" },
-  al_title: { ar: "بتجيت الجمعيات ← المشرفين", en: "Co-op budget → supervisors" },
-  al_budget: { ar: "بتجيت الجمعيات", en: "Co-op budget" },
-  al_budgetCol: { ar: "بتجيت الجمعيات", en: "Co-op budget" },
+  al_title: { ar: "توزيع البتجيت ← المشرفين", en: "Budget → supervisors" },
+  al_budget: { ar: "البتجيت", en: "Budget" },
+  al_budgetCol: { ar: "البتجيت", en: "Budget" },
   al_allSup: { ar: "كل الموردين", en: "All suppliers" },
-  al_grand: { ar: "إجمالي الجمعيات", en: "Co-op total" },
-  al_note: { ar: "توتال كل براند للجمعيات (مين وبرانش) بيحطه الأدمن. وزّع المين لحاله والبرانش لحاله هون على المشرفين حسب البند — ما بتقدر تتجاوز توتال البراند بكل واحد منهم، ومجموع كل مشرف بيروح لشاشة التوزيع تبعه.", en: "The admin sets each brand's co-op totals (Main and Branch). Split Main and Branch separately here by line and supervisor — you cannot go over the brand's total in either, and each supervisor's sum goes to his distribution screen." },
+  al_grand: { ar: "الإجمالي", en: "Total" },
+  al_note: { ar: "توتال كل براند لكل قسم بيحطه الأدمن. وزّع كل قسم لحاله هون على المشرفين حسب البند — ما بتقدر تتجاوز توتال البراند بأي قسم، ومجموع كل مشرف بيروح لشاشة التوزيع تبعه.", en: "The admin sets each brand's total per channel. Split each channel here by line and supervisor — you cannot go over the brand's total in any channel, and each supervisor's sum goes to his distribution screen." },
   cb_leftLbl: { ar: "المتبقي من البتجيت", en: "Budget left" },
   cb_grand: { ar: "الإجمالي الكلي للشركة", en: "Company grand total" },
   cb_keys: { ar: "اكتب الرقم واضغط Enter للنزول · Tab للانتقال يمين/يسار · تقدر تلصق جدول كامل من Excel مباشرة · كل خانة بتنحفظ لحالها", en: "Type a number and press Enter to go down · Tab to move across · paste a whole block straight from Excel · every cell saves itself" },
@@ -1266,17 +1272,23 @@ function onCoopChange(prefix) {
 /* ---------- roles ---------- */
 const ROLES = [
   { k: "sales_manager", ic: "✍" },
+  { k: "ka_manager", ic: "▦" },
+  { k: "online_manager", ic: "◍" },
+  { k: "tt_manager", ic: "◈" },
   { k: "marketing_manager", ic: "◵" },
   { k: "sales_ops", ic: "⇲" },
   { k: "supervisor", ic: "⋔" },
   { k: "salesman", ic: "✎" },
 ];
+// Roles that split a channel's budget to supervisors on the Saed-style screen.
+const CHANNEL_MGR_ROLES = ["sales_manager", "ka_manager", "online_manager", "tt_manager"];
+function isChannelMgr() { return !!currentUser && CHANNEL_MGR_ROLES.includes(currentUser.role); }
 // Sections hidden from the home tiles and the navigation bar. Co-op-only scope:
 // everything that isn't letters/debit-notes is hidden (screens still exist).
 const HIDDEN_ROUTES = new Set(["outlets", "products", "priceUpdates", "priceTrack", "approveItems", "coopTerms", "budgetHistory"]);
 // Top-level sections (two-level sidebar): each groups a set of screens.
 const SECTIONS = [
-  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "budgetDist", "printQueue", "archive", "lettersHistory"] },
+  { k: "debitnote", screens: ["salesman", "supervisor", "sales_manager", "ka_manager", "online_manager", "tt_manager", "marketing_manager", "sales_ops", "monitor", "union", "budgetPlan", "budgetDist", "printQueue", "archive", "lettersHistory"] },
   { k: "settings", screens: ["structure", "glossary", "users", "backup", "audit", "methodology"] },
   { k: "contracts", screens: ["contracts"] },
   { k: "sales", screens: ["sales", "salesMonthly"] },
@@ -1374,6 +1386,9 @@ function render() {
   // Each role's sections (the sidebar). Letters/notes-only scope.
   const EXTRA = {
     sales_manager: ["budgetPlan", "lettersHistory"],
+    ka_manager: ["lettersHistory"],
+    online_manager: ["lettersHistory"],
+    tt_manager: ["lettersHistory"],
     marketing_manager: ["lettersHistory"],
     sales_ops: ["lettersHistory", "audit"],
     supervisor: ["budgetDist", "lettersHistory"],
@@ -1432,6 +1447,9 @@ function render() {
     archive: vArchive,
     monitor: vMonitor,
     budgetPlan: vBudgetPlan,
+    ka_manager: vBudgetPlan,
+    online_manager: vBudgetPlan,
+    tt_manager: vBudgetPlan,
     budgetDist: vBudgetDist,
     methodology: vMethodology,
     structure: vStructure,
@@ -2246,7 +2264,7 @@ async function vBudgetPlan(refresh) {
   cbData = null;
   if (cbCanSee()) { try { cbData = await api("/budget-company?month=" + bpMonth); } catch (e) { cbData = null; } }
   alData = null;
-  if (currentUser.role === "sales_manager") { try { alData = await api("/budget-alloc-sup?month=" + bpMonth); } catch (e) { alData = null; } }
+  if (isChannelMgr()) { try { alData = await api("/budget-alloc-sup?month=" + bpMonth); } catch (e) { alData = null; } }
   renderBudgetPlan();
   // Refreshing the same screen after a save: skip the entrance fade so the page
   // does not flash.
@@ -2275,7 +2293,7 @@ function allocSheetPanel() {
 // Per brand: Main and Branch are split separately (each its own lines × supervisors),
 // then the brand's total; then all brands together.
 function allocLayerPanel(L) {
-  const d = alData, ed = currentUser.role === "sales_manager" && !d.closed, sups = d.suppliers, svs = d.supervisors, types = d.types, chs = d.channels || ["coop_main", "coop_branch"];
+  const d = alData, ed = isChannelMgr() && !d.closed, sups = d.suppliers, svs = d.supervisors, types = d.types, chs = d.channels || ["coop_main", "coop_branch"];
   const n = svs.length + 2, P = `${L}_`;
   let ri = 0;
   const supRows = sups.map((sp) => {

@@ -281,7 +281,7 @@ router.get('/budget-plan', asyncH((req, res) => {
     month, closed: !!(m && m.closed), types: ALL_BUDGET_TYPES, capped: CAPPED_TYPES,
     caps, alloc: outAlloc, allocSales: outAllocSales, allocCoop: outAllocCoop,
     allocOutlet: outAllocOutlet, supervisors: outSupervisors, structure,
-    distShares: outShares, suppliers: activeSuppliers(), distChannels: COOP_CHANNELS,
+    distShares: outShares, suppliers: activeSuppliers(), distChannels: CHANNELS.filter((ch) => CHANNEL_MANAGER[ch]),
     me: req.user ? { name: req.user.name, role: req.user.role } : null,
     spend: outSpend,
     months: db.prepare('SELECT month, closed FROM budget_months ORDER BY month DESC').all(),
@@ -562,9 +562,22 @@ router.post('/budget-spent', requireRole(), asyncH((req, res) => {
 const CHANNELS = ['coop_main', 'coop_branch', 'ka', 'online', 'tt_grocery', 'tt_ws', 'tt_horeca'];
 // The managers split each channel by line and supervisor (Coop Main and Branch separately).
 const LINE_CHANNELS = CHANNELS;
-// Channel → the role that splits it (only the co-op channels have one so far).
-const CHANNEL_MANAGER = { coop_main: 'sales_manager', coop_branch: 'sales_manager' };
-const COOP_CHANNELS = ['coop_main', 'coop_branch'];
+// Each channel manager role → the channels it splits by line and supervisor.
+const MANAGER_CHANNELS = {
+  sales_manager: ['coop_main', 'coop_branch'],
+  ka_manager: ['ka'],
+  online_manager: ['online'],
+  tt_manager: ['tt_grocery', 'tt_ws', 'tt_horeca'],
+};
+const MANAGER_ROLES = Object.keys(MANAGER_CHANNELS);
+// Channel → the role that splits it.
+const CHANNEL_MANAGER = {};
+Object.entries(MANAGER_CHANNELS).forEach(([role, chs]) => chs.forEach((ch) => { CHANNEL_MANAGER[ch] = role; }));
+const COOP_CHANNELS = MANAGER_CHANNELS.sales_manager;
+// The channels a role manages: a manager sees its own, management sees all.
+function roleChannels(role) { return MANAGER_CHANNELS[role] || CHANNELS.filter((ch) => CHANNEL_MANAGER[ch]); }
+// Channel display names [Arabic, English] for the manager / over-cap messages.
+const CH_NAME = { coop_main: ['مين', 'Main'], coop_branch: ['برانش', 'Branch'], ka: ['KA', 'KA'], online: ['أونلاين', 'Online'], tt_grocery: ['بقالات', 'Grocery'], tt_ws: ['WS', 'WS'], tt_horeca: ['هوريكا + مدارس', 'Horeca + Schools'] };
 // Budget lines in the order the business uses them.
 const CB_TYPES = ['pallets', 'stands', 'polypack', 'foc', 'pricediff'];
 // The sales manager runs the co-op channel only: he works from his brands'
@@ -775,9 +788,10 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
 
 // ---- Co-op channel: the sales manager splits each brand's co-op total by line
 // and supervisor, per layer ----
-function coopBudget(month, layer) { // { 'sid|channel': amount } — each brand's Main / Branch total
-  const m = {};
-  db.prepare("SELECT supplier_id, channel, amount FROM brand_channel_budget WHERE month=? AND layer=? AND channel IN ('coop_main','coop_branch')").all(month, layer).forEach((r) => { m[`${r.supplier_id}|${r.channel}`] = +r.amount || 0; });
+function managerBudget(month, layer, channels) { // { 'sid|channel': amount } — each brand's total per channel
+  const m = {}; if (!channels.length) return m;
+  const ph = channels.map(() => '?').join(',');
+  db.prepare(`SELECT supplier_id, channel, amount FROM brand_channel_budget WHERE month=? AND layer=? AND channel IN (${ph})`).all(month, layer, ...channels).forEach((r) => { m[`${r.supplier_id}|${r.channel}`] = +r.amount || 0; });
   return m;
 }
 // budget_alloc (line × supervisor), which the supervisors distribute from, is
@@ -797,22 +811,26 @@ function syncAllocFromSup(month, now) {
 
 // GET /api/budget-alloc-sup?month= — layers, brands, supervisors, each brand's
 // co-op total per layer and the sales manager's split of it.
-router.get('/budget-alloc-sup', requireRole('sales_manager', ...MGMT), asyncH((req, res) => {
+router.get('/budget-alloc-sup', requireRole(...MANAGER_ROLES, ...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
+  const channels = roleChannels(req.user.role);
   const supervisors = db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1 ORDER BY name").all().map((r) => r.name);
   const layers = monthLayers(month);
   const budget = [];
-  layers.forEach(({ layer }) => Object.entries(coopBudget(month, layer)).forEach(([k, amount]) => { const [sid, channel] = k.split('|'); budget.push({ layer, supplierId: +sid, channel, amount }); }));
+  layers.forEach(({ layer }) => Object.entries(managerBudget(month, layer, channels)).forEach(([k, amount]) => { const [sid, channel] = k.split('|'); budget.push({ layer, supplierId: +sid, channel, amount }); }));
+  const chSet = new Set(channels);
   const rows = db.prepare('SELECT layer, supplier_id, channel, budget_type, supervisor, amount FROM budget_alloc_sup WHERE month=?').all(month)
+    .filter((r) => chSet.has(r.channel))
     .map((r) => ({ layer: r.layer, supplierId: r.supplier_id, channel: r.channel, budgetType: r.budget_type, supervisor: r.supervisor, amount: r.amount }));
-  res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels: COOP_CHANNELS, suppliers: activeSuppliers(), supervisors, layers, budget, rows });
+  res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels, suppliers: activeSuppliers(), supervisors, layers, budget, rows });
 }));
 
 // POST /api/budget-alloc-sup (sales manager) — { month, cells: [{ layer, supplierId,
 // channel (coop_main | coop_branch), budgetType, supervisor, amount }] }. Within a
 // layer, a brand's split of a channel (all lines, all supervisors) may never exceed
 // its total in that channel. All-or-nothing.
-router.post('/budget-alloc-sup', requireRole('sales_manager'), asyncH((req, res) => {
+router.post('/budget-alloc-sup', requireRole(...MANAGER_ROLES), asyncH((req, res) => {
+  const myChannels = new Set(roleChannels(req.user.role));
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
   const cells = Array.isArray(req.body.cells) ? req.body.cells : [req.body];
@@ -823,9 +841,9 @@ router.post('/budget-alloc-sup', requireRole('sales_manager'), asyncH((req, res)
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
     const touched = new Map();
     const out = cells.map((c) => {
-      const bt = String(c.budgetType || ''), sv = String(c.supervisor || '').trim(), layer = layerOf(c.layer), ch = String(c.channel || 'coop_main');
+      const bt = String(c.budgetType || ''), sv = String(c.supervisor || '').trim(), layer = layerOf(c.layer), ch = String(c.channel || '');
       assertLayer(month, layer);
-      if (!COOP_CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
+      if (!myChannels.has(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
       if (!CB_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
       if (!sups.has(sv)) throw badRequest('اختر المشرف', 'NO_SUP');
       const sp = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
@@ -844,9 +862,9 @@ router.post('/budget-alloc-sup', requireRole('sales_manager'), asyncH((req, res)
     for (const [k, sname] of touched) {
       const [ls, sids, ch] = k.split('|'); const layer = +ls, sid = +sids;
       const tot = num(db.prepare('SELECT COALESCE(SUM(amount),0) s FROM budget_alloc_sup WHERE month=? AND layer=? AND supplier_id=? AND channel=?').get(month, layer, sid, ch).s);
-      const lim = coopBudget(month, layer)[`${sid}|${ch}`] || 0;
-      const chn = ch === 'coop_branch' ? ['برانش', 'Branch'] : ['مين', 'Main'];
-      if (tot > lim + 1e-9) throw badRequest(`تجاوز بتجيت الجمعيات — ${sname} / ${chn[0]}${layer ? ` (بتجيت إضافي ${layer})` : ''}: الحد ${lim.toFixed(3)} د.ك، والمطلوب يوصل ${tot.toFixed(3)} د.ك | Over the co-op budget — ${sname} / ${chn[1]}${layer ? ` (extra budget ${layer})` : ''}: limit ${lim.toFixed(3)} KD, this would make ${tot.toFixed(3)} KD`, 'OVER_CAP');
+      const lim = managerBudget(month, layer, [ch])[`${sid}|${ch}`] || 0;
+      const chn = CH_NAME[ch] || [ch, ch];
+      if (tot > lim + 1e-9) throw badRequest(`تجاوز البتجيت — ${sname} / ${chn[0]}${layer ? ` (بتجيت إضافي ${layer})` : ''}: الحد ${lim.toFixed(3)} د.ك، والمطلوب يوصل ${tot.toFixed(3)} د.ك | Over budget — ${sname} / ${chn[1]}${layer ? ` (extra budget ${layer})` : ''}: limit ${lim.toFixed(3)} KD, this would make ${tot.toFixed(3)} KD`, 'OVER_CAP');
     }
     syncAllocFromSup(month, now);
     return out;

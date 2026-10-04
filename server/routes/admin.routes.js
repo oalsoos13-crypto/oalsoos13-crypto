@@ -15,7 +15,7 @@ const guard = [requireAuth, requireRole()]; // requireRole() with no args => adm
 // Approval-chain roles: salesman creates -> supervisor -> sales_manager ->
 // marketing_manager -> sales_ops -> admin prints. (Old marketing/division/doc
 // roles are retired; existing accounts on them are deactivated by a migration.)
-const ROLES = ['admin', 'sales_ops', 'marketing_manager', 'sales_manager', 'supervisor', 'salesman'];
+const ROLES = ['admin', 'sales_ops', 'marketing_manager', 'sales_manager', 'ka_manager', 'online_manager', 'tt_manager', 'supervisor', 'salesman'];
 
 // GET /api/admin/users
 router.get('/admin/users', guard, asyncH((req, res) => {
