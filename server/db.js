@@ -704,12 +704,17 @@ function migrate() {
         });
       db.prepare("INSERT INTO meta(key,value) VALUES('cb_from_company_budget','1')").run();
     }
+    // One-off: fix the seeded supplier spelling Biscuni → Bisconni.
+    if (!db.prepare("SELECT 1 FROM meta WHERE key='sup_bisconni'").get()) {
+      db.prepare("UPDATE company_suppliers SET name='Bisconni' WHERE name='Biscuni'").run();
+      db.prepare("INSERT INTO meta(key,value) VALUES('sup_bisconni','1')").run();
+    }
   })();
 
   if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
     const ins = db.prepare('INSERT INTO company_suppliers (code, name, sort, created_at) VALUES (?,?,?,?)');
     const ts = new Date().toISOString();
-    [["Lay's", 1], ['Frito-Lay', 2], ['Biscuni', 3]].forEach(([n, i]) => ins.run('', n, i, ts));
+    [["Lay's", 1], ['Frito-Lay', 2], ['Bisconni', 3]].forEach(([n, i]) => ins.run('', n, i, ts));
   }
   const bcCols = db.prepare("PRAGMA table_info(budget_caps)").all().map((c) => c.name);
   if (!bcCols.includes('spent')) db.exec('ALTER TABLE budget_caps ADD COLUMN spent REAL');
