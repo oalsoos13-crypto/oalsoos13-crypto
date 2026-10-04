@@ -630,6 +630,7 @@ const T = {
   cb_withExtra: { ar: "توتال البتجيت (أساسي + إضافي)", en: "Total budget (main + extra)" },
   cb_diff: { ar: "الفرق", en: "Difference" },
   cb_lnClick: { ar: "اضغط على القسم لعرض تفاصيل البنود", en: "Click a channel to show its line details" },
+  cb_combinedHint: { ar: "عرض فقط — توتال البتجيت الأساسي مع كل البتجيت الإضافي. عدّل الأرقام من البتجيت الأساسي أو الإضافي فوق.", en: "View only — the main budget plus every extra budget. Edit the figures in the main or extra budgets above." },
   cb_linesTitle: { ar: "التوزيع حسب القسم", en: "Split by channel" },
   cb_linesHint: { ar: "اضغط على اسم القسم عشان تفتح تفاصيل البنود. كل قسم بيتعبّى لحاله من توزيع مدير القسم (الجمعيات: سائد). الأقسام اللي ما إلها مدير بيطلع إلها البتجيت بس.", en: "Click a channel name to open its line details. Each channel is filled automatically from its manager's split (Coop: the sales manager). Channels without a manager show their budget only." },
   cb_noMgr: { ar: "البتجيت بس — القسم ما إله مدير بالنظام بعد", en: "Budget only — no manager for this channel yet" },
@@ -2256,8 +2257,9 @@ function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
 let cbData = null;
 /* Budget layers: 0 = main budget, 1..n = extra budgets (each mirrors the whole flow). */
 function lyName(L) { return L ? t("cb_extra") + (cbLayerCount() > 2 ? " " + L : "") : ""; }
+function lyLabel(L) { return L === "all" ? t("cb_withExtra") : L ? lyName(L) : t("cb_total"); }
 function cbLayerCount() { const d = cbData || alData; return d && d.layers ? d.layers.length : 1; }
-const lyF = (L, f) => (x) => (x.layer || 0) === L && f(x);
+const lyF = (L, f) => (x) => (L === "all" || (x.layer || 0) === L) && f(x);
 /* ---- Sales manager: each brand's co-op total → lines × supervisors (entry sheet, per layer) ---- */
 let alData = null;
 function alAmt(L, sid, ch, bt, sup) { const r = alData.rows.find((x) => (x.layer || 0) === L && x.supplierId === sid && (x.channel || "coop_main") === ch && x.budgetType === bt && x.supervisor === sup); return r ? +r.amount : null; }
@@ -2342,12 +2344,12 @@ function cbLnToggle(key) {
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
 function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbData.closed; }
-function cbAmt(L, sid, ch) { const r = cbData.totals.find((x) => (x.layer || 0) === L && x.supplierId === sid && x.channel === ch); return r ? +r.amount : null; }
+function cbAmt(L, sid, ch) { if (L === "all") { const rs = cbData.totals.filter((x) => x.supplierId === sid && x.channel === ch); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = cbData.totals.find((x) => (x.layer || 0) === L && x.supplierId === sid && x.channel === ch); return r ? +r.amount : null; }
 function cbTot(L, f) { return cbData.totals.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbLn(L, f) { return cbData.lines.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 // Supplier total (typed first) and its effective value: the typed total, or the
 // channels' sum where none was typed yet.
-function cbSup(L, sid) { const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
+function cbSup(L, sid) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
 function cbEff(L, sid) { const v = cbSup(L, sid); return v == null ? cbTot(L, (x) => x.supplierId === sid) : v; }
 function cbEffAll(L) { return cbData.suppliers.reduce((a, sp) => a + cbEff(L, sp.id), 0); }
 function cbLeftSplit(L, sid) { const v = cbSup(L, sid); return v == null ? null : v - cbTot(L, (x) => x.supplierId === sid); }
@@ -2374,31 +2376,35 @@ function companyPanel() {
   const layers = cbData.layers || [{ layer: 0 }];
   const add = currentUser.role === "admin" && !cbData.closed
     ? `<div class="cb-add-extra"><button class="btn gold" onclick="cbAddExtra()">➕ ${t("cb_addExtra")}</button><span class="hint">${t("cb_addExtraHint")}</span></div>` : "";
-  return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + add;
+  const combined = layers.length > 1 ? companyLayerPanel("all") : "";
+  return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + add + combined;
 }
 function companyLayerPanel(L) {
-  const d = cbData, ed = cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin";
+  const d = cbData, combined = L === "all", ed = !combined && cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin" && !combined;
   const prevN = (d.prevCounts || {})[L] || 0;
   const tools = isAdmin ? `<div class="actions" style="margin:0">
       ${ed && prevN ? `<button class="btn ghost sm" onclick="cbCopyPrev(${L})">⧉ ${t("cb_copy")} <bdi dir="ltr">${esc(d.prevMonth)}</bdi></button>` : ""}
       ${L ? (ed ? `<button class="btn danger sm" onclick="cbRemoveExtra(${L})">🗑 ${t("cb_removeExtra")}</button>` : "") : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button><button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>`}</div>`
     : (L ? "" : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`);
   const grand = ""; // the "Total budget (main + extra)" card was removed on request
-  const kpis = `<div class="cards cb-kpis" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><div class="card accent"><div class="lbl">${L ? esc(lyName(L)) : t("cb_total")}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
-    ${sups.map((sp, r) => { const sv = cbSup(L, sp.id), ct = cbTot(L, (x) => x.supplierId === sp.id); return `<div class="card cb-supcard"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""} · ${t("cb_supTotal")}</div><input class="cb-in cb-supin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="total" data-r="${r}" data-col="0" value="${sv == null ? "" : sv}" placeholder="${sv == null && ct ? ct : 0}" ${ed ? "" : "disabled"}><div class="cb-k-sub" id="cbKs_${P}${sp.id}">${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b></div></div>`; }).join("")}${grand}</div>`;
+  const kpis = `<div class="cards cb-kpis" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><div class="card accent"><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
+    ${sups.map((sp, r) => { const sv = cbSup(L, sp.id), ct = cbTot(L, (x) => x.supplierId === sp.id); const field = combined ? `<div class="val mono" id="cbKv_${P}${sp.id}">${KD(cbEff(L, sp.id))}</div>` : `<input class="cb-in cb-supin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="total" data-r="${r}" data-col="0" value="${sv == null ? "" : sv}" placeholder="${sv == null && ct ? ct : 0}" ${ed ? "" : "disabled"}>`; return `<div class="card cb-supcard"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""} · ${t("cb_supTotal")}</div>${field}<div class="cb-k-sub" id="cbKs_${P}${sp.id}">${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b></div></div>`; }).join("")}${grand}</div>`;
   // 1) Brand totals per channel — the only thing the admin types.
   const entry = sups.length ? `<div class="tbl-wrap"><table class="cb-sheet cb-entry" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
       <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"), "", `<th rowspan="2" class="cb-th-split">${t("cb_leftSplit")}</th>`)}<tbody>
       ${sups.map((sp, r) => { let c = 0; return `<tr><td class="cb-brand"><b>${esc(sp.name)}</b>${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cols.map((col) => {
         if (col.grp) return `<td class="cb-tot cb-gtot" id="cbGr_${P}${sp.id}_${col.grp.k}">${cbFmt(cbTot(L, (x) => x.supplierId === sp.id && col.chs.includes(x.channel)))}</td>`;
         const v = cbAmt(L, sp.id, col.ch);
+        if (combined) return `<td class="cb-tot" id="cbEC_${P}${sp.id}_${col.ch}">${cbFmt(v)}</td>`;
         return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${col.ch}" data-r="${r}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot cb-split" id="cbLS_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`; }).join("")}
-      <tr class="cb-grand"><td>${L ? esc(lyName(L)) : t("cb_total")}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
+      <tr class="cb-grand"><td>${esc(lyLabel(L))}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
   const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed && !L ? `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">${t("cb_supHint")}</div>` : "");
-  const title = L ? `➕ ${esc(lyName(L))}` : t("cb_title");
-  return `<div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${kpis}${note}${entry}</div></div>
-    <div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>${t("cb_linesTitle")}${L ? " — " + esc(lyName(L)) : ""}</h3></header><div class="body">${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
+  const title = combined ? `Σ ${esc(t("cb_withExtra"))}` : L ? `➕ ${esc(lyName(L))}` : t("cb_title");
+  const pcls = combined ? " cb-combined" : L ? " cb-extra" : "";
+  const lnTitle = combined ? esc(t("cb_withExtra")) : L ? esc(lyName(L)) : "";
+  return `<div class="panel cb-panel${pcls}"><header><h3>${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${combined ? `<div class="hint" style="margin-bottom:10px">${t("cb_combinedHint")}</div>` : ""}${kpis}${note}${entry}</div></div>
+    <div class="panel cb-panel${pcls}"><header><h3>${t("cb_linesTitle")}${lnTitle ? " — " + lnTitle : ""}</h3></header><div class="body">${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
 }
 // 2) The split by line, read-only: filled from the channel managers' screens.
 // One table per channel group; under each brand its sub-channels and the group
@@ -2581,7 +2587,8 @@ async function cbSaveCells(els, vals) {
 // render it off-screen and copy every totals cell; layer 0 also carries the
 // "with extra budgets" card.
 function cbRefresh(L) {
-  [L].concat(L ? [0] : []).forEach((y) => {
+  const extras = (cbData.layers || []).length > 1 ? ["all"] : [];
+  [L].concat(L ? [0] : []).concat(extras).forEach((y) => {
     const tmp = document.createElement("div"); tmp.innerHTML = companyLayerPanel(y);
     tmp.querySelectorAll("[id]").forEach((n) => { const el = document.getElementById(n.id); if (el && el.innerHTML !== n.innerHTML) el.innerHTML = n.innerHTML; });
     // A supplier card without a typed total shows its channels' sum as a hint.

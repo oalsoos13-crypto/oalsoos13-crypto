@@ -776,3 +776,6 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-ln-h.cb-ln-toggle{cursor:pointer;user-select:none}
 .cb-ln-h.cb-ln-toggle:hover{filter:brightness(1.08)}
 .cb-ln-arrow{display:inline-block;width:14px;text-align:center;font-size:12px}
+/* Combined mirror: main + every extra budget, read-only */
+.cb-panel.cb-combined{border:1px solid #57c48d;box-shadow:0 0 0 3px rgba(87,196,141,.12),var(--shadow)}
+.cb-panel.cb-combined header h3{color:#1d6b45}
