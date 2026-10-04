@@ -549,7 +549,7 @@ const T = {
   budgetType: { ar: "نوع الباجت", en: "Budget type" },
   bt_pallets: { ar: "الطبالي", en: "Pallets" },
   bt_stands: { ar: "الستاندات", en: "Stands" },
-  bt_pricediff: { ar: "فروق أسعار", en: "Price diff" },
+  bt_pricediff: { ar: "فروق أسعار", en: "Price off" },
   bt_polypack: { ar: "ليكويديشن", en: "Liquidation" },
   bt_foc: { ar: "جيف أواي", en: "Give Away" },
   bt_osd: { ar: "أوف شيلف ديسبلي", en: "Off-Shelf Display" },

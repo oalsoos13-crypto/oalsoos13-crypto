@@ -152,7 +152,7 @@ function monthSpend(month) {
 const DN_TYPES = ['pallets', 'stands', 'pricediff'];
 const fmtKD = (n) => (Math.round(num(n) * 1000) / 1000).toFixed(3);
 // Budget lines' display names [Arabic, English].
-const BT_NAME = { pallets: ['الطبالي', 'Pallets'], stands: ['الستاندات', 'Stands'], pricediff: ['فروق الأسعار', 'Price diff'], polypack: ['ليكويديشن', 'Liquidation'], foc: ['جيف أواي', 'Give Away'] };
+const BT_NAME = { pallets: ['الطبالي', 'Pallets'], stands: ['الستاندات', 'Stands'], pricediff: ['فروق الأسعار', 'Price off'], polypack: ['ليكويديشن', 'Liquidation'], foc: ['جيف أواي', 'Give Away'] };
 function overMsg(what, limit, would) {
   const [ar, en] = BT_NAME[what] || [what, what];
   return `تجاوز البتجيت — ${ar}: الحد ${fmtKD(limit)} د.ك، والمطلوب يوصل ${fmtKD(would)} د.ك | Over budget — ${en}: limit ${fmtKD(limit)} KD, this would make ${fmtKD(would)} KD`;
@@ -722,7 +722,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
   const CH = { coop: 'Coop', coop_main: 'Coop Main', coop_branch: 'Coop Branch', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT Horeca+Schools' };
-  const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price diff' };
+  const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price off' };
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];
   const COLS = ['coop_main', 'coop_branch', 'coop', 'ka', 'online', ...TT, 'tt'];
