@@ -628,7 +628,7 @@ const T = {
   cb_removeExtra: { ar: "حذف البتجيت الإضافي", en: "Remove extra budget" },
   cb_removeExtraQ: { ar: "حذف «{n}» مع توتالاته وتوزيع المدراء عليه؟", en: "Remove “{n}” with its totals and the managers' split of it?" },
   cb_withExtra: { ar: "الإجمالي مع الإضافي", en: "Total incl. extra" },
-  cb_linesTitle: { ar: "التوزيع حسب البند — من شاشات المدراء", en: "Split by line — from the channel managers" },
+  cb_linesTitle: { ar: "التوزيع حسب القسم", en: "Split by channel" },
   cb_linesHint: { ar: "مقسوم حسب القسم: لكل قسم البنود حسب البراند، بيتعبّى لحاله من توزيع مدير القسم (الجمعيات: سائد). الأقسام اللي ما إلها مدير بالنظام بيطلع إلها البتجيت بس.", en: "By channel: each channel's lines per brand, filled automatically from that channel manager's split (Coop: the sales manager). Channels without a manager yet show their budget only." },
   cb_noMgr: { ar: "البتجيت بس — القسم ما إله مدير بالنظام بعد", en: "Budget only — no manager for this channel yet" },
   cb_distributed: { ar: "الموزّع على المشرفين", en: "Allocated to supervisors" },
