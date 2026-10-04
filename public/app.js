@@ -575,7 +575,7 @@ const T = {
   bp_close: { ar: "🔒 تسكير الشهر", en: "🔒 Close month" },
   bp_reopen: { ar: "🔓 فتح الشهر", en: "🔓 Reopen month" },
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
-  cb_title: { ar: "بتجيت الشركة — كل القنوات", en: "Company budget — all channels" },
+  cb_title: { ar: "البتجيت", en: "Budget" },
   cb_line: { ar: "بند البتجيت", en: "Budget line" },
   al_title: { ar: "بتجيت الجمعيات ← المشرفين", en: "Co-op budget → supervisors" },
   al_budget: { ar: "بتجيت الجمعيات", en: "Co-op budget" },
@@ -627,9 +627,11 @@ const T = {
   cb_addExtraHint: { ar: "بيضيف نسخة من شاشة البتجيت تحت — توتالات البراندات للأقسام، وكل مدير بيوزّعها عنده.", en: "Adds a mirror of the budget screen below — brand totals per channel, which each manager then splits." },
   cb_removeExtra: { ar: "حذف البتجيت الإضافي", en: "Remove extra budget" },
   cb_removeExtraQ: { ar: "حذف «{n}» مع توتالاته وتوزيع المدراء عليه؟", en: "Remove “{n}” with its totals and the managers' split of it?" },
-  cb_withExtra: { ar: "الإجمالي مع الإضافي", en: "Total incl. extra" },
+  cb_withExtra: { ar: "توتال البتجيت (أساسي + إضافي)", en: "Total budget (main + extra)" },
+  cb_diff: { ar: "الفرق", en: "Difference" },
+  cb_lnClick: { ar: "اضغط على القسم لعرض تفاصيل البنود", en: "Click a channel to show its line details" },
   cb_linesTitle: { ar: "التوزيع حسب القسم", en: "Split by channel" },
-  cb_linesHint: { ar: "مقسوم حسب القسم: لكل قسم البنود حسب البراند، بيتعبّى لحاله من توزيع مدير القسم (الجمعيات: سائد). الأقسام اللي ما إلها مدير بالنظام بيطلع إلها البتجيت بس.", en: "By channel: each channel's lines per brand, filled automatically from that channel manager's split (Coop: the sales manager). Channels without a manager yet show their budget only." },
+  cb_linesHint: { ar: "اضغط على اسم القسم عشان تفتح تفاصيل البنود. كل قسم بيتعبّى لحاله من توزيع مدير القسم (الجمعيات: سائد). الأقسام اللي ما إلها مدير بيطلع إلها البتجيت بس.", en: "Click a channel name to open its line details. Each channel is filled automatically from its manager's split (Coop: the sales manager). Channels without a manager show their budget only." },
   cb_noMgr: { ar: "البتجيت بس — القسم ما إله مدير بالنظام بعد", en: "Budget only — no manager for this channel yet" },
   cb_distributed: { ar: "الموزّع على المشرفين", en: "Allocated to supervisors" },
   cb_allCh: { ar: "كل الأقسام", en: "All channels" },
@@ -2325,8 +2327,17 @@ function cbOsdAttr(bt, key, types) { if (!cbOsdFirst(types) || !CB_OSD.includes(
 function cbOsdHead(key, label) { const open = cbOsdOpen.has(key); return `<td class="cb-osd-toggle" onclick="cbOsdToggle('${key}')" title="${esc(t("osd_click"))}"><span class="cb-osd-arrow" data-osd-a="${key}">${open ? "▾" : "▸"}</span> ${label}</td>`; }
 function cbOsdToggle(key) {
   const open = !cbOsdOpen.has(key); if (open) cbOsdOpen.add(key); else cbOsdOpen.delete(key);
-  document.querySelectorAll(`tr[data-osd-k="${key}"]`).forEach((tr) => { tr.style.display = open ? "" : "none"; });
+  // An OSD row inside a collapsed channel section stays hidden.
+  document.querySelectorAll(`tr[data-osd-k="${key}"]`).forEach((tr) => { const sec = tr.dataset.ln; tr.style.display = (open && (!sec || cbLnOpen.has(sec))) ? "" : "none"; });
   document.querySelectorAll(`[data-osd-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
+}
+// Split-by-channel sections fold shut: the header and the Total budget /
+// Difference rows stay, the line details appear when you click the channel.
+const cbLnOpen = new Set();
+function cbLnToggle(key) {
+  const open = !cbLnOpen.has(key); if (open) cbLnOpen.add(key); else cbLnOpen.delete(key);
+  document.querySelectorAll(`tr.cb-ln-det[data-ln="${key}"]`).forEach((tr) => { const ok = tr.dataset.osdK; tr.style.display = (open && (!ok || cbOsdOpen.has(ok))) ? "" : "none"; });
+  document.querySelectorAll(`[data-ln-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
 }
 const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
@@ -2412,18 +2423,23 @@ function cbLinesTable(L) {
          <tr>${owners.map((sp) => chs.map((ch, i) => `<th class="${i ? "" : "cb-bs"}${sp ? "" : " cb-th-all"}">${t("ch_" + ch)}</th>`).join("") + `<th class="cb-th-sub${sp ? "" : " cb-th-all"}">${t("total")}</th>`).join("")}</tr></thead>`
       : `<thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead>`;
     const colg = `<colgroup><col class="c-lbl">${cols.map((c) => `<col${c.tot ? ' class="c-tot"' : ""}>`).join("")}</colgroup>`;
+    const open = cbLnOpen.has(key);
+    const dSty = (child) => (!open || (child && !cbOsdOpen.has(key))) ? ' style="display:none"' : "";
     let body;
     if (!managed) body = `<tr class="cb-co"><td>${t("cb_budgetRow")}</td>${row(bud, cbFmt)}</tr>`;
     else {
       body = types.map((bt) => {
-        const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub">${cbOsdHead(key, t("bt_osd"))}${row((g) => ln((x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
-        return osd + `<tr${cbOsdAttr(bt, key, types).replace(' class="cb-osd-child"', "")}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
+        const child = CB_OSD.includes(bt) && !!cbOsdFirst(types);
+        const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbOsdHead(key, t("bt_osd"))}${row((g) => ln((x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
+        return osd + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
       }).join("")
         + `<tr class="cb-sum cb-sum-first"><td>${t("cb_budgetRow")}</td>${row(bud, cbFmt)}</tr>`
-        + `<tr class="cb-sum"><td>${t("cb_distributed")}</td>${row(ln, cbFmt)}</tr>`
-        + `<tr class="cb-sum cb-sum-left"><td>${t("cb_leftLbl")}</td>${row((g) => bud(g) - ln(g), left)}</tr>`;
+        + `<tr class="cb-sum cb-sum-left"><td>${t("cb_diff")}</td>${row((g) => bud(g) - ln(g), left)}</tr>`;
     }
-    return `<div class="cb-ln-sec"><div class="cb-ln-h">${title}${managed ? "" : `<span class="cb-ln-note">${t("cb_noMgr")}</span>`}</div><div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln" style="min-width:${190 + cols.length * 68}px">${colg}${head}<tbody>${body}</tbody></table></div></div>`;
+    const hdr = managed
+      ? `<div class="cb-ln-h cb-ln-toggle" onclick="cbLnToggle('${key}')"><span class="cb-ln-arrow" data-ln-a="${key}">${open ? "▾" : "▸"}</span> ${title}</div>`
+      : `<div class="cb-ln-h">${title}<span class="cb-ln-note">${t("cb_noMgr")}</span></div>`;
+    return `<div class="cb-ln-sec">${hdr}<div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln" style="min-width:${190 + cols.length * 68}px">${colg}${head}<tbody>${body}</tbody></table></div></div>`;
   };
   if (!sups.length) return "";
   const groups = CB_GROUPS.map((g) => { const chs = g.chs.filter((c) => d.channels.includes(c)); return chs.length ? table(chs, t("ch_" + g.k), `cl${L}_${g.k}`) : ""; }).join("");
@@ -2432,11 +2448,14 @@ function cbLinesTable(L) {
     const own = (sp) => (x) => !sp || x.supplierId === sp.id;
     const row = (fn, fmt) => owners.map((sp) => `<td class="cb-tot cb-bs${sp ? "" : " cb-alltot"}">${fmt(fn(own(sp)))}</td>`).join("");
     const ln = (f) => cbLn(L, (x) => mg(x.channel) && f(x)), key = `cl${L}_all`;
+    const open = cbLnOpen.has(key);
+    const dSty = (child) => (!open || (child && !cbOsdOpen.has(key))) ? ' style="display:none"' : "";
     const body = types.map((bt) => {
-      const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub">${cbOsdHead(key, t("bt_osd"))}${row((g) => ln((x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
-      return osd + `<tr${cbOsdAttr(bt, key, types).replace(' class="cb-osd-child"', "")}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
-    }).join("") + `<tr class="cb-sum cb-sum-first"><td>${t("cb_distributed")}</td>${row(ln, cbFmt)}</tr><tr class="cb-grand"><td>${t("cb_budgetRow")}</td>${row((g) => cbTot(L, g), KD)}</tr>`;
-    return `<div class="cb-ln-sec"><div class="cb-ln-h cb-ln-all">${t("cb_allCh")}</div><div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln"><colgroup><col class="c-lbl">${owners.map((sp) => `<col${sp ? "" : ' class="c-tot"'}>`).join("")}</colgroup><thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+      const child = CB_OSD.includes(bt) && !!cbOsdFirst(types);
+      const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbOsdHead(key, t("bt_osd"))}${row((g) => ln((x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
+      return osd + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
+    }).join("") + `<tr class="cb-grand"><td>${t("cb_budgetRow")}</td>${row((g) => cbTot(L, g), KD)}</tr>`;
+    return `<div class="cb-ln-sec"><div class="cb-ln-h cb-ln-all cb-ln-toggle" onclick="cbLnToggle('${key}')"><span class="cb-ln-arrow" data-ln-a="${key}">${open ? "▾" : "▸"}</span> ${t("cb_allCh")}</div><div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln"><colgroup><col class="c-lbl">${owners.map((sp) => `<col${sp ? "" : ' class="c-tot"'}>`).join("")}</colgroup><thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   })();
   return groups + all;
 }

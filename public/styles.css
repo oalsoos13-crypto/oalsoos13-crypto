@@ -772,3 +772,7 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .ds-tog-sp{display:inline-block;width:22px}
 .cb-sheet.ds-sheet .cb-in{min-width:0}
 .cb-sheet.ds-sheet tr.ds-sumtop td{border-bottom:3px solid #9fb8d8}
+/* Split by channel: fold each channel's line details open/shut */
+.cb-ln-h.cb-ln-toggle{cursor:pointer;user-select:none}
+.cb-ln-h.cb-ln-toggle:hover{filter:brightness(1.08)}
+.cb-ln-arrow{display:inline-block;width:14px;text-align:center;font-size:12px}
