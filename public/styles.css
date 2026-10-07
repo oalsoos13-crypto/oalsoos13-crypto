@@ -809,3 +809,7 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-mdf-sub b{color:var(--ink2)}
 /* Single-channel group header (KA): same banded look as grouped headers */
 .cb-entry thead th.cb-th-solo{vertical-align:middle;font-size:13px}
+/* Group-total columns in the entry sheet: distinct gold tint */
+.cb-entry td.cb-gtot{background:#fbf1d5!important;color:#6b4e0e!important;font-weight:800}
+.cb-sheet.cb-entry thead th.cb-th-sub{background:#f1e2b0!important;color:#6b4e0e}
+.cb-entry tr.cb-grand td.cb-gtot{background:#8a6414!important;color:#fff!important}
