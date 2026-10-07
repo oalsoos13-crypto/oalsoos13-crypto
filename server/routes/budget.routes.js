@@ -577,7 +577,7 @@ const COOP_CHANNELS = MANAGER_CHANNELS.sales_manager;
 // The channels a role manages: a manager sees its own, management sees all.
 function roleChannels(role) { return MANAGER_CHANNELS[role] || CHANNELS.filter((ch) => CHANNEL_MANAGER[ch]); }
 // Channel display names [Arabic, English] for the manager / over-cap messages.
-const CH_NAME = { coop_main: ['مين ماركت', 'Main Market'], coop_branch: ['برانشيز', 'Branches'], ka: ['KA', 'KA'], online: ['أونلاين', 'Online'], tt_grocery: ['بقالات', 'Grocery'], tt_ws: ['WS', 'WS'], tt_horeca: ['هوريكا + مدارس', 'Horreca + Schools'] };
+const CH_NAME = { coop_main: ['مين ماركتس', 'Main Markets'], coop_branch: ['برانشيز', 'Branches'], ka: ['KA', 'KA'], online: ['أونلاين', 'Online'], tt_grocery: ['بقالات', 'Grocery'], tt_ws: ['WS', 'WS'], tt_horeca: ['هوريكا + مدارس', 'Horreca + Schools'] };
 // Budget lines in the order the business uses them.
 const CB_TYPES = ['pallets', 'stands', 'polypack', 'foc', 'pricediff'];
 // The sales manager runs the co-op channel only: he works from his brands'
@@ -734,7 +734,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const XLSX = require('xlsx');
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
-  const CH = { coop: 'Coops', coop_main: 'Coops Main Market', coop_branch: 'Coops Branches', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT Horreca+Schools' };
+  const CH = { coop: 'Coops', coop_main: 'Coops Main Markets', coop_branch: 'Coops Branches', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT Horreca+Schools' };
   const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price off' };
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];

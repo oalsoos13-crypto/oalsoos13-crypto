@@ -618,7 +618,7 @@ const T = {
   cb_noCode: { ar: "بدون كود", en: "no code" },
   cb_none: { ar: "لا يوجد موردين — أضف موردًا.", en: "No suppliers — add one." },
   ch_coop: { ar: "الجمعيات", en: "Coops" },
-  ch_coop_main: { ar: "مين ماركت", en: "Main Market" },
+  ch_coop_main: { ar: "مين ماركتس", en: "Main Markets" },
   ch_coop_branch: { ar: "برانشيز", en: "Branches" },
   ch_tt: { ar: "TT", en: "TT" },
   cb_grpTotal: { ar: "توتال {g}", en: "{g} total" },
