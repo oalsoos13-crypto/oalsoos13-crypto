@@ -802,3 +802,5 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-panel.cb-extra .cb-sec-arrow{color:#5b3fa6}
 .cb-panel.cb-combined .cb-sec-arrow{color:#1d6b45}
 .cb-sec-arrow:hover{opacity:.7}
+/* Add-extra bar pinned at the top of the budget */
+.cb-add-extra.cb-add-top{margin:0 0 16px;padding:12px 16px}

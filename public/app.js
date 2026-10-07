@@ -2407,9 +2407,9 @@ function companyPanel() {
   if (!cbData) return "";
   const layers = cbData.layers || [{ layer: 0 }];
   const add = currentUser.role === "admin" && !cbData.closed
-    ? `<div class="cb-add-extra"><button class="btn gold" onclick="cbAddExtra()">➕ ${t("cb_addExtra")}</button><span class="hint">${t("cb_addExtraHint")}</span></div>` : "";
+    ? `<div class="cb-add-extra cb-add-top"><button class="btn gold sm" onclick="cbAddExtra()">➕ ${t("cb_addExtra")}</button><span class="hint">${t("cb_addExtraHint")}</span></div>` : "";
   const combined = layers.length > 1 ? companyLayerPanel("all") : "";
-  return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + add + combined;
+  return add + layers.map(({ layer }) => companyLayerPanel(layer)).join("") + combined;
 }
 function companyLayerPanel(L) {
   const d = cbData, combined = L === "all", ed = !combined && cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin" && !combined;
