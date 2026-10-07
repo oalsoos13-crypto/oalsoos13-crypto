@@ -607,6 +607,8 @@ const T = {
   ds_none: { ar: "مدير المبيعات لسا ما وزّع عليك بتجيت لهالشهر.", en: "The sales manager has not allocated you a budget for this month yet." },
   ds_hint: { ar: "كل مورد وكل قسم (مين / برانش) إله بتجيته من مدير المبيعات. وزّع على الجمعيات، أو افتح ▸ ووزّع على الأوتلتات. الـ D.N بينخصم من بنده، والجيف أواي (على الطبالي / الستاندات / فروق الأسعار) بينخصم من بند الجيف أواي. الكتب بتطلع لكل مورد لحاله.", en: "Each supplier and channel (Main / Branch) has its own budget from the sales manager. Distribute to the co-ops, or open ▸ to distribute to the outlets. D.N counts against its line; Give Away (on pallets / stands / price diff) counts against the Give Away line. Letters come out per supplier." },
   cb_supTotal: { ar: "توتال المورد", en: "Total Supplier" },
+  cb_mdfIn: { ar: "MDF-IN", en: "MDF-IN" },
+  cb_mdfOut: { ar: "MDF-OUT", en: "MDF-OUT" },
   cb_leftSplit: { ar: "المتبقي", en: "Remaining" },
   cb_supHint: { ar: "اكتب توتال كل مورد فوق بالبطاقة تبعه أول، بعدين وزّعه على الأقسام بالجدول — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total in its card above first, then split it across the channels in the table — the channels together cannot go over the supplier total." },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
@@ -2369,6 +2371,7 @@ function cbTot(L, f) { return cbData.totals.filter(lyF(L, f)).reduce((a, r) => a
 function cbLn(L, f) { return cbData.lines.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 // Supplier total (typed first) and its effective value: the typed total, or the
 // channels' sum where none was typed yet.
+function cbMdf(L, sid, which) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.reduce((a, r) => a + (+r[which] || 0), 0); } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r[which] || 0 : 0; }
 function cbSup(L, sid) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
 function cbEff(L, sid) { const v = cbSup(L, sid); return v == null ? cbTot(L, (x) => x.supplierId === sid) : v; }
 function cbEffAll(L) { return cbData.suppliers.reduce((a, sp) => a + cbEff(L, sp.id), 0); }
@@ -2408,7 +2411,13 @@ function companyLayerPanel(L) {
     : (L ? "" : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`);
   const grand = ""; // the "Total budget (main + extra)" card was removed on request
   const kpis = `<div class="cards cb-kpis" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><div class="card accent"><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
-    ${sups.map((sp, r) => { const sv = cbSup(L, sp.id), ct = cbTot(L, (x) => x.supplierId === sp.id); const field = combined ? `<div class="val mono" id="cbKv_${P}${sp.id}">${KD(cbEff(L, sp.id))}</div>` : `<input class="cb-in cb-supin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="total" data-r="${r}" data-col="0" value="${sv == null ? "" : sv}" placeholder="${sv == null && ct ? ct : 0}" ${ed ? "" : "disabled"}>`; return `<div class="card cb-supcard"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""} · ${t("cb_supTotal")}</div>${field}<div class="cb-k-sub" id="cbKs_${P}${sp.id}">${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b></div></div>`; }).join("")}${grand}</div>`;
+    ${sups.map((sp, r) => {
+      const inV = cbMdf(L, sp.id, "mdfIn"), outV = cbMdf(L, sp.id, "mdfOut"), tot = cbEff(L, sp.id);
+      const field = combined
+        ? `<div class="cb-mdf"><div class="cb-mdf-cell"><span>${t("cb_mdfIn")}</span><b class="mono" id="cbMi_${P}${sp.id}">${KD(inV)}</b></div><div class="cb-mdf-cell"><span>${t("cb_mdfOut")}</span><b class="mono" id="cbMo_${P}${sp.id}">${KD(outV)}</b></div></div>`
+        : `<div class="cb-mdf"><label class="cb-mdf-cell"><span>${t("cb_mdfIn")}</span><input class="cb-in cb-supin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="mdf_in" data-r="${r}" data-col="0" value="${inV ? inV : ""}" placeholder="0" ${ed ? "" : "disabled"}></label><label class="cb-mdf-cell"><span>${t("cb_mdfOut")}</span><input class="cb-in cb-supin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="mdf_out" data-r="${r}" data-col="1" value="${outV ? outV : ""}" placeholder="0" ${ed ? "" : "disabled"}></label></div>`;
+      return `<div class="card cb-supcard"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div>${field}<div class="cb-k-sub"><span>${t("cb_supTotal")}: <b class="mono" id="cbKt_${P}${sp.id}">${KD(tot)}</b></span> · <span id="cbKs_${P}${sp.id}">${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b></span></div></div>`;
+    }).join("")}${grand}</div>`;
   // 1) Brand totals per channel — the only thing the admin types.
   const entry = sups.length ? `<div class="tbl-wrap"><table class="cb-sheet cb-entry" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
       <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"), "", `<th rowspan="2" class="cb-th-split">${t("cb_leftSplit")}</th>`)}<tbody>
@@ -2500,13 +2509,18 @@ async function cbRemoveExtra(L) {
 // kind's adapter knows how to read, save and re-total its cells.
 const SHEETS = {
   company: {
-    amt: (el) => (el.dataset.c === "total" ? cbSup(+el.dataset.l || 0, +el.dataset.s) : cbAmt(+el.dataset.l || 0, +el.dataset.s, el.dataset.c)),
+    amt: (el) => { const L = +el.dataset.l || 0, sid = +el.dataset.s, c = el.dataset.c; if (c === "mdf_in") return cbMdf(L, sid, "mdfIn") || null; if (c === "mdf_out") return cbMdf(L, sid, "mdfOut") || null; if (c === "total") return cbSup(L, sid); return cbAmt(L, sid, c); },
     cell: (el, v) => ({ layer: +el.dataset.l || 0, supplierId: +el.dataset.s, channel: el.dataset.c, amount: v }),
     post: (cells) => api("/budget-company", { method: "POST", body: { month: cbData.month, cells } }),
     apply: (cells) => cells.forEach((c) => {
-      if (c.channel === "total") {
-        cbData.supTotals = (cbData.supTotals || []).filter((r) => !((r.layer || 0) === c.layer && r.supplierId === c.supplierId));
-        if (c.amount !== "") cbData.supTotals.push({ layer: c.layer, supplierId: c.supplierId, amount: +c.amount });
+      if (c.channel === "total" || c.channel === "mdf_in" || c.channel === "mdf_out") {
+        const arr = cbData.supTotals || (cbData.supTotals = []);
+        let row = arr.find((r) => (r.layer || 0) === c.layer && r.supplierId === c.supplierId);
+        if (!row) { row = { layer: c.layer, supplierId: c.supplierId, amount: 0, mdfIn: 0, mdfOut: 0 }; arr.push(row); }
+        const v = c.amount === "" ? 0 : +c.amount;
+        if (c.channel === "mdf_in") row.mdfIn = v; else if (c.channel === "mdf_out") row.mdfOut = v; else { row.mdfIn = v; row.mdfOut = 0; }
+        row.amount = (+row.mdfIn || 0) + (+row.mdfOut || 0);
+        if (!row.amount) cbData.supTotals = arr.filter((r) => r !== row);
         return;
       }
       cbData.totals = cbData.totals.filter((r) => !((r.layer || 0) === c.layer && r.supplierId === c.supplierId && r.channel === c.channel));
@@ -2612,8 +2626,6 @@ function cbRefresh(L) {
   [L].concat(L ? [0] : []).concat(extras).forEach((y) => {
     const tmp = document.createElement("div"); tmp.innerHTML = companyLayerPanel(y);
     tmp.querySelectorAll("[id]").forEach((n) => { const el = document.getElementById(n.id); if (el && el.innerHTML !== n.innerHTML) el.innerHTML = n.innerHTML; });
-    // A supplier card without a typed total shows its channels' sum as a hint.
-    document.querySelectorAll(`.cb-supin[data-l="${y}"]`).forEach((el) => { const sid = +el.dataset.s, ct = cbTot(y, (x) => x.supplierId === sid); el.placeholder = cbSup(y, sid) == null && ct ? ct : 0; });
   });
 }
 async function cbCopyPrev(L) {

@@ -791,3 +791,9 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-entry td{padding:4px 5px;vertical-align:middle}
 .cb-entry tr.cb-grand td{padding-top:11px;padding-bottom:11px;letter-spacing:.2px}
 .cb-entry td.cb-tot .cb-zero{color:#c3d0e0}
+/* Supplier card: MDF-IN / MDF-OUT split */
+.cb-mdf{display:flex;gap:8px;margin:2px 0 0}
+.cb-mdf-cell{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cb-mdf-cell>span{font-size:11px;font-weight:700;color:#8a6414;letter-spacing:.3px}
+.cb-supcard .cb-mdf .cb-supin{font-size:18px;width:100%}
+.cb-mdf-cell b{font-size:18px;color:#0e2340}

@@ -639,6 +639,14 @@ function migrate() {
       amount REAL NOT NULL DEFAULT 0, updated_at TEXT,
       PRIMARY KEY (month, layer, supplier_id)
     )`);
+  // The supplier total is split into MDF-IN + MDF-OUT (amount = their sum).
+  // Older rows carry the whole amount as MDF-IN.
+  const sbCols = db.prepare('PRAGMA table_info(supplier_budget)').all().map((c) => c.name);
+  if (!sbCols.includes('mdf_in')) {
+    db.exec('ALTER TABLE supplier_budget ADD COLUMN mdf_in REAL NOT NULL DEFAULT 0');
+    db.exec('ALTER TABLE supplier_budget ADD COLUMN mdf_out REAL NOT NULL DEFAULT 0');
+    db.exec('UPDATE supplier_budget SET mdf_in=amount WHERE amount<>0 AND mdf_in=0 AND mdf_out=0');
+  }
   // Budget layers per month: 0 = the main budget, 1..n = extra budgets the
   // admin adds; each layer mirrors the whole flow (brand totals → managers'
   // split). Older tables without a layer column are rebuilt with layer 0.
