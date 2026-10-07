@@ -797,3 +797,8 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-mdf-cell>span{font-size:11px;font-weight:700;color:#8a6414;letter-spacing:.3px}
 .cb-supcard .cb-mdf .cb-supin{font-size:18px;width:100%}
 .cb-mdf-cell b{font-size:18px;color:#0e2340}
+/* Collapse arrow on a whole budget panel header */
+.cb-sec-arrow{display:inline-block;width:18px;cursor:pointer;user-select:none;color:#1c4e8a;font-size:13px}
+.cb-panel.cb-extra .cb-sec-arrow{color:#5b3fa6}
+.cb-panel.cb-combined .cb-sec-arrow{color:#1d6b45}
+.cb-sec-arrow:hover{opacity:.7}

@@ -2358,6 +2358,15 @@ function cbOsdToggle(key) {
 // Split-by-channel sections fold shut: the header and the Total budget /
 // Difference rows stay, the line details appear when you click the channel.
 const cbLnOpen = new Set();
+// Whole-panel fold (Split by channel, Extra budget, combined): an arrow in the
+// header hides / shows the panel body.
+const cbSecClosed = new Set();
+function cbSecArrow(key) { return `<span class="cb-sec-arrow" data-sec-a="${key}" onclick="event.stopPropagation();cbSecToggle('${key}')">${cbSecClosed.has(key) ? "▸" : "▾"}</span> `; }
+function cbSecToggle(key) {
+  const closed = !cbSecClosed.has(key); if (closed) cbSecClosed.add(key); else cbSecClosed.delete(key);
+  const body = document.getElementById("cbSec_" + key); if (body) body.style.display = closed ? "none" : "";
+  document.querySelectorAll(`[data-sec-a="${key}"]`).forEach((a) => { a.textContent = closed ? "▸" : "▾"; });
+}
 function cbLnToggle(key) {
   const open = !cbLnOpen.has(key); if (open) cbLnOpen.add(key); else cbLnOpen.delete(key);
   document.querySelectorAll(`tr.cb-ln-det[data-ln="${key}"]`).forEach((tr) => { const ok = tr.dataset.osdK; tr.style.display = (open && (!ok || cbOsdOpen.has(ok))) ? "" : "none"; });
@@ -2433,8 +2442,14 @@ function companyLayerPanel(L) {
   const title = combined ? `Σ ${esc(t("cb_withExtra"))}` : L ? `➕ ${esc(lyName(L))}` : t("cb_title");
   const pcls = combined ? " cb-combined" : L ? " cb-extra" : "";
   const lnTitle = combined ? esc(t("cb_withExtra")) : L ? esc(lyName(L)) : "";
-  return `<div class="panel cb-panel${pcls}"><header><h3>${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body">${combined ? `<div class="hint" style="margin-bottom:10px">${t("cb_combinedHint")}</div>` : ""}${kpis}${note}${entry}</div></div>
-    <div class="panel cb-panel${pcls}"><header><h3>${t("cb_linesTitle")}${lnTitle ? " — " + lnTitle : ""}</h3></header><div class="body">${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
+  // Entry panel collapses only for an extra budget / the combined mirror; the
+  // main budget's entry stays open. The split-by-channel panel collapses always.
+  const eKey = `e${L}`, lKey = `l${L}`;
+  const foldEntry = combined || !!L;
+  const entryHdr = foldEntry ? cbSecArrow(eKey) : "";
+  const entryBody = foldEntry ? ` id="cbSec_${eKey}"${cbSecClosed.has(eKey) ? ' style="display:none"' : ""}` : "";
+  return `<div class="panel cb-panel${pcls}"><header><h3>${entryHdr}${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body"${entryBody}>${combined ? `<div class="hint" style="margin-bottom:10px">${t("cb_combinedHint")}</div>` : ""}${kpis}${note}${entry}</div></div>
+    <div class="panel cb-panel${pcls}"><header><h3>${cbSecArrow(lKey)}${t("cb_linesTitle")}${lnTitle ? " — " + lnTitle : ""}</h3></header><div class="body" id="cbSec_${lKey}"${cbSecClosed.has(lKey) ? ' style="display:none"' : ""}>${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
 }
 // 2) The split by line, read-only: filled from the channel managers' screens.
 // One table per channel group; under each brand its sub-channels and the group
