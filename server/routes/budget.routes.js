@@ -281,7 +281,7 @@ router.get('/budget-plan', asyncH((req, res) => {
     month, closed: !!(m && m.closed), types: ALL_BUDGET_TYPES, capped: CAPPED_TYPES,
     caps, alloc: outAlloc, allocSales: outAllocSales, allocCoop: outAllocCoop,
     allocOutlet: outAllocOutlet, supervisors: outSupervisors, structure,
-    distShares: outShares, suppliers: activeSuppliers(), distChannels: CHANNELS.filter((ch) => CHANNEL_MANAGER[ch]),
+    distShares: outShares, suppliers: activeSuppliers(), distChannels: COOP_CHANNELS,
     me: req.user ? { name: req.user.name, role: req.user.role } : null,
     spend: outSpend,
     months: db.prepare('SELECT month, closed FROM budget_months ORDER BY month DESC').all(),
