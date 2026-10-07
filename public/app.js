@@ -2406,10 +2406,8 @@ function cbHead(chs, first, pre = "", post = `<th rowspan="2">${t("total")}</th>
 function companyPanel() {
   if (!cbData) return "";
   const layers = cbData.layers || [{ layer: 0 }];
-  const add = currentUser.role === "admin" && !cbData.closed
-    ? `<div class="cb-add-extra cb-add-top"><button class="btn gold sm" onclick="cbAddExtra()">➕ ${t("cb_addExtra")}</button><span class="hint">${t("cb_addExtraHint")}</span></div>` : "";
   const combined = layers.length > 1 ? companyLayerPanel("all") : "";
-  return add + layers.map(({ layer }) => companyLayerPanel(layer)).join("") + combined;
+  return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + combined;
 }
 function companyLayerPanel(L) {
   const d = cbData, combined = L === "all", ed = !combined && cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin" && !combined;
@@ -2683,6 +2681,7 @@ function renderBudgetPlan() {
     <input type="month" value="${esc(d.month)}" onchange="bpSetMonth(this.value)">
     <span class="tag ${closed ? "" : "appr"}">${closed ? t("bp_closed") : t("bp_open_m")}</span>
     ${isAdmin ? `<button class="btn ${closed ? "ghost" : "danger"} sm" onclick="bpCloseMonth(${closed ? "false" : "true"})">${closed ? t("bp_reopen") : t("bp_close")}</button>` : ""}
+    ${isAdmin && cbData && !closed ? `<button class="btn gold sm" onclick="cbAddExtra()">➕ ${t("cb_addExtra")}</button>` : ""}
   </div></div>`;
   // Caps (admin)
   // Caps are no longer typed here: they follow the Coop column of the company
