@@ -577,7 +577,7 @@ const COOP_CHANNELS = MANAGER_CHANNELS.sales_manager;
 // The channels a role manages: a manager sees its own, management sees all.
 function roleChannels(role) { return MANAGER_CHANNELS[role] || CHANNELS.filter((ch) => CHANNEL_MANAGER[ch]); }
 // Channel display names [Arabic, English] for the manager / over-cap messages.
-const CH_NAME = { coop_main: ['مين', 'Main'], coop_branch: ['برانش', 'Branch'], ka: ['KA', 'KA'], online: ['أونلاين', 'Online'], tt_grocery: ['بقالات', 'Grocery'], tt_ws: ['WS', 'WS'], tt_horeca: ['هوريكا + مدارس', 'Horeca + Schools'] };
+const CH_NAME = { coop_main: ['مين ماركت', 'Main Market'], coop_branch: ['برانشيز', 'Branches'], ka: ['KA', 'KA'], online: ['أونلاين', 'Online'], tt_grocery: ['بقالات', 'Grocery'], tt_ws: ['WS', 'WS'], tt_horeca: ['هوريكا + مدارس', 'Horreca + Schools'] };
 // Budget lines in the order the business uses them.
 const CB_TYPES = ['pallets', 'stands', 'polypack', 'foc', 'pricediff'];
 // The sales manager runs the co-op channel only: he works from his brands'
@@ -734,7 +734,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const XLSX = require('xlsx');
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
-  const CH = { coop: 'Coop', coop_main: 'Coop Main', coop_branch: 'Coop Branch', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT Horeca+Schools' };
+  const CH = { coop: 'Coops', coop_main: 'Coops Main Market', coop_branch: 'Coops Branches', ka: 'KA', online: 'Online', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT Horreca+Schools' };
   const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price off' };
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];
@@ -749,7 +749,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const g = (sid, c) => c === 'tt' ? sum(TT.map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
     const st = {}; allSup.filter((r) => r.layer === layer).forEach((r) => { st[r.supplierId] = +r.amount || 0; });
     const split = (sid) => sum(CHANNELS.map((c) => g(sid, c)));
-    const head = ['Supplier name', 'Code', 'Supplier total', ...COLS.map((c) => c === 'coop' ? 'Coop total' : c === 'tt' ? 'TT total' : CH[c]), 'Split into channels', 'Left to split'];
+    const head = ['Supplier name', 'Code', 'Supplier total', ...COLS.map((c) => c === 'coop' ? 'Coops total' : c === 'tt' ? 'TT total' : CH[c]), 'Split into channels', 'Remaining'];
     const a1 = [[`${lname} budget — supplier totals and their split by channel — ${month}`], [], head];
     sups.forEach((sp) => a1.push([sp.name, sp.code, st[sp.id] == null ? '' : st[sp.id], ...COLS.map((c) => g(sp.id, c)), split(sp.id), st[sp.id] == null ? '' : st[sp.id] - split(sp.id)]));
     const stAll = sum(sups.map((sp) => st[sp.id] || 0)), splitAll = sum(sups.map((sp) => split(sp.id)));
@@ -760,7 +760,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const rowOf = (name, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([name, label, ...v, sum(v)]); };
     const SECTIONS = [['coop_main'], ['coop_branch'], ['coop', COOP_CHANNELS], ['ka'], ['online'], ...TT.map((c) => [c]), ['tt', TT]];
     SECTIONS.forEach(([name, chs = [name]]) => {
-      const label = name === 'coop' ? 'Coop total' : name === 'tt' ? 'TT total' : CH[name];
+      const label = name === 'coop' ? 'Coops total' : name === 'tt' ? 'TT total' : CH[name];
       const managed = chs.some((ch) => CHANNEL_MANAGER[ch]);
       const L = (sid, bt) => sum(chs.filter((ch) => CHANNEL_MANAGER[ch]).map((ch) => ln[`${sid}|${bt}|${ch}`] || 0));
       const B = (sid) => sum(chs.map((ch) => tot[`${sid}|${ch}`] || 0));
