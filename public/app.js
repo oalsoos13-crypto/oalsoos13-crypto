@@ -581,7 +581,7 @@ const T = {
   bp_close: { ar: "🔒 تسكير الشهر", en: "🔒 Close month" },
   bp_reopen: { ar: "🔓 فتح الشهر", en: "🔓 Reopen month" },
   bp_caps: { ar: "سقوف البتجيت (الأدمن)", en: "Budget caps (admin)" },
-  cb_title: { ar: "البتجيت", en: "Budget" },
+  cb_title: { ar: "بتجيت Budget", en: "Budget" },
   cb_line: { ar: "بند البتجيت", en: "Budget line" },
   al_title: { ar: "توزيع البتجيت ← المشرفين", en: "Budget → supervisors" },
   al_budget: { ar: "البتجيت", en: "Budget" },
