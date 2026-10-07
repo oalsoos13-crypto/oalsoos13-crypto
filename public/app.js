@@ -146,8 +146,8 @@ const T = {
   r_sales_ops: { ar: "مدير عمليات البيع والتسويق", en: "Sales & Marketing Ops" },
   r_ka_manager: { ar: "مدير KA", en: "KA Manager" },
   r_ka_manager_d: { ar: "يوزّع بتجيت قسم KA على المشرفين.", en: "Splits the KA channel budget to supervisors." },
-  r_online_manager: { ar: "مدير الأونلاين", en: "Online Manager" },
-  r_online_manager_d: { ar: "يوزّع بتجيت قسم الأونلاين على المشرفين.", en: "Splits the Online channel budget to supervisors." },
+  r_online_manager: { ar: "مدير ECG", en: "ECG Manager" },
+  r_online_manager_d: { ar: "يوزّع بتجيت قسم ECG (إيكوم / سي آند جي) على المشرفين.", en: "Splits the ECG channel budget (ECOM / C&G) to supervisors." },
   r_tt_manager: { ar: "مدير TT", en: "TT Manager" },
   r_tt_manager_d: { ar: "يوزّع بتجيت قسم TT (بقالات / WS / هوريكا + مدارس) على المشرفين.", en: "Splits the TT channel budget (Grocery / WS / Horeca + Schools) to supervisors." },
   r_sales_ops_d: {
@@ -623,7 +623,9 @@ const T = {
   ch_tt: { ar: "TT", en: "TT" },
   cb_grpTotal: { ar: "توتال {g}", en: "{g} total" },
   ch_ka: { ar: "KA", en: "KA" },
-  ch_online: { ar: "أونلاين", en: "Online" },
+  ch_ecg: { ar: "ECG", en: "ECG" },
+  ch_ecg_ecom: { ar: "إيكوم", en: "ECOM" },
+  ch_ecg_cng: { ar: "سي آند جي", en: "C&G" },
   ch_tt_grocery: { ar: "بقالات", en: "Grocery" },
   ch_tt_ws: { ar: "WS", en: "WS" },
   ch_tt_horeca: { ar: "هوريكا + مدارس", en: "Horreca + Schools" },
@@ -2375,7 +2377,7 @@ function cbLeftFmt(v) { return v == null ? `<span class="cb-zero">–</span>` : 
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
 // Channel groups: Coop (Main · Branch · Coop total), KA, Online, TT (Grocery · WS ·
 // Horeca+Schools · TT total). Group totals are calculated, never typed.
-const CB_GROUPS = [{ k: "coop", chs: ["coop_main", "coop_branch"] }, { k: "ka", chs: ["ka"] }, { k: "online", chs: ["online"] }, { k: "tt", chs: ["tt_grocery", "tt_ws", "tt_horeca"] }];
+const CB_GROUPS = [{ k: "coop", chs: ["coop_main", "coop_branch"] }, { k: "ka", chs: ["ka"] }, { k: "ecg", chs: ["ecg_ecom", "ecg_cng"] }, { k: "tt", chs: ["tt_grocery", "tt_ws", "tt_horeca"] }];
 // Columns of a sheet: [{ ch } input/value column | { grp } group-total column].
 function cbCols(chs) {
   const cols = [];

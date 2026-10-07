@@ -704,6 +704,15 @@ function migrate() {
         });
       db.prepare("INSERT INTO meta(key,value) VALUES('cb_from_company_budget','1')").run();
     }
+    // One-off: the Online channel became ECG with sub-channels ECOM / C&G;
+    // its old 'online' rows move under ECOM.
+    if (!db.prepare("SELECT 1 FROM meta WHERE key='ch_online_to_ecg'").get()) {
+      for (const tbl of ['brand_channel_budget', 'budget_alloc_sup', 'budget_alloc_coop', 'budget_alloc_outlet']) {
+        const cols = db.prepare(`PRAGMA table_info(${tbl})`).all().map((c) => c.name);
+        if (cols.includes('channel')) db.prepare(`UPDATE OR IGNORE ${tbl} SET channel='ecg_ecom' WHERE channel='online'`).run();
+      }
+      db.prepare("INSERT INTO meta(key,value) VALUES('ch_online_to_ecg','1')").run();
+    }
     // One-off: fix the seeded supplier spelling Biscuni → Bisconni.
     if (!db.prepare("SELECT 1 FROM meta WHERE key='sup_bisconni'").get()) {
       db.prepare("UPDATE company_suppliers SET name='Bisconni' WHERE name='Biscuni'").run();
