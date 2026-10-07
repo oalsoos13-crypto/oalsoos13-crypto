@@ -598,7 +598,7 @@ const T = {
   cb_pasted: { ar: "تم لصق وحفظ {n} خانة", en: "{n} cells pasted and saved" },
   cb_bad: { ar: "أدخل رقمًا موجبًا", en: "Enter a positive number" },
   cb_locked: { ar: "الشهر مسكّر — البتجيت للعرض فقط", en: "The month is closed — the budget is view-only" },
-  cb_total: { ar: "إجمالي الشركة", en: "Company total" },
+  cb_total: { ar: "إجمالي الشركة", en: "Total Company" },
   ds_on: { ar: "على {x}", en: "on {x}" },
   ds_outlets: { ar: "اعرض الأوتلتات ووزّع عليها", en: "Show the outlets and distribute to them" },
   ds_roll: { ar: "مجموع الأوتلتات", en: "Sum of its outlets" },
