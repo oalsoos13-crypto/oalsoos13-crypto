@@ -2400,7 +2400,7 @@ function cbCols(chs) {
 function cbHead(chs, first, pre = "", post = `<th rowspan="2">${t("total")}</th>`) {
   let r1 = `<th rowspan="2" class="cb-th-lbl">${first}</th>${pre}`, r2 = "";
   CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return;
-    if (mine.length === 1) r1 += `<th rowspan="2" class="cb-gstart">${t("ch_" + mine[0])}</th>`;
+    if (mine.length === 1) r1 += `<th rowspan="2" class="cb-th-grp cb-th-solo cb-gstart">${t("ch_" + mine[0])}</th>`;
     else { r1 += `<th colspan="${mine.length + 1}" class="cb-th-grp cb-gstart">${t("ch_" + g.k)}</th>`; r2 += mine.map((c, i) => `<th class="${i ? "" : "cb-gstart"}">${t("ch_" + c)}</th>`).join("") + `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", t("ch_" + g.k))}</th>`; } });
   return `<thead><tr>${r1}${post}</tr><tr>${r2}</tr></thead>`;
 }
