@@ -2437,7 +2437,7 @@ function companyLayerPanel(L) {
         return `<td class="${gs.trim()}"><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${col.ch}" data-r="${r}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot cb-split" id="cbLS_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`; }).join("")}
       <tr class="cb-grand"><td>${esc(lyLabel(L))}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot${col.gstart ? " cb-gstart" : ""}" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
-  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed && !L ? `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">${t("cb_supHint")}</div>` : "");
+  const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : "";
   const title = combined ? `Σ ${esc(t("cb_withExtra"))}` : L ? `➕ ${esc(lyName(L))}` : t("cb_title");
   const pcls = combined ? " cb-combined" : L ? " cb-extra" : "";
   const lnTitle = combined ? esc(t("cb_withExtra")) : L ? esc(lyName(L)) : "";
@@ -2448,7 +2448,7 @@ function companyLayerPanel(L) {
   const entryHdr = foldEntry ? cbSecArrow(eKey) : "";
   const entryBody = foldEntry ? ` id="cbSec_${eKey}"${cbSecClosed.has(eKey) ? ' style="display:none"' : ""}` : "";
   return `<div class="panel cb-panel${pcls}"><header><h3>${entryHdr}${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body"${entryBody}>${combined ? `<div class="hint" style="margin-bottom:10px">${t("cb_combinedHint")}</div>` : ""}${kpis}${note}${entry}</div></div>
-    <div class="panel cb-panel${pcls}"><header><h3>${cbSecArrow(lKey)}${t("cb_linesTitle")}${lnTitle ? " — " + lnTitle : ""}</h3></header><div class="body" id="cbSec_${lKey}"${cbSecClosed.has(lKey) ? ' style="display:none"' : ""}>${L ? "" : `<div class="hint" style="margin-bottom:10px">${t("cb_linesHint")}</div>`}<div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
+    <div class="panel cb-panel${pcls}"><header><h3>${cbSecArrow(lKey)}${t("cb_linesTitle")}${lnTitle ? " — " + lnTitle : ""}</h3></header><div class="body" id="cbSec_${lKey}"${cbSecClosed.has(lKey) ? ' style="display:none"' : ""}><div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
 }
 // 2) The split by line, read-only: filled from the channel managers' screens.
 // One table per channel group; under each brand its sub-channels and the group
