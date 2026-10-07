@@ -751,7 +751,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const g = (sid, c) => GROUPS[c] ? sum(GROUPS[c].map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
     const st = {}; allSup.filter((r) => r.layer === layer).forEach((r) => { st[r.supplierId] = +r.amount || 0; });
     const split = (sid) => sum(CHANNELS.map((c) => g(sid, c)));
-    const head = ['UDC Supplier', 'Code', 'Supplier total', ...COLS.map((c) => c === 'coop' ? 'Coops total' : c === 'ecg' ? 'ECG total' : c === 'tt' ? 'TT total' : CH[c]), 'Split into channels', 'Remaining'];
+    const head = ['UDC Supplier', 'Code', 'Total Supplier', ...COLS.map((c) => c === 'coop' ? 'Total Coops' : c === 'ecg' ? 'Total ECG' : c === 'tt' ? 'Total TT' : CH[c]), 'Split into channels', 'Remaining'];
     const a1 = [[`${lname} budget — supplier totals and their split by channel — ${month}`], [], head];
     sups.forEach((sp) => a1.push([sp.name, sp.code, st[sp.id] == null ? '' : st[sp.id], ...COLS.map((c) => g(sp.id, c)), split(sp.id), st[sp.id] == null ? '' : st[sp.id] - split(sp.id)]));
     const stAll = sum(sups.map((sp) => st[sp.id] || 0)), splitAll = sum(sups.map((sp) => split(sp.id)));
@@ -762,7 +762,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const rowOf = (name, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([name, label, ...v, sum(v)]); };
     const SECTIONS = [['coop_main'], ['coop_branch'], ['coop', COOP_CHANNELS], ['ka'], ['ecg_ecom'], ['ecg_cng'], ['ecg', ECG], ...TT.map((c) => [c]), ['tt', TT]];
     SECTIONS.forEach(([name, chs = [name]]) => {
-      const label = name === 'coop' ? 'Coops total' : name === 'ecg' ? 'ECG total' : name === 'tt' ? 'TT total' : CH[name];
+      const label = name === 'coop' ? 'Total Coops' : name === 'ecg' ? 'Total ECG' : name === 'tt' ? 'Total TT' : CH[name];
       const managed = chs.some((ch) => CHANNEL_MANAGER[ch]);
       const L = (sid, bt) => sum(chs.filter((ch) => CHANNEL_MANAGER[ch]).map((ch) => ln[`${sid}|${bt}|${ch}`] || 0));
       const B = (sid) => sum(chs.map((ch) => tot[`${sid}|${ch}`] || 0));
