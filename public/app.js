@@ -627,7 +627,7 @@ const T = {
   ch_tt_grocery: { ar: "بقالات", en: "Grocery" },
   ch_tt_ws: { ar: "WS", en: "WS" },
   ch_tt_horeca: { ar: "هوريكا + مدارس", en: "Horreca + Schools" },
-  cb_brand: { ar: "اسم المورد", en: "Supplier name" },
+  cb_brand: { ar: "مورد UDC", en: "UDC Supplier" },
   cb_extra: { ar: "بتجيت إضافي", en: "Extra budget" },
   cb_addExtra: { ar: "بتجيت إضافي", en: "Extra budget" },
   cb_addExtraHint: { ar: "بيضيف نسخة من شاشة البتجيت تحت — توتالات البراندات للأقسام، وكل مدير بيوزّعها عنده.", en: "Adds a mirror of the budget screen below — brand totals per channel, which each manager then splits." },
