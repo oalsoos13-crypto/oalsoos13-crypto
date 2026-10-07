@@ -2381,14 +2381,14 @@ const CB_GROUPS = [{ k: "coop", chs: ["coop_main", "coop_branch"] }, { k: "ka", 
 // Columns of a sheet: [{ ch } input/value column | { grp } group-total column].
 function cbCols(chs) {
   const cols = [];
-  CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return; mine.forEach((c) => cols.push({ ch: c, g })); if (mine.length > 1) cols.push({ grp: g, chs: mine }); });
+  CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return; mine.forEach((c, i) => cols.push({ ch: c, g, gstart: !i })); if (mine.length > 1) cols.push({ grp: g, chs: mine }); });
   return cols;
 }
 function cbHead(chs, first, pre = "", post = `<th rowspan="2">${t("total")}</th>`) {
   let r1 = `<th rowspan="2" class="cb-th-lbl">${first}</th>${pre}`, r2 = "";
   CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return;
-    if (mine.length === 1) r1 += `<th rowspan="2">${t("ch_" + mine[0])}</th>`;
-    else { r1 += `<th colspan="${mine.length + 1}" class="cb-th-grp">${t("ch_" + g.k)}</th>`; r2 += mine.map((c) => `<th>${t("ch_" + c)}</th>`).join("") + `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", t("ch_" + g.k))}</th>`; } });
+    if (mine.length === 1) r1 += `<th rowspan="2" class="cb-gstart">${t("ch_" + mine[0])}</th>`;
+    else { r1 += `<th colspan="${mine.length + 1}" class="cb-th-grp cb-gstart">${t("ch_" + g.k)}</th>`; r2 += mine.map((c, i) => `<th class="${i ? "" : "cb-gstart"}">${t("ch_" + c)}</th>`).join("") + `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", t("ch_" + g.k))}</th>`; } });
   return `<thead><tr>${r1}${post}</tr><tr>${r2}</tr></thead>`;
 }
 function companyPanel() {
@@ -2413,11 +2413,12 @@ function companyLayerPanel(L) {
   const entry = sups.length ? `<div class="tbl-wrap"><table class="cb-sheet cb-entry" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
       <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"), "", `<th rowspan="2" class="cb-th-split">${t("cb_leftSplit")}</th>`)}<tbody>
       ${sups.map((sp, r) => { let c = 0; return `<tr><td class="cb-brand"><b>${esc(sp.name)}</b>${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cols.map((col) => {
+        const gs = col.gstart ? " cb-gstart" : "";
         if (col.grp) return `<td class="cb-tot cb-gtot" id="cbGr_${P}${sp.id}_${col.grp.k}">${cbFmt(cbTot(L, (x) => x.supplierId === sp.id && col.chs.includes(x.channel)))}</td>`;
         const v = cbAmt(L, sp.id, col.ch);
-        if (combined) return `<td class="cb-tot" id="cbEC_${P}${sp.id}_${col.ch}">${cbFmt(v)}</td>`;
-        return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${col.ch}" data-r="${r}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot cb-split" id="cbLS_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`; }).join("")}
-      <tr class="cb-grand"><td>${esc(lyLabel(L))}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
+        if (combined) return `<td class="cb-tot${gs}" id="cbEC_${P}${sp.id}_${col.ch}">${cbFmt(v)}</td>`;
+        return `<td class="${gs.trim()}"><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${col.ch}" data-r="${r}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}<td class="cb-tot cb-split" id="cbLS_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`; }).join("")}
+      <tr class="cb-grand"><td>${esc(lyLabel(L))}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot${col.gstart ? " cb-gstart" : ""}" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
     : `<div class="empty">${t("cb_none")}</div>`;
   const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>` : (ed && !L ? `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">${t("cb_supHint")}</div>` : "");
   const title = combined ? `Σ ${esc(t("cb_withExtra"))}` : L ? `➕ ${esc(lyName(L))}` : t("cb_title");

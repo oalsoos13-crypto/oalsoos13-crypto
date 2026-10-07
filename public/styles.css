@@ -779,3 +779,15 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 /* Combined mirror: main + every extra budget, read-only */
 .cb-panel.cb-combined{border:2px solid #37a86f;border-top:5px solid #37a86f;box-shadow:0 0 0 3px rgba(55,168,111,.18),var(--shadow)}
 .cb-panel.cb-combined header h3{color:#1d6b45}
+/* Budget entry sheet — cleaner, grouped design */
+.cb-entry thead th.cb-th-grp{border-bottom:2px solid #9fb8d8;letter-spacing:.3px}
+.cb-entry .cb-gstart{border-inline-start:2px solid #cfdcee}
+.cb-entry thead th.cb-gstart{border-inline-start:2px solid #9fb8d8}
+.cb-entry tbody tr:not(.cb-grand):nth-child(even) td:not(.cb-supt):not(.cb-split):not(.cb-gtot){background:#fafcfe}
+.cb-entry tbody tr:not(.cb-grand):hover td:not(.cb-supt):not(.cb-split):not(.cb-gtot){background:#f2f7fd}
+.cb-entry td.cb-brand{font-size:14px}
+.cb-entry td.cb-gtot{background:#eef4fb;color:#123f70;font-weight:800}
+.cb-entry .cb-in{padding:6px 7px;border-radius:6px}
+.cb-entry td{padding:4px 5px;vertical-align:middle}
+.cb-entry tr.cb-grand td{padding-top:11px;padding-bottom:11px;letter-spacing:.2px}
+.cb-entry td.cb-tot .cb-zero{color:#c3d0e0}
