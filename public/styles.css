@@ -804,3 +804,6 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-sec-arrow:hover{opacity:.7}
 /* Add-extra bar pinned at the top of the budget */
 .cb-add-extra.cb-add-top{margin:0 0 16px;padding:12px 16px}
+.cb-mdf-sub{display:flex;gap:14px;margin-top:6px;flex-wrap:wrap}
+.cb-mdf-sub span{font-size:12px;color:var(--muted)}
+.cb-mdf-sub b{color:var(--ink2)}

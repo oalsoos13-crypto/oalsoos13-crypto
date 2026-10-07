@@ -2384,6 +2384,7 @@ function cbMdf(L, sid, which) { if (L === "all") { const rs = (cbData.supTotals 
 function cbSup(L, sid) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
 function cbEff(L, sid) { const v = cbSup(L, sid); return v == null ? cbTot(L, (x) => x.supplierId === sid) : v; }
 function cbEffAll(L) { return cbData.suppliers.reduce((a, sp) => a + cbEff(L, sp.id), 0); }
+function cbMdfAll(L, which) { return cbData.suppliers.reduce((a, sp) => a + cbMdf(L, sp.id, which), 0); }
 function cbLeftSplit(L, sid) { const v = cbSup(L, sid); return v == null ? null : v - cbTot(L, (x) => x.supplierId === sid); }
 function cbLeftFmt(v) { return v == null ? `<span class="cb-zero">–</span>` : `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">0</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`; }
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
@@ -2417,7 +2418,7 @@ function companyLayerPanel(L) {
       ${L ? (ed ? `<button class="btn danger sm" onclick="cbRemoveExtra(${L})">🗑 ${t("cb_removeExtra")}</button>` : "") : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button><button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>`}</div>`
     : (L ? "" : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`);
   const grand = ""; // the "Total budget (main + extra)" card was removed on request
-  const kpis = `<div class="cards cb-kpis" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><div class="card accent"><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
+  const kpis = `<div class="cards cb-kpis" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><div class="card accent"><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div><div class="cb-k-sub cb-mdf-sub"><span>${t("cb_mdfIn")}: <b class="mono" id="cbMiAll_${L}">${KD(cbMdfAll(L, "mdfIn"))}</b></span><span>${t("cb_mdfOut")}: <b class="mono" id="cbMoAll_${L}">${KD(cbMdfAll(L, "mdfOut"))}</b></span></div></div>
     ${sups.map((sp, r) => {
       const inV = cbMdf(L, sp.id, "mdfIn"), outV = cbMdf(L, sp.id, "mdfOut"), tot = cbEff(L, sp.id);
       const field = combined
