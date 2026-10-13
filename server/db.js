@@ -647,6 +647,21 @@ function migrate() {
     db.exec('ALTER TABLE supplier_budget ADD COLUMN mdf_out REAL NOT NULL DEFAULT 0');
     db.exec('UPDATE supplier_budget SET mdf_in=amount WHERE amount<>0 AND mdf_in=0 AND mdf_out=0');
   }
+  // The admin enters each supplier's budget by line: UDC + Supplier per line
+  // (supplier_line_budget), and each line's split by channel (brand_line_budget).
+  // Once a supplier has lines in a layer, supplier_budget (UDC = mdf_in,
+  // Supplier = mdf_out) and brand_channel_budget hold their sums; totals typed
+  // before the split by line stay as they were.
+  db.exec(`CREATE TABLE IF NOT EXISTS supplier_line_budget (
+      month TEXT NOT NULL, layer INTEGER NOT NULL DEFAULT 0, supplier_id INTEGER NOT NULL, budget_type TEXT NOT NULL,
+      udc REAL NOT NULL DEFAULT 0, sup REAL NOT NULL DEFAULT 0, updated_at TEXT,
+      PRIMARY KEY (month, layer, supplier_id, budget_type)
+    )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS brand_line_budget (
+      month TEXT NOT NULL, layer INTEGER NOT NULL DEFAULT 0, supplier_id INTEGER NOT NULL, channel TEXT NOT NULL, budget_type TEXT NOT NULL,
+      amount REAL NOT NULL DEFAULT 0, updated_at TEXT,
+      PRIMARY KEY (month, layer, supplier_id, channel, budget_type)
+    )`);
   // Budget layers per month: 0 = the main budget, 1..n = extra budgets the
   // admin adds; each layer mirrors the whole flow (brand totals → managers'
   // split). Older tables without a layer column are rebuilt with layer 0.
