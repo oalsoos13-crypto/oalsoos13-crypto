@@ -2414,6 +2414,7 @@ function cbSecArrow(key) { return `<span class="cb-sec-arrow" data-sec-a="${key}
 function cbSecToggle(key) {
   const closed = !cbSecClosed.has(key); if (closed) cbSecClosed.add(key); else cbSecClosed.delete(key);
   const body = document.getElementById("cbSec_" + key); if (body) body.style.display = closed ? "none" : "";
+  if (!closed) cbStickBands();
   document.querySelectorAll(`[data-sec-a="${key}"]`).forEach((a) => { a.textContent = closed ? "▸" : "▾"; });
 }
 function cbLnToggle(key) {
@@ -2549,7 +2550,7 @@ function companyLayerPanel(L) {
     const legacy = !combined && cbData.totals.some((x) => (x.layer || 0) === L && x.supplierId === sp.id) && !(cbData.chLines || []).some((x) => (x.layer || 0) === L && x.supplierId === sp.id);
     return `<tr class="cb-ent-sup"><td colspan="${cols.length + 2}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}<span id="cbLgE_${P}${sp.id}">${legacy ? `<span class="cb-legacy-in">${t("cb_legacy")}</span>` : ""}</span></td></tr>${lines}${tot}`;
   };
-  const entry = sups.length ? `<div class="tbl-wrap"><table class="cb-sheet cb-entry cb-entry-ln" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
+  const entry = sups.length ? `<div class="tbl-wrap cb-wrap cb-entry-wrap"><table class="cb-sheet cb-entry cb-entry-ln" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
       <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"), "", `<th rowspan="2" class="cb-th-split">${t("cb_leftSplit")}</th>`)}<tbody>
       ${sups.map(supRows).join("")}
       <tr class="cb-grand"><td>${esc(lyLabel(L))}</td>${cols.map((col) => col.grp ? `<td class="cb-tot" id="cbGrT_${P}${col.grp.k}">${KD(cbTot(L, (x) => act.has(x.supplierId) && col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot${col.gstart ? " cb-gstart" : ""}" id="cbCT_${P}${col.ch}">${KD(cbTot(L, (x) => act.has(x.supplierId) && x.channel === col.ch))}</td>`).join("")}<td class="cb-tot" id="cbLST_${L}">${cbLeftFmt(sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null)}</td></tr></tbody></table></div>`
@@ -2616,6 +2617,9 @@ function cbLinesTable(L) {
   })();
   return groups + all;
 }
+// The supplier band of the channel split sticks under the sheet header while
+// scrolling: it needs the header's height.
+function cbStickBands() { document.querySelectorAll(".cb-entry-wrap").forEach((w) => { const h = w.querySelector("thead"); if (h && h.offsetHeight) w.style.setProperty("--thh", h.offsetHeight + "px"); }); }
 async function cbAddExtra() {
   try { await api("/budget-company/layer", { method: "POST", body: { month: cbData.month } }); toast(t("saved")); await cbReload(); const ex = document.querySelectorAll(".cb-extra"); if (ex.length) ex[ex.length - 2 >= 0 ? ex.length - 2 : 0].scrollIntoView({ behavior: "smooth", block: "start" }); }
   catch (e) { toast(errDisp(e.message)); }
@@ -2841,6 +2845,7 @@ function renderBudgetPlan() {
     allocPanel = `<div class="panel"><header><h3>${t("bp_alloc")}</h3></header><div class="body">${blocks}</div></div>`;
   }
   document.getElementById("rv").innerHTML = monthBar + companyPanel() + allocSheetPanel() + capsPanel + spendPanel + allocPanel;
+  cbStickBands();
 }
 async function bpSaveCap(bt) {
   const amount = document.getElementById("cap_" + bt).value;

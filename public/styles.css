@@ -939,3 +939,10 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-cg .cb-in.busy{background:#fff8e6;border-color:#e3b23c}
 .cb-cg .cb-in.ok{background:var(--okbg);border-color:#9fd0b6}
 .cb-cg .cb-in.err{background:var(--dangerbg);border-color:var(--danger)}
+/* Sheet headers stay in view while the sheet scrolls: the whole header block
+   sticks (so its rows never overlap); the label header also sticks sideways. */
+.panel .cb-sheet thead{position:sticky;top:0;z-index:5}
+.panel .cb-sheet thead th{position:static}
+.panel .cb-sheet.cb-ln thead th.cb-th-lbl,.panel .cb-sheet.cb-entry thead th.cb-th-lbl{position:sticky;inset-inline-start:0;z-index:6}
+.cb-entry-wrap{max-height:78vh;border:1px solid #e3ebf5;border-radius:10px}
+.cb-entry-wrap tr.cb-ent-sup td{position:sticky;top:var(--thh,78px);z-index:4}
