@@ -675,7 +675,7 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
       const sp = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
       if (!sp) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
       const k = `${layer}|${sp.id}`;
-      if (!touched.has(k)) touched.set(k, { name: sp.name, sup: false, ch: false, before: lineState(layer, sp.id) });
+      if (!touched.has(k)) touched.set(k, { name: sp.name, sup: false, ch: false, before: lineState(layer, sp.id), hadSup: hasSupLines(month, layer, sp.id), hadCh: hasChLines(month, layer, sp.id) });
       touched.get(k)[part ? 'sup' : 'ch'] = true;
       const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
       const amount = Number(raw);
@@ -691,9 +691,13 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
     });
     for (const [k, t] of touched) {
       const [layer, sid] = k.split('|').map(Number);
-      syncSupplierTotals(month, layer, sid, now, t);
+      // Totals follow the lines only for a supplier budgeted by line (before or
+      // after this change) — a blank / 0 cell never wipes totals typed before
+      // the split by line.
+      const sl = t.hadSup || hasSupLines(month, layer, sid), cl = t.hadCh || hasChLines(month, layer, sid);
+      syncSupplierTotals(month, layer, sid, now, { sup: t.sup && sl, ch: t.ch && cl });
       const ext = layer ? ` (بتجيت إضافي ${layer})` : '', extEn = layer ? ` (extra budget ${layer})` : '';
-      if (hasSupLines(month, layer, sid)) {
+      if (sl) {
         // Per line: the channels may not go over the line's UDC + Supplier.
         const after = lineState(layer, sid);
         for (const bt of CB_TYPES) {
@@ -751,30 +755,29 @@ router.post('/budget-company/layer/remove', requireRole(), asyncH((req, res) => 
   res.json({ ok: true });
 }));
 
-// POST /api/budget-company/copy (admin) — fill this month's EMPTY brand totals of a
-// layer from the same layer of the previous month. Body: { month, layer }
+// POST /api/budget-company/copy (admin) — fill this month's EMPTY suppliers of a
+// layer (lines, channel split and totals) from the same layer of the previous
+// month; a supplier with anything typed this month is left as it is. Body: { month, layer }
 router.post('/budget-company/copy', requireRole(), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   const layer = layerOf(req.body.layer);
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
   assertLayer(month, layer);
   const prev = prevMonth(month), now = nowIso();
+  const TBLS = ['supplier_line_budget', 'brand_line_budget', 'supplier_budget', 'brand_channel_budget'];
+  const COLS = { supplier_line_budget: 'budget_type, udc, sup', brand_line_budget: 'channel, budget_type, amount', supplier_budget: 'amount, mdf_in, mdf_out', brand_channel_budget: 'channel, amount' };
+  const hasAny = (m, sid) => TBLS.some((tb) => db.prepare(`SELECT 1 FROM ${tb} WHERE month=? AND layer=? AND supplier_id=? LIMIT 1`).get(m, layer, sid));
   const n = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-    // Lines first; totals typed before the split by line are copied as they were.
-    const copied = db.prepare(`INSERT OR IGNORE INTO supplier_line_budget (month, layer, supplier_id, budget_type, udc, sup, updated_at)
-      SELECT ?, b.layer, b.supplier_id, b.budget_type, b.udc, b.sup, ? FROM supplier_line_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1 WHERE b.month=? AND b.layer=?`).run(month, now, prev, layer).changes
-      + db.prepare(`INSERT OR IGNORE INTO brand_line_budget (month, layer, supplier_id, channel, budget_type, amount, updated_at)
-      SELECT ?, b.layer, b.supplier_id, b.channel, b.budget_type, b.amount, ? FROM brand_line_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1 WHERE b.month=? AND b.layer=?`).run(month, now, prev, layer).changes
-      + db.prepare(`INSERT OR IGNORE INTO supplier_budget (month, layer, supplier_id, amount, mdf_in, mdf_out, updated_at)
-      SELECT ?, b.layer, b.supplier_id, b.amount, b.mdf_in, b.mdf_out, ? FROM supplier_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1 WHERE b.month=? AND b.layer=?
-        AND NOT EXISTS (SELECT 1 FROM supplier_line_budget x WHERE x.month=b.month AND x.layer=b.layer AND x.supplier_id=b.supplier_id)`).run(month, now, prev, layer).changes
-      + db.prepare(`INSERT OR IGNORE INTO brand_channel_budget (month, layer, supplier_id, channel, amount, updated_at)
-      SELECT ?, b.layer, b.supplier_id, b.channel, b.amount, ? FROM brand_channel_budget b JOIN company_suppliers s ON s.id=b.supplier_id AND s.active=1 WHERE b.month=? AND b.layer=?
-        AND NOT EXISTS (SELECT 1 FROM brand_line_budget x WHERE x.month=b.month AND x.layer=b.layer AND x.supplier_id=b.supplier_id)`).run(month, now, prev, layer).changes;
-    // A supplier with lines: its totals are their sums.
-    db.prepare('SELECT DISTINCT supplier_id FROM supplier_line_budget WHERE month=? AND layer=?').all(month, layer).forEach((r) => syncSupplierTotals(month, layer, r.supplier_id, now, { ch: false }));
-    db.prepare('SELECT DISTINCT supplier_id FROM brand_line_budget WHERE month=? AND layer=?').all(month, layer).forEach((r) => syncSupplierTotals(month, layer, r.supplier_id, now, { sup: false }));
+    // Whole suppliers only: a supplier with anything typed this month is left as it is.
+    let copied = 0;
+    for (const { id: sid } of activeSuppliers()) {
+      if (hasAny(month, sid) || !hasAny(prev, sid)) continue;
+      // Cells copied: the lines, or the totals of a supplier not yet split by line.
+      const ch = TBLS.map((tb) => db.prepare(`INSERT INTO ${tb} (month, layer, supplier_id, ${COLS[tb]}, updated_at)
+        SELECT ?, layer, supplier_id, ${COLS[tb]}, ? FROM ${tb} WHERE month=? AND layer=? AND supplier_id=?`).run(month, now, prev, layer, sid).changes);
+      copied += (ch[0] + ch[1]) || (ch[2] + ch[3]);
+    }
     return copied;
   })();
   audit.fromReq(req, 'budget.company.copy', { entityType: 'brand_budget', summary: `Brand budgets ${month} (layer ${layer}): copied ${n} cell(s) from ${prev}` });

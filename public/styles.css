@@ -935,3 +935,7 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
   .cb-cg tfoot td{font-size:10.5px}
   .cb-supcard{padding:14px 8px}
 }
+/* card cells keep the saving / saved / refused feedback */
+.cb-cg .cb-in.busy{background:#fff8e6;border-color:#e3b23c}
+.cb-cg .cb-in.ok{background:var(--okbg);border-color:#9fd0b6}
+.cb-cg .cb-in.err{background:var(--dangerbg);border-color:var(--danger)}
