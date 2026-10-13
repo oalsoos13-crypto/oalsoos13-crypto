@@ -829,11 +829,11 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const a1 = [[`${lname} budget — each supplier's lines (UDC / Supplier) and their split by channel — ${month}`], [], head];
     sups.forEach((sp) => {
       a1.push(...lineRows(sp.name, sp.code, [sp.id]));
-      a1.push([sp.name, sp.code, 'Total Supplier', stIn[sp.id] || 0, stOut[sp.id] || 0, st[sp.id] == null ? '' : st[sp.id], ...COLS.map((c) => g(sp.id, c)), split(sp.id), st[sp.id] == null ? '' : st[sp.id] - split(sp.id)], []);
+      a1.push([sp.name, sp.code, 'Total', stIn[sp.id] || 0, stOut[sp.id] || 0, st[sp.id] == null ? '' : st[sp.id], ...COLS.map((c) => g(sp.id, c)), split(sp.id), st[sp.id] == null ? '' : st[sp.id] - split(sp.id)], []);
     });
     const stAll = sum(sups.map((sp) => st[sp.id] || 0)), splitAll = sum(sups.map((sp) => split(sp.id)));
-    a1.push(...lineRows('Total Company', '', sups.map((sp) => sp.id)));
-    a1.push(['Total Company', '', 'Total Company', sum(sups.map((sp) => stIn[sp.id] || 0)), sum(sups.map((sp) => stOut[sp.id] || 0)), stAll, ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), splitAll, sum(sups.filter((sp) => st[sp.id] != null).map((sp) => st[sp.id] - split(sp.id)))]);
+    a1.push(...lineRows('Total', '', sups.map((sp) => sp.id)));
+    a1.push(['Total', '', 'Total', sum(sups.map((sp) => stIn[sp.id] || 0)), sum(sups.map((sp) => stOut[sp.id] || 0)), stAll, ...COLS.map((c) => sum(sups.map((sp) => g(sp.id, c)))), splitAll, sum(sups.filter((sp) => st[sp.id] != null).map((sp) => st[sp.id] - split(sp.id)))]);
     // Split by line, one section per channel and per group total (Coop, TT); brands across.
     const bh = ['Channel', 'Line', ...sups.map((sp) => sp.name + (sp.code ? ` (${sp.code})` : '')), 'Total'];
     const a2 = [[`${lname} budget — split by line, by channel (from the channel managers) — ${month}`], [], bh];
