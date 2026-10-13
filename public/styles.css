@@ -760,8 +760,8 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .ds-legacy .hint{padding:0 12px}
 .cb-sheet.ds-sheet col.c-lbl{width:220px}
 .cb-sheet.ds-sheet th.ds-osd{background:#f7ecd0;color:#6b4e0e}
-.cb-sheet.ds-sheet th.ds-ga{background:#e6f3ec;color:#1d6b45}
-.cb-sheet.ds-sheet td.ds-ga{background:#f1f9f4!important}
+.cb-sheet.ds-sheet th.ds-tb{background:#f7ecd0;color:#6b4e0e}
+.cb-sheet.ds-sheet td.ds-tb{background:#fbf1d5!important;color:#6b4e0e;font-weight:800}
 .cb-sheet.ds-sheet tr.ds-sm td{background:#eef4fb;font-weight:800;color:var(--ink2)}
 .cb-sheet.ds-sheet tr.ds-coop td:first-child{padding-inline-start:14px}
 .cb-sheet.ds-sheet tr.ds-out td:first-child{padding-inline-start:44px;font-size:12.5px;color:var(--muted)}
@@ -791,7 +791,7 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-entry td{padding:4px 5px;vertical-align:middle}
 .cb-entry tr.cb-grand td{padding-top:11px;padding-bottom:11px;letter-spacing:.2px}
 .cb-entry td.cb-tot .cb-zero{color:#c3d0e0}
-/* Supplier card: MDF-IN / MDF-OUT split */
+/* Supplier card: UDC / Supplier split */
 .cb-mdf{display:flex;gap:8px;margin:2px 0 0}
 .cb-mdf-cell{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .cb-mdf-cell>span{font-size:11px;font-weight:700;color:#8a6414;letter-spacing:.3px}

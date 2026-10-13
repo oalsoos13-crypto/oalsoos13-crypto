@@ -63,13 +63,13 @@ const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
 // The budget classifications a letter can be tagged with. 'offinv' (خارج
 // الاستثمار) is uncapped and covers the Union letters (supplementary/new items,
 // price increase, data update).
-const BUDGET_TYPES = new Set(['pallets', 'stands', 'pricediff', 'polypack', 'foc', 'offinv']);
+const BUDGET_TYPES = new Set(['copack', 'tradedeals', 'pricediff', 'rentals', 'foc', 'polypack', 'listing', 'offinv']);
 // Letters addressed to the Cooperatives Union. Admin-only to create; they enter
 // the chain at the sales-manager stage (no salesman/supervisor step).
 const UNION_TYPES = new Set(['uoc_supp', 'uoc_union', 'uoc_newitems', 'uoc_dataupd']);
 // Auto-classification: the budget type previously chosen for this letter type.
 // Built-in letter-type -> budget-type defaults (a learned map row overrides).
-const DEFAULT_BUDGET_MAP = { palletdn: 'pallets', standdn: 'stands', pricediff: 'pricediff' };
+const DEFAULT_BUDGET_MAP = { palletdn: 'rentals', standdn: 'rentals', pricediff: 'pricediff' };
 function autoBudgetType(letterType) {
   try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); if (r) return r.budget_type; } catch (e) { /* */ }
   return DEFAULT_BUDGET_MAP[letterType] || null;
@@ -348,8 +348,12 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
 // each outlet). This lets the salesman turn that distribution into actual debit
 // notes with one click: for every co-op/outlet allocated a non-zero amount, a
 // letter of the matching type is created with value = the allocated amount.
-const GEN_TYPE_OF = { pallets: 'palletdn', stands: 'standdn', pricediff: 'pricediff' };
-const GEN_REASON = { palletdn: 'إيجار طبلية', standdn: 'إيجار استاند', pricediff: '' };
+// Rentals → a debit note "مقابل إيجارات"; Price Off → a price-difference note.
+// The other lines (Co Pack, Trade Deals, Give Away, Liquidation, Listing) make no letter.
+const GEN_TYPE_OF = { rentals: 'gendn', pricediff: 'pricediff' };
+const GEN_REASON = { gendn: 'إيجارات', pricediff: '' };
+// Rentals letters generated before Pallets / Stands became Rentals count as done.
+const GEN_SAME = { palletdn: 'gendn', standdn: 'gendn' };
 // Mirror of the front-end marketLabel(): the outlet's market label ("السوق …").
 function marketLabelServer(outletText) {
   let m = String(outletText || '').trim();
@@ -369,10 +373,9 @@ function coopFullFromAr(ar, fallback) {
 }
 
 // POST /api/letters/generate-from-budget  { month? }  (supervisor)
-// Creates one debit-note letter per co-op / outlet from the D.N part of the
-// supervisor's distribution (pallets / stands / price differences). The مجاني
-// (FOC) part never becomes a letter. Generated letters carry meta.genBudget and
-// so follow the short chain: supervisor -> sales manager -> print.
+// Creates one debit-note letter per co-op / outlet from the supervisor's
+// distribution of Rentals and Price Off. Generated letters carry meta.genBudget
+// and so follow the short chain: supervisor -> sales manager -> print.
 router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((req, res) => {
   const supPf = req.user.username;
   // The supervisor's team from the outlets master: salesman -> coopsName -> info.
@@ -420,17 +423,16 @@ router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((
     }
   }
 
-  // D.N parts only (`amount`) — the FOC part (`foc_amount`) is never a letter.
   // Distributed per supplier × co-op channel: one letter per supplier (its
   // Main and Branch parts together), the supplier's name as the letter's brand.
   // Supplier 0 = the earlier distribution made before the split by supplier.
   const supName = new Map(db.prepare('SELECT id, name FROM company_suppliers').all().map((r) => [r.id, r.name]));
-  const allocCoop = db.prepare(`SELECT budget_type, supplier_id, channel, salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=? AND salesman IN (${ph})`).all(month, ...mySales);
-  const allocOutlet = db.prepare('SELECT budget_type, supplier_id, channel, coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=?').all(month);
+  const allocCoop = db.prepare(`SELECT budget_type, supplier_id, channel, salesman, coop, amount FROM budget_alloc_coop WHERE month=? AND salesman IN (${ph})`).all(month, ...mySales);
+  const allocOutlet = db.prepare('SELECT budget_type, supplier_id, channel, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month);
   const outletByKey = new Map(); // `${bt}|${sid}|${coop}|${custId}` -> amount (channels summed)
   const coopHasOutlet = new Set(); // `${bt}|${sid}|${ch}|${coop}` — its outlets drive it instead
   for (const o of allocOutlet) {
-    if (num(o.amount) !== 0 || num(o.foc_amount) !== 0) coopHasOutlet.add(`${o.budget_type}|${o.supplier_id}|${o.channel}|${o.coop}`);
+    if (num(o.amount) !== 0) coopHasOutlet.add(`${o.budget_type}|${o.supplier_id}|${o.channel}|${o.coop}`);
     if (!(num(o.amount) > 0)) continue;
     const k = `${o.budget_type}|${o.supplier_id}|${o.coop}|${o.cust_id}`;
     outletByKey.set(k, (outletByKey.get(k) || 0) + num(o.amount));
@@ -441,7 +443,7 @@ router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((
   const doneKeys = new Set();
   db.prepare("SELECT type, coop, cust_id, brand, meta FROM letters WHERE meta LIKE '%genBudget%'").all().forEach((L) => {
     let mj = null; try { mj = L.meta ? JSON.parse(L.meta) : null; } catch (e) { mj = null; }
-    if (mj && mj.genBudget === month) doneKeys.add(`${L.type}|${L.coop}|${L.cust_id || ''}|${L.brand || ''}`);
+    if (mj && mj.genBudget === month) doneKeys.add(`${GEN_SAME[L.type] || L.type}|${L.coop}|${L.cust_id || ''}|${L.brand || ''}`);
   });
 
   const targets = []; // { type, bt, sales, scopeCoop, recipient, custId, market, value }
@@ -804,7 +806,7 @@ router.post('/letters/:id/reject', requireRole('supervisor', 'sales_manager', 'm
 }));
 
 // POST /api/letters/:id/budget-type — the sales manager designates which budget
-// a letter belongs to (rental/pricediff/polypack/foc); admin may also set it.
+// a letter belongs to (one of the budget lines); admin may also set it.
 // The choice is remembered per letter type so future letters auto-classify.
 // Body: { budgetType } ('' clears it).
 router.post('/letters/:id/budget-type', requireRole('sales_manager'), asyncH((req, res) => {

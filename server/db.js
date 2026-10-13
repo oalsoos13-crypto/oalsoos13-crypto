@@ -735,14 +735,51 @@ function migrate() {
   }
   const bcCols = db.prepare("PRAGMA table_info(budget_caps)").all().map((c) => c.name);
   if (!bcCols.includes('spent')) db.exec('ALTER TABLE budget_caps ADD COLUMN spent REAL');
-  // The 'rental' budget type was split into 'pallets' and 'stands'. Migrate any
-  // legacy 'rental' data to 'pallets' so nothing is orphaned (idempotent).
+  // The very old 'rental' budget type was split into 'pallets' and 'stands' —
+  // which are Rentals again now. Migrate any legacy 'rental' data (idempotent).
   try {
     db.exec("UPDATE letters SET budget_type='pallets' WHERE budget_type='rental'");
     db.exec("UPDATE budget_caps SET budget_type='pallets' WHERE budget_type='rental'");
     db.exec("UPDATE budget_alloc SET budget_type='pallets' WHERE budget_type='rental'");
     db.exec("UPDATE budget_type_map SET budget_type='pallets' WHERE budget_type='rental'");
   } catch (e) { /* tables may not exist yet on a brand-new db */ }
+  // One-off: the budget lines became Trade Budget (Co Pack · Trade Deals · Price
+  // Off · Rentals · Give Away), Liquidation and Listing. Pallets and Stands join
+  // Rentals (amounts summed); the Give Away part the supervisors settled on a
+  // line (foc_amount) becomes the Give Away line itself.
+  if (!db.prepare("SELECT 1 FROM meta WHERE key='bt_trade_lines'").get()) {
+    db.transaction(() => {
+      const ts = new Date().toISOString();
+      // Rows of `from` types → one `to` row per key, value columns summed.
+      const merge = (tbl, keys, vals, from, to) => {
+        const ph = from.map(() => '?').join(',');
+        const rows = db.prepare(`SELECT ${keys.join(', ')}, ${vals.map((v) => `SUM(${v}) ${v}`).join(', ')} FROM ${tbl} WHERE budget_type IN (${ph}) GROUP BY ${keys.join(', ')}`).all(...from);
+        if (!rows.length) return;
+        db.prepare(`DELETE FROM ${tbl} WHERE budget_type IN (${ph})`).run(...from);
+        const ins = db.prepare(`INSERT INTO ${tbl} (budget_type, ${keys.join(', ')}, ${vals.join(', ')}, updated_at) VALUES (?, ${keys.concat(vals).map(() => '?').join(', ')}, ?)
+          ON CONFLICT DO UPDATE SET ${vals.map((v) => `${v}=COALESCE(${v},0)+COALESCE(excluded.${v},0)`).join(', ')}, updated_at=excluded.updated_at`);
+        rows.forEach((r) => ins.run(to, ...keys.map((k) => r[k]), ...vals.map((v) => r[v]), ts));
+      };
+      const RENT = ['pallets', 'stands'];
+      merge('budget_caps', ['month'], ['amount', 'spent'], RENT, 'rentals');
+      merge('budget_alloc', ['month', 'supervisor'], ['amount'], RENT, 'rentals');
+      merge('budget_alloc_sales', ['month', 'supervisor', 'salesman'], ['amount'], RENT, 'rentals');
+      merge('budget_alloc_sup', ['month', 'layer', 'supplier_id', 'channel', 'supervisor'], ['amount'], RENT, 'rentals');
+      merge('budget_alloc_coop', ['month', 'supplier_id', 'channel', 'salesman', 'coop'], ['amount', 'foc_amount'], RENT, 'rentals');
+      merge('budget_alloc_outlet', ['month', 'supplier_id', 'channel', 'coop', 'cust_id'], ['amount', 'foc_amount'], RENT, 'rentals');
+      db.exec("UPDATE letters SET budget_type='rentals' WHERE budget_type IN ('pallets','stands')");
+      db.exec("UPDATE budget_type_map SET budget_type='rentals' WHERE budget_type IN ('pallets','stands')");
+      // Give Away settled on a line → the Give Away line.
+      for (const [tbl, keys] of [['budget_alloc_coop', ['month', 'supplier_id', 'channel', 'salesman', 'coop']], ['budget_alloc_outlet', ['month', 'supplier_id', 'channel', 'coop', 'cust_id']]]) {
+        const rows = db.prepare(`SELECT ${keys.join(', ')}, SUM(foc_amount) f FROM ${tbl} WHERE foc_amount<>0 GROUP BY ${keys.join(', ')}`).all();
+        const ins = db.prepare(`INSERT INTO ${tbl} (budget_type, ${keys.join(', ')}, amount, updated_at) VALUES ('foc', ${keys.map(() => '?').join(', ')}, ?, ?)
+          ON CONFLICT DO UPDATE SET amount=amount+excluded.amount, updated_at=excluded.updated_at`);
+        rows.forEach((r) => ins.run(...keys.map((k) => r[k]), r.f, ts));
+        db.exec(`UPDATE ${tbl} SET foc_amount=0 WHERE foc_amount<>0`);
+      }
+      db.prepare("INSERT INTO meta(key,value) VALUES('bt_trade_lines','1')").run();
+    })();
+  }
   // Backfill for letters created before the chain existed: an already-approved
   // letter is treated as ready to print; a still-pending one enters the chain at
   // the first (supervisor) stage. Rejected letters keep a null stage.

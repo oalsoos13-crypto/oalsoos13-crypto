@@ -68,9 +68,11 @@ router.put('/channels', requireRole('marketing_manager'), asyncH((req, res) => {
 }));
 
 /* ---------- Monthly budget plan (caps + supervisor allocation + spend) ---------- */
-// Active budget types: pallets, stands, price-diff, condition (كوديشن/polypack)
-// and free (FOC). 'offinv' (خارج الاستثمار) has been removed from the budget.
-const CAPPED_TYPES = ['pallets', 'stands', 'pricediff', 'polypack', 'foc'];
+// Budget lines: Trade Budget (Co Pack · Trade Deals · Price Off · Rentals ·
+// Give Away), then Liquidation (polypack) and Listing. Trade Budget is never
+// typed — it is the sum of its five lines. 'offinv' (خارج الاستثمار) is not a line.
+const TRADE_TYPES = ['copack', 'tradedeals', 'pricediff', 'rentals', 'foc'];
+const CAPPED_TYPES = [...TRADE_TYPES, 'polypack', 'listing'];
 const ALL_BUDGET_TYPES = CAPPED_TYPES.slice();
 function curMonth() { return nowIso().slice(0, 7); }
 function isMonth(m) { return /^\d{4}-\d{2}$/.test(String(m || '')); }
@@ -149,41 +151,39 @@ function monthSpend(month) {
 }
 
 // ---- Over-budget guards. The UI only warns (red); the server REFUSES. ----
-const DN_TYPES = ['pallets', 'stands', 'pricediff'];
 const fmtKD = (n) => (Math.round(num(n) * 1000) / 1000).toFixed(3);
 // Budget lines' display names [Arabic, English].
-const BT_NAME = { pallets: ['الطبالي', 'Pallets'], stands: ['الستاندات', 'Stands'], pricediff: ['فروق الأسعار', 'Price off'], polypack: ['ليكويديشن', 'Liquidation'], foc: ['جيف أواي', 'Give Away'] };
+const BT_NAME = { copack: ['كو باك', 'Co Pack'], tradedeals: ['تريد ديلز', 'Trade Deals'], pricediff: ['فروق الأسعار', 'Price Off'], rentals: ['إيجارات', 'Rentals'], foc: ['جيف أواي', 'Give Away'], polypack: ['ليكويديشن', 'Liquidation'], listing: ['ليستنج', 'Listing'] };
 function overMsg(what, limit, would) {
   const [ar, en] = BT_NAME[what] || [what, what];
   return `تجاوز البتجيت — ${ar}: الحد ${fmtKD(limit)} د.ك، والمطلوب يوصل ${fmtKD(would)} د.ك | Over budget — ${en}: limit ${fmtKD(limit)} KD, this would make ${fmtKD(would)} KD`;
 }
-// A supervisor team's effective totals (D.N + مجاني, outlets override their
-// co-op) for a month/type, with a proposed change applied first.
-// change = { salesman?, coop, custId|null, amount|null, focAmount|null } (null = keep stored)
+// A supervisor team's effective total (outlets override their co-op) for a
+// month/type, with a proposed change applied first.
+// change = { salesman?, coop, custId|null, amount|null } (null = keep stored)
 // sc = { sid, ch } — one supplier × co-op channel; default: the earlier rows
 // made before the split by supplier (supplier 0, channel '').
 function teamTotals(month, bt, supName, change, sc = { sid: 0, ch: '' }) {
   const team = distStructure()[supName] || {};
-  const coopMap = new Map(db.prepare('SELECT salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND supplier_id=? AND channel=?').all(month, bt, sc.sid, sc.ch)
-    .map((r) => [r.salesman + '|' + r.coop, { dn: num(r.amount), foc: num(r.foc_amount) }]));
-  const outMap = new Map(db.prepare('SELECT coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND supplier_id=? AND channel=?').all(month, bt, sc.sid, sc.ch)
-    .map((r) => [r.coop + '|' + r.cust_id, { dn: num(r.amount), foc: num(r.foc_amount) }]));
+  const coopMap = new Map(db.prepare('SELECT salesman, coop, amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND supplier_id=? AND channel=?').all(month, bt, sc.sid, sc.ch)
+    .map((r) => [r.salesman + '|' + r.coop, num(r.amount)]));
+  const outMap = new Map(db.prepare('SELECT coop, cust_id, amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND supplier_id=? AND channel=?').all(month, bt, sc.sid, sc.ch)
+    .map((r) => [r.coop + '|' + r.cust_id, num(r.amount)]));
   if (change) {
     const key = change.custId ? change.coop + '|' + change.custId : change.salesman + '|' + change.coop;
     const map = change.custId ? outMap : coopMap;
-    const cur = map.get(key) || { dn: 0, foc: 0 };
-    map.set(key, { dn: change.amount != null ? num(change.amount) : cur.dn, foc: change.focAmount != null ? num(change.focAmount) : cur.foc });
+    if (change.amount != null) map.set(key, num(change.amount));
   }
-  let total = 0, foc = 0;
+  let total = 0;
   for (const [sm, coops] of Object.entries(team)) for (const [coop, outlets] of Object.entries(coops)) {
-    const outs = (outlets || []).map((o) => outMap.get(coop + '|' + String(o.custId))).filter(Boolean);
-    if (outs.some((o) => o.dn !== 0 || o.foc !== 0)) { for (const o of outs) { total += o.dn + o.foc; foc += o.foc; } }
-    else { const c = coopMap.get(sm + '|' + coop); if (c) { total += c.dn + c.foc; foc += c.foc; } }
+    const outs = (outlets || []).map((o) => outMap.get(coop + '|' + String(o.custId))).filter((v) => v != null);
+    if (outs.some((v) => v !== 0)) total += outs.reduce((a, v) => a + v, 0);
+    else total += coopMap.get(sm + '|' + coop) || 0;
   }
-  return { total, foc };
+  return { total };
 }
 // Refuse a co-op / outlet change that would push the team past the
-// supervisor's allocation for the type, or past their FOC allocation.
+// supervisor's allocation for the type.
 // A change that does not raise the team's total is always allowed, so a team
 // already over its share (e.g. after the share was lowered) can still be cut back.
 function assertTeamWithin(month, bt, supName, change) {
@@ -192,14 +192,6 @@ function assertTeamWithin(month, bt, supName, change) {
   if (share && share.amount != null) {
     const t = teamTotals(month, bt, supName, change);
     if (t.total > num(share.amount) + 1e-9 && t.total > teamTotals(month, bt, supName, null).total + 1e-9) throw badRequest(overMsg(bt, share.amount, t.total), 'OVER_ALLOC');
-  }
-  if (DN_TYPES.includes(bt)) {
-    const focShare = db.prepare('SELECT amount FROM budget_alloc WHERE month=? AND budget_type=? AND supervisor=?').get(month, 'foc', supName);
-    if (focShare && focShare.amount != null) {
-      let focTotal = 0, focNow = 0;
-      for (const k of DN_TYPES) { focTotal += teamTotals(month, k, supName, k === bt ? change : null).foc; focNow += teamTotals(month, k, supName, null).foc; }
-      if (focTotal > num(focShare.amount) + 1e-9 && focTotal > focNow + 1e-9) throw badRequest(overMsg('foc', focShare.amount, focTotal), 'OVER_FOC');
-    }
   }
 }
 
@@ -216,11 +208,10 @@ router.get('/budget-plan', asyncH((req, res) => {
   // Second-level allocations (supervisor -> salesman, salesman -> coop).
   const allocSales = db.prepare('SELECT budget_type, supervisor, salesman, amount FROM budget_alloc_sales WHERE month=?').all(month)
     .map((r) => ({ budgetType: r.budget_type, supervisor: r.supervisor, salesman: r.salesman, amount: r.amount }));
-  // `amount` is the D.N part (becomes a letter); `focAmount` the مجاني part.
-  const allocCoop = db.prepare('SELECT budget_type, supplier_id, channel, salesman, coop, amount, foc_amount FROM budget_alloc_coop WHERE month=?').all(month)
-    .map((r) => ({ budgetType: r.budget_type, supplierId: r.supplier_id, channel: r.channel, salesman: r.salesman, coop: r.coop, amount: r.amount, focAmount: r.foc_amount || 0 }));
-  const allocOutlet = db.prepare('SELECT budget_type, supplier_id, channel, coop, cust_id, amount, foc_amount FROM budget_alloc_outlet WHERE month=?').all(month)
-    .map((r) => ({ budgetType: r.budget_type, supplierId: r.supplier_id, channel: r.channel, coop: r.coop, custId: r.cust_id, amount: r.amount, focAmount: r.foc_amount || 0 }));
+  const allocCoop = db.prepare('SELECT budget_type, supplier_id, channel, salesman, coop, amount FROM budget_alloc_coop WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, supplierId: r.supplier_id, channel: r.channel, salesman: r.salesman, coop: r.coop, amount: r.amount }));
+  const allocOutlet = db.prepare('SELECT budget_type, supplier_id, channel, coop, cust_id, amount FROM budget_alloc_outlet WHERE month=?').all(month)
+    .map((r) => ({ budgetType: r.budget_type, supplierId: r.supplier_id, channel: r.channel, coop: r.coop, custId: r.cust_id, amount: r.amount }));
   // What each supervisor received from the sales manager, per supplier × co-op
   // channel × line (all budget layers together).
   const distShares = db.prepare(`SELECT a.supervisor, a.supplier_id, a.channel, a.budget_type, SUM(a.amount) s FROM budget_alloc_sup a
@@ -236,7 +227,7 @@ router.get('/budget-plan', asyncH((req, res) => {
   const role = req.user ? req.user.role : null;
   const isMgmt = role === 'admin' || role === 'sales_manager' || role === 'marketing_manager' || role === 'sales_ops';
   const fullSpend = monthSpend(month);
-  // FOC and الكوديشن spend is entered by hand by the admin (no letters drive
+  // Give Away and Liquidation spend is entered by hand by the admin (no letters drive
   // them): the manual figure replaces the letter-derived total for these types.
   for (const mbt of ['foc', 'polypack']) {
     if (caps[mbt] && caps[mbt].spent != null) fullSpend.byType[mbt] = { letter: 0, note: num(caps[mbt].spent), manual: true };
@@ -395,19 +386,16 @@ router.post('/budget-alloc-coop', requireRole('supervisor'), asyncH((req, res) =
     const coops = mine[salesman] || {};
     if (!Object.prototype.hasOwnProperty.call(coops, coop)) throw forbidden('هذه الجمعية ليست ضمن مندوبك', 'NOT_MINE');
   }
-  // Partial update: the UI saves the D.N (`amount`) and مجاني (`focAmount`)
-  // parts from separate inputs, so a missing field keeps its stored value.
-  const prev = db.prepare("SELECT amount, foc_amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND supplier_id=0 AND channel='' AND salesman=? AND coop=?").get(month, bt, salesman, coop) || {};
+  const prev = db.prepare("SELECT amount FROM budget_alloc_coop WHERE month=? AND budget_type=? AND supplier_id=0 AND channel='' AND salesman=? AND coop=?").get(month, bt, salesman, coop) || {};
   const amount = req.body.amount != null ? num(req.body.amount) : num(prev.amount);
-  const focAmount = req.body.focAmount != null ? num(req.body.focAmount) : num(prev.foc_amount);
-  assertTeamWithin(month, bt, supName || salesSupMap()[salesman], { salesman, coop, custId: null, amount, focAmount });
+  assertTeamWithin(month, bt, supName || salesSupMap()[salesman], { salesman, coop, custId: null, amount });
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-  db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, salesman, coop, amount, foc_amount, updated_at) VALUES (?,?,?,?,?,?,?)
-    ON CONFLICT(month, budget_type, supplier_id, channel, salesman, coop) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
-    .run(month, bt, salesman, coop, amount, focAmount, now);
-  audit.fromReq(req, 'budget.alloc.coop', { entityType: 'budget_alloc_coop', summary: `Alloc ${bt} ${month} ${salesman}->${coop} = DN ${amount} / FOC ${focAmount}`, details: { month, bt, salesman, coop, amount, focAmount } });
-  res.json({ ok: true, amount, focAmount });
+  db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, salesman, coop, amount, updated_at) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(month, budget_type, supplier_id, channel, salesman, coop) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
+    .run(month, bt, salesman, coop, amount, now);
+  audit.fromReq(req, 'budget.alloc.coop', { entityType: 'budget_alloc_coop', summary: `Alloc ${bt} ${month} ${salesman}->${coop} = ${amount}`, details: { month, bt, salesman, coop, amount } });
+  res.json({ ok: true, amount });
 }));
 
 // POST /api/budget-alloc-outlet (supervisor) — split a coop's share of a type
@@ -427,23 +415,21 @@ router.post('/budget-alloc-outlet', requireRole('supervisor'), asyncH((req, res)
     const ok = Object.values(mine).some((coops) => (coops[coop] || []).some((o) => o.custId === custId));
     if (!ok) throw forbidden('هذا الأوتلت ليس ضمن نطاقك', 'NOT_MINE');
   }
-  // Partial update (D.N `amount` / مجاني `focAmount` saved from separate inputs).
-  const prev = db.prepare("SELECT amount, foc_amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND supplier_id=0 AND channel='' AND coop=? AND cust_id=?").get(month, bt, coop, custId) || {};
+  const prev = db.prepare("SELECT amount FROM budget_alloc_outlet WHERE month=? AND budget_type=? AND supplier_id=0 AND channel='' AND coop=? AND cust_id=?").get(month, bt, coop, custId) || {};
   const amount = req.body.amount != null ? num(req.body.amount) : num(prev.amount);
-  const focAmount = req.body.focAmount != null ? num(req.body.focAmount) : num(prev.foc_amount);
   {
     // Which supervisor's team owns this outlet (admin may act for any).
     let guardSup = req.user.role === 'admin' ? null : req.user.name;
     if (!guardSup) { const st = distStructure(); for (const [sn, sms] of Object.entries(st)) { if (Object.values(sms).some((coops) => (coops[coop] || []).some((o) => o.custId === custId))) { guardSup = sn; break; } } }
-    assertTeamWithin(month, bt, guardSup, { coop, custId, amount, focAmount });
+    assertTeamWithin(month, bt, guardSup, { coop, custId, amount });
   }
   const now = nowIso();
   db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
-  db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, coop, cust_id, amount, foc_amount, updated_at) VALUES (?,?,?,?,?,?,?)
-    ON CONFLICT(month, budget_type, supplier_id, channel, coop, cust_id) DO UPDATE SET amount=excluded.amount, foc_amount=excluded.foc_amount, updated_at=excluded.updated_at`)
-    .run(month, bt, coop, custId, amount, focAmount, now);
-  audit.fromReq(req, 'budget.alloc.outlet', { entityType: 'budget_alloc_outlet', summary: `Alloc ${bt} ${month} ${coop}/${custId} = DN ${amount} / FOC ${focAmount}`, details: { month, bt, coop, custId, amount, focAmount } });
-  res.json({ ok: true, amount, focAmount });
+  db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, coop, cust_id, amount, updated_at) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(month, budget_type, supplier_id, channel, coop, cust_id) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`)
+    .run(month, bt, coop, custId, amount, now);
+  audit.fromReq(req, 'budget.alloc.outlet', { entityType: 'budget_alloc_outlet', summary: `Alloc ${bt} ${month} ${coop}/${custId} = ${amount}`, details: { month, bt, coop, custId, amount } });
+  res.json({ ok: true, amount });
 }));
 
 // What a supervisor received for one supplier × co-op channel × line (all layers).
@@ -456,12 +442,10 @@ const SC_NAME = { coop_main: ['مين', 'Main'], coop_branch: ['برانش', 'Br
 // POST /api/budget-dist (supervisor) — distribute what the sales manager gave,
 // per supplier × co-op channel × line, to the team's co-ops / outlets.
 // Body: { month, cells: [{ supplierId, channel, budgetType, salesman, coop,
-// custId?, field: 'amount' | 'focAmount', amount }] } (supplierId 0 / channel ''
-// = the earlier distribution made before the split by supplier). All-or-nothing:
-// a line's D.N parts may not go over what was received for that line, and the
-// Give Away parts (on pallets / stands / price diff) together may not go over
-// the Give Away received — unless the change only lowers the total (so an
-// over-allocated team can be cut back).
+// custId?, amount }] } (supplierId 0 / channel '' = the earlier distribution
+// made before the split by supplier). All-or-nothing: a line may not go over
+// what was received for that line — unless the change only lowers the total
+// (so an over-allocated team can be cut back).
 router.post('/budget-dist', requireRole('supervisor'), asyncH((req, res) => {
   const month = isMonth(req.body.month) ? req.body.month : curMonth();
   if (monthClosed(month)) throw badRequest('الشهر مقفل (مسكّر)', 'MONTH_CLOSED');
@@ -472,7 +456,7 @@ router.post('/budget-dist', requireRole('supervisor'), asyncH((req, res) => {
   const supOfSales = salesSupMap();
   const parsed = cells.map((c) => {
     const bt = String(c.budgetType || '');
-    if (!CAPPED_TYPES.includes(bt) || bt === 'foc') throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
+    if (!CAPPED_TYPES.includes(bt)) throw badRequest('نوع باجت غير صحيح', 'BAD_TYPE');
     const sid = Number(c.supplierId) || 0, ch = sid ? String(c.channel || '') : '';
     if (sid && !COOP_CHANNELS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
     if (sid && !db.prepare('SELECT 1 FROM company_suppliers WHERE id=? AND active=1').get(sid)) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
@@ -482,31 +466,27 @@ router.post('/budget-dist', requireRole('supervisor'), asyncH((req, res) => {
     const coops = (struct[supName] || {})[salesman] || {};
     if (!Object.prototype.hasOwnProperty.call(coops, coop)) throw forbidden('هذه الجمعية ليست ضمن فريقك', 'NOT_MINE');
     if (custId && !(coops[coop] || []).some((o) => String(o.custId) === custId)) throw forbidden('هذا الأوتلت ليس ضمن نطاقك', 'NOT_MINE');
-    const field = c.field === 'focAmount' ? 'focAmount' : 'amount';
-    if (field === 'focAmount' && !DN_TYPES.includes(bt)) throw badRequest('الجيف أواي بس للطبالي والستاندات وفروق الأسعار', 'NO_FOC');
     const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
     const amount = raw === '' ? 0 : Number(raw);
     if (!Number.isFinite(amount) || amount < 0) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
-    return { bt, sid, ch, salesman, coop, custId, field, amount, supName };
+    return { bt, sid, ch, salesman, coop, custId, amount, supName };
   });
   // Totals before the change, per touched supervisor × supplier × channel.
   const groups = new Map();
   parsed.forEach((p) => { const k = `${p.supName}|${p.sid}|${p.ch}`; if (!groups.has(k)) groups.set(k, { supName: p.supName, sid: p.sid, ch: p.ch, bts: new Set() }); groups.get(k).bts.add(p.bt); });
-  // Each line's D.N part counts against that line; the Give Away parts (on
-  // pallets / stands / price diff) count against the Give Away line.
-  const snap = (g) => { const o = {}; let foc = 0; DN_TYPES.concat(['polypack']).forEach((bt) => { const t = teamTotals(month, bt, g.supName, null, { sid: g.sid, ch: g.ch }); o[bt] = t.total - t.foc; foc += t.foc; }); o.foc = foc; return o; };
+  // Each line counts against what was received for that line.
+  const snap = (g) => { const o = {}; g.bts.forEach((bt) => { o[bt] = teamTotals(month, bt, g.supName, null, { sid: g.sid, ch: g.ch }).total; }); return o; };
   const now = nowIso();
   db.transaction(() => {
     const before = new Map([...groups].map(([k, g]) => [k, snap(g)]));
     db.prepare('INSERT OR IGNORE INTO budget_months (month, created_at) VALUES (?, ?)').run(month, now);
     for (const p of parsed) {
-      const col = p.field === 'focAmount' ? 'foc_amount' : 'amount';
       if (p.custId) {
-        db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, supplier_id, channel, coop, cust_id, ${col}, updated_at) VALUES (?,?,?,?,?,?,?,?)
-          ON CONFLICT(month, budget_type, supplier_id, channel, coop, cust_id) DO UPDATE SET ${col}=excluded.${col}, updated_at=excluded.updated_at`).run(month, p.bt, p.sid, p.ch, p.coop, p.custId, p.amount, now);
+        db.prepare(`INSERT INTO budget_alloc_outlet (month, budget_type, supplier_id, channel, coop, cust_id, amount, updated_at) VALUES (?,?,?,?,?,?,?,?)
+          ON CONFLICT(month, budget_type, supplier_id, channel, coop, cust_id) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, p.bt, p.sid, p.ch, p.coop, p.custId, p.amount, now);
       } else {
-        db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, supplier_id, channel, salesman, coop, ${col}, updated_at) VALUES (?,?,?,?,?,?,?,?)
-          ON CONFLICT(month, budget_type, supplier_id, channel, salesman, coop) DO UPDATE SET ${col}=excluded.${col}, updated_at=excluded.updated_at`).run(month, p.bt, p.sid, p.ch, p.salesman, p.coop, p.amount, now);
+        db.prepare(`INSERT INTO budget_alloc_coop (month, budget_type, supplier_id, channel, salesman, coop, amount, updated_at) VALUES (?,?,?,?,?,?,?,?)
+          ON CONFLICT(month, budget_type, supplier_id, channel, salesman, coop) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`).run(month, p.bt, p.sid, p.ch, p.salesman, p.coop, p.amount, now);
       }
     }
     for (const [k, g] of groups) {
@@ -525,9 +505,6 @@ router.post('/budget-dist', requireRole('supervisor'), asyncH((req, res) => {
           throw badRequest(`تجاوز البتجيت — ${ar}${where}: المخصّص ${fmtKD(lim)} د.ك، والمطلوب يوصل ${fmtKD(is[bt])} د.ك | Over budget — ${en}${whereEn}: received ${fmtKD(lim)} KD, this would make ${fmtKD(is[bt])} KD`, 'OVER_ALLOC');
         }
       }
-      const flim = limit('foc');
-      if (!g.sid && is.foc > was.foc + 1e-9) throw legacyUp();
-      if (is.foc > flim + 1e-9 && is.foc > was.foc + 1e-9) throw badRequest(`تجاوز الجيف أواي${where}: المخصّص ${fmtKD(flim)} د.ك، والمطلوب يوصل ${fmtKD(is.foc)} د.ك | Over the Give Away${whereEn}: received ${fmtKD(flim)} KD, this would make ${fmtKD(is.foc)} KD`, 'OVER_FOC');
     }
   })();
   audit.fromReq(req, 'budget.dist', { entityType: 'budget_alloc_coop', summary: `Distribution ${month}: ${parsed.length} cell(s)`, details: { month, cells: parsed.slice(0, 50).map(({ supName, ...r }) => r) } });
@@ -579,7 +556,7 @@ function roleChannels(role) { return MANAGER_CHANNELS[role] || CHANNELS.filter((
 // Channel display names [Arabic, English] for the manager / over-cap messages.
 const CH_NAME = { coop_main: ['مين ماركتس', 'Main Markets'], coop_branch: ['برانشيز', 'Branches'], ka: ['KA', 'KA'], ecg_ecom: ['إيكوم', 'ECOM'], ecg_cng: ['سي آند جي', 'C&G'], tt_grocery: ['بقالات', 'Grocery'], tt_ws: ['WS', 'WS'], tt_horeca: ['OOH', 'OOH'] };
 // Budget lines in the order the business uses them.
-const CB_TYPES = ['pallets', 'stands', 'polypack', 'foc', 'pricediff'];
+const CB_TYPES = CAPPED_TYPES;
 // The sales manager runs the co-op channel only: he works from his brands'
 // co-op totals and does not see the company-wide sheet.
 const MGMT = ['marketing_manager', 'sales_ops'];
@@ -658,8 +635,8 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
       const amount = Number(raw);
       if (raw !== '' && (!Number.isFinite(amount) || amount < 0)) throw badRequest('قيمة غير صحيحة | Invalid amount', 'BAD_AMOUNT');
       if (ch === 'total' || ch === 'mdf_in' || ch === 'mdf_out') {
-        // Supplier total = MDF-IN + MDF-OUT. The admin types the two parts; the
-        // total is their sum. ('total' is kept for older callers.)
+        // Supplier total = UDC + Supplier (stored as mdf_in / mdf_out). The admin
+        // types the two parts; the total is their sum. ('total' is kept for older callers.)
         const prev = db.prepare('SELECT mdf_in, mdf_out FROM supplier_budget WHERE month=? AND layer=? AND supplier_id=?').get(month, layer, sp.id) || { mdf_in: 0, mdf_out: 0 };
         let vIn = num(prev.mdf_in), vOut = num(prev.mdf_out);
         if (ch === 'mdf_in') vIn = raw === '' ? 0 : amount;
@@ -744,7 +721,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
   const CH = { coop: 'Coops', coop_main: 'Coops Main Markets', coop_branch: 'Coops Branches', ka: 'KA', ecg: 'ECG', ecg_ecom: 'ECG ECOM', ecg_cng: 'ECG C&G', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT OOH' };
-  const LBL = { pallets: 'Pallets', stands: 'Stands', polypack: 'Liquidation', foc: 'Give Away', pricediff: 'Price off' };
+  const LBL = Object.fromEntries(CB_TYPES.map((bt) => [bt, BT_NAME[bt][1]]));
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];
   const ECG = ['ecg_ecom', 'ecg_cng'];
@@ -760,7 +737,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const g = (sid, c) => GROUPS[c] ? sum(GROUPS[c].map((x) => tot[`${sid}|${x}`] || 0)) : (tot[`${sid}|${c}`] || 0);
     const st = {}, stIn = {}, stOut = {}; allSup.filter((r) => r.layer === layer).forEach((r) => { st[r.supplierId] = +r.amount || 0; stIn[r.supplierId] = +r.mdfIn || 0; stOut[r.supplierId] = +r.mdfOut || 0; });
     const split = (sid) => sum(CHANNELS.map((c) => g(sid, c)));
-    const head = ['UDC Supplier', 'Code', 'MDF-IN', 'MDF-OUT', 'Total Supplier', ...COLS.map((c) => c === 'coop' ? 'Total Coops' : c === 'ecg' ? 'Total ECG' : c === 'tt' ? 'Total TT' : CH[c]), 'Split into channels', 'Remaining'];
+    const head = ['UDC Supplier', 'Code', 'UDC', 'Supplier', 'Total Supplier', ...COLS.map((c) => c === 'coop' ? 'Total Coops' : c === 'ecg' ? 'Total ECG' : c === 'tt' ? 'Total TT' : CH[c]), 'Split into channels', 'Remaining'];
     const a1 = [[`${lname} budget — supplier totals and their split by channel — ${month}`], [], head];
     sups.forEach((sp) => a1.push([sp.name, sp.code, stIn[sp.id] || 0, stOut[sp.id] || 0, st[sp.id] == null ? '' : st[sp.id], ...COLS.map((c) => g(sp.id, c)), split(sp.id), st[sp.id] == null ? '' : st[sp.id] - split(sp.id)]));
     const stAll = sum(sups.map((sp) => st[sp.id] || 0)), splitAll = sum(sups.map((sp) => split(sp.id)));
@@ -776,10 +753,9 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
       const L = (sid, bt) => sum(chs.filter((ch) => CHANNEL_MANAGER[ch]).map((ch) => ln[`${sid}|${bt}|${ch}`] || 0));
       const B = (sid) => sum(chs.map((ch) => tot[`${sid}|${ch}`] || 0));
       if (managed) {
-        CB_TYPES.forEach((bt) => {
-          if (bt === 'pallets') rowOf(label, 'Off-Shelf Display', (sid) => L(sid, 'pallets') + L(sid, 'stands'));
-          rowOf(label, LBL[bt], (sid) => L(sid, bt));
-        });
+        // Trade Budget = the sum of its lines, listed beneath it.
+        rowOf(label, 'Trade Budget', (sid) => sum(TRADE_TYPES.map((bt) => L(sid, bt))));
+        CB_TYPES.forEach((bt) => rowOf(label, TRADE_TYPES.includes(bt) ? `   ${LBL[bt]}` : LBL[bt], (sid) => L(sid, bt)));
         rowOf(label, 'Allocated to supervisors', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
       }
       rowOf(label, managed ? 'Total budget' : 'Total budget (no manager yet)', B);

@@ -553,13 +553,15 @@ const T = {
   r_monitor: { ar: "شاشة المراقبة", en: "Monitoring" },
   r_monitor_d: { ar: "اعتماد الإشعارات والملخّص التجميعي للكتب المالية.", en: "Approve debit notes and the aggregate summary." },
   budgetType: { ar: "نوع الباجت", en: "Budget type" },
-  bt_pallets: { ar: "الطبالي", en: "Pallets" },
-  bt_stands: { ar: "الستاندات", en: "Stands" },
-  bt_pricediff: { ar: "فروق أسعار", en: "Price off" },
-  bt_polypack: { ar: "ليكويديشن", en: "Liquidation" },
+  bt_trade: { ar: "تريد بتجيت", en: "Trade Budget" },
+  bt_copack: { ar: "كو باك", en: "Co Pack" },
+  bt_tradedeals: { ar: "تريد ديلز", en: "Trade Deals" },
+  bt_pricediff: { ar: "فروق أسعار", en: "Price Off" },
+  bt_rentals: { ar: "إيجارات", en: "Rentals" },
   bt_foc: { ar: "جيف أواي", en: "Give Away" },
-  bt_osd: { ar: "أوف شيلف ديسبلي", en: "Off-Shelf Display" },
-  osd_click: { ar: "اكبس لتشوف الطبالي والستاندات", en: "Click to see Pallets and Stands" },
+  bt_polypack: { ar: "ليكويديشن", en: "Liquidation" },
+  bt_listing: { ar: "ليستنج", en: "Listing" },
+  trade_click: { ar: "اكبس لتشوف بنود التريد بتجيت", en: "Click to see the Trade Budget lines" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
   // Monthly budget plan.
@@ -570,10 +572,8 @@ const T = {
   bd_received: { ar: "المخصّص لك", en: "Your allocation" },
   bd_dn: { ar: "D.N", en: "D.N" },
   bd_foc: { ar: "جيف أواي", en: "Give Away" },
-  bd_focDetail: { ar: "الجيف أواي يُدخل داخل الطبالي / الستاند / فروق الأسعار — هنا تفصيله فقط", en: "Give Away is entered inside pallets / stands / price diff — this is only its breakdown" },
   bd_against: { ar: "مقابل", en: "Against" },
   bp_spent: { ar: "المصروف (يدوي)", en: "Spent (manual)" },
-  bp_focOrigin: { ar: "تفصيل الجيف أواي المخصّص", en: "Allocated Give Away breakdown" },
   bd_target: { ar: "المندوب / الجمعية", en: "Salesman / Coop" },
   bp_month: { ar: "الشهر", en: "Month" },
   bp_closed: { ar: "مسكّر", en: "Closed" },
@@ -599,16 +599,15 @@ const T = {
   cb_bad: { ar: "أدخل رقمًا موجبًا", en: "Enter a positive number" },
   cb_locked: { ar: "الشهر مسكّر — البتجيت للعرض فقط", en: "The month is closed — the budget is view-only" },
   cb_total: { ar: "إجمالي الشركة", en: "Total Company" },
-  ds_on: { ar: "على {x}", en: "on {x}" },
   ds_outlets: { ar: "اعرض الأوتلتات ووزّع عليها", en: "Show the outlets and distribute to them" },
   ds_roll: { ar: "مجموع الأوتلتات", en: "Sum of its outlets" },
   ds_legacy: { ar: "توزيع سابق (قبل التقسيم حسب المورد)", en: "Earlier distribution (before the split by supplier)" },
   ds_legacyHint: { ar: "هاد توزيع عملته قبل ما يصير التوزيع حسب المورد ومين / برانش، فما إله بتجيت لحاله. بتقدر تنزّله أو تمسحه بس — ووزّعه من جديد تحت المورد والقسم الصح فوق.", en: "This was distributed before the split by supplier and Main / Branch, so it has no budget of its own. You can only lower or clear it — distribute it again under the right supplier and channel above." },
   ds_none: { ar: "مدير المبيعات لسا ما وزّع عليك بتجيت لهالشهر.", en: "The sales manager has not allocated you a budget for this month yet." },
-  ds_hint: { ar: "كل مورد وكل قسم (مين / برانش) إله بتجيته من مدير المبيعات. وزّع على الجمعيات، أو افتح ▸ ووزّع على الأوتلتات. الـ D.N بينخصم من بنده، والجيف أواي (على الطبالي / الستاندات / فروق الأسعار) بينخصم من بند الجيف أواي. الكتب بتطلع لكل مورد لحاله.", en: "Each supplier and channel (Main / Branch) has its own budget from the sales manager. Distribute to the co-ops, or open ▸ to distribute to the outlets. D.N counts against its line; Give Away (on pallets / stands / price diff) counts against the Give Away line. Letters come out per supplier." },
+  ds_hint: { ar: "كل مورد وكل قسم (مين / برانش) إله بتجيته من مدير المبيعات. وزّع على الجمعيات، أو افتح ▸ ووزّع على الأوتلتات. كل بند بينخصم من المخصّص إله، والتريد بتجيت هو مجموع بنوده. كتب الإيجارات وفروق الأسعار بتطلع لكل مورد لحاله.", en: "Each supplier and channel (Main / Branch) has its own budget from the sales manager. Distribute to the co-ops, or open ▸ to distribute to the outlets. Each line counts against what you received for it; Trade Budget is the sum of its lines. Rentals and Price Off letters come out per supplier." },
   cb_supTotal: { ar: "توتال المورد", en: "Total Supplier" },
-  cb_mdfIn: { ar: "MDF-IN", en: "MDF-IN" },
-  cb_mdfOut: { ar: "MDF-OUT", en: "MDF-OUT" },
+  cb_mdfIn: { ar: "UDC", en: "UDC" },
+  cb_mdfOut: { ar: "Supplier", en: "Supplier" },
   cb_leftSplit: { ar: "المتبقي", en: "Remaining" },
   cb_supHint: { ar: "اكتب توتال كل مورد فوق بالبطاقة تبعه أول، بعدين وزّعه على الأقسام بالجدول — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total in its card above first, then split it across the channels in the table — the channels together cannot go over the supplier total." },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
@@ -2188,8 +2187,8 @@ async function submitQuickEntry() {
   } catch (e) { toast(e.message); }
 }
 /* ---------- budget-type classification ---------- */
-// Active budget types (offinv "خارج الاستثمار" removed; polypack shown as الكوديشن).
-const BUDGET_TYPE_KEYS = ["pallets", "stands", "pricediff", "polypack", "foc"];
+// Budget lines (offinv "خارج الاستثمار" removed; polypack = Liquidation).
+const BUDGET_TYPE_KEYS = ["copack", "tradedeals", "pricediff", "rentals", "foc", "polypack", "listing"];
 function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
 // A <select> to classify a letter's budget type (used by sales manager + admin).
 function budgetTypeSelect(L) {
@@ -2304,7 +2303,7 @@ function allocLayerPanel(L) {
     const chRows = chs.map((ch) => {
       const ok = `al${L}_${sp.id}_${ch}`, K = `${P}${sp.id}_${ch}`;
       const lines = types.map((bt) => { const r = ri++;
-        return `${bt === cbOsdFirst(types) ? alOsdRow(L, sp.id, ch) : ""}<tr${cbOsdAttr(bt, ok, types)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(L, sp.id, ch, bt, sv);
+        return `${bt === cbTradeFirst(types) ? alTradeRow(L, sp.id, ch) : ""}<tr${cbTradeAttr(bt, ok, types)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(L, sp.id, ch, bt, sv);
           return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${ch}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
           <td class="cb-tot" id="alRA_${K}_${bt}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id && x.channel === ch && x.budgetType === bt))}</td></tr>`; }).join("");
       return `<tr class="al-ch"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)} · <b>${t("ch_" + ch)}</b></span><span class="cb-grp-info" id="alGI_${K}">${alGrpInfo(L, sp.id, ch)}</span></div></td></tr>${lines}
@@ -2313,7 +2312,7 @@ function allocLayerPanel(L) {
     return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id, null)}</span></div></td></tr>${chRows}
       <tr class="cb-sub al-brandtot"><td>${t("total")} — ${esc(sp.name)} (${chs.map((c) => t("ch_" + c)).join(" + ")})</td>${svs.map((sv, i) => `<td class="cb-tot" id="alBT_${P}${sp.id}_${i}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alBA_${P}${sp.id}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id))}</td></tr>`;
   }).join("");
-  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `${bt === cbOsdFirst(types) ? alOsdRow(L, null, null) : ""}<tr class="cb-co"${cbOsdAttr(bt, `al${L}_all`, types)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td></tr>`).join("")
+  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `${bt === cbTradeFirst(types) ? alTradeRow(L, null, null) : ""}<tr class="cb-co"${cbTradeAttr(bt, `al${L}_all`, types)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td></tr>`).join("")
     + chs.map((ch) => `<tr class="cb-co"><td>${t("total")} — ${t("ch_" + ch)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCC_${P}${ch}_${i}">${cbFmt(alSum(L, (x) => x.channel === ch && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCCA_${P}${ch}">${cbFmt(alSum(L, (x) => x.channel === ch))}</td></tr>`).join("")
     + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA_${L}">${KD(alSum(L, () => true))}</td></tr>`;
   const totB = alBud(L, () => true), totA = alSum(L, () => true);
@@ -2330,10 +2329,10 @@ function allocLayerPanel(L) {
 }
 // A channel's KPI: allocated of its budget.
 function alLeftOf(L, ch) { const f = (x) => x.channel === ch; return `${KD(alSum(L, f))} <span class="al-of">/ ${KD(alBud(L, f))}</span>`; }
-// Off-Shelf Display subtotal row (sid / ch null = all brands / both channels).
-function alOsdRow(L, sid, ch) {
-  const k = `${L}_${sid == null ? "all" : sid}${ch ? "_" + ch : ""}`, f = (x) => (sid == null || x.supplierId === sid) && (!ch || x.channel === ch) && CB_OSD.includes(x.budgetType);
-  return `<tr class="cb-osd-sub">${cbOsdHead(`al${k}`, t("bt_osd"))}${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum(L, (x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(L, f))}</td></tr>`;
+// Trade Budget subtotal row (sid / ch null = all brands / both channels).
+function alTradeRow(L, sid, ch) {
+  const k = `${L}_${sid == null ? "all" : sid}${ch ? "_" + ch : ""}`, f = (x) => (sid == null || x.supplierId === sid) && (!ch || x.channel === ch) && CB_TRADE.includes(x.budgetType);
+  return `<tr class="cb-osd-sub">${cbTradeHead(`al${k}`, t("bt_trade"))}${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum(L, (x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(L, f))}</td></tr>`;
 }
 // Re-total a layer in place: render it off-screen and copy every totals cell
 // (focus, scroll and the typed cells stay untouched).
@@ -2341,17 +2340,17 @@ function alRefresh(L) {
   const tmp = document.createElement("div"); tmp.innerHTML = allocLayerPanel(L);
   tmp.querySelectorAll("[id]").forEach((n) => { const el = document.getElementById(n.id); if (el && el.innerHTML !== n.innerHTML) el.innerHTML = n.innerHTML; });
 }
-// Off-Shelf Display = Pallets + Stands: a subtotal row right after them.
-const CB_OSD = ["pallets", "stands"];
-function cbOsdLast(types) { const o = types.filter((b) => CB_OSD.includes(b)); return o.length > 1 ? o[o.length - 1] : null; }
-function cbOsdFirst(types) { const o = types.filter((b) => CB_OSD.includes(b)); return o.length > 1 ? o[0] : null; }
-// Off-Shelf Display is one line; clicking it opens Pallets and Stands beneath.
-const cbOsdOpen = new Set();
-function cbOsdAttr(bt, key, types) { if (!cbOsdFirst(types) || !CB_OSD.includes(bt)) return ""; return ` class="cb-osd-child" data-osd-k="${key}"${cbOsdOpen.has(key) ? "" : ' style="display:none"'}`; }
-function cbOsdHead(key, label) { const open = cbOsdOpen.has(key); return `<td class="cb-osd-toggle" onclick="cbOsdToggle('${key}')" title="${esc(t("osd_click"))}"><span class="cb-osd-arrow" data-osd-a="${key}">${open ? "▾" : "▸"}</span> ${label}</td>`; }
-function cbOsdToggle(key) {
-  const open = !cbOsdOpen.has(key); if (open) cbOsdOpen.add(key); else cbOsdOpen.delete(key);
-  // An OSD row inside a collapsed channel section stays hidden.
+// Trade Budget = Co Pack + Trade Deals + Price Off + Rentals + Give Away: never
+// typed, a subtotal row right before its lines.
+const CB_TRADE = ["copack", "tradedeals", "pricediff", "rentals", "foc"];
+function cbTradeFirst(types) { const o = types.filter((b) => CB_TRADE.includes(b)); return o.length > 1 ? o[0] : null; }
+// Trade Budget is one line; clicking it opens its lines beneath.
+const cbTradeOpen = new Set();
+function cbTradeAttr(bt, key, types) { if (!cbTradeFirst(types) || !CB_TRADE.includes(bt)) return ""; return ` class="cb-osd-child" data-osd-k="${key}"${cbTradeOpen.has(key) ? "" : ' style="display:none"'}`; }
+function cbTradeHead(key, label) { const open = cbTradeOpen.has(key); return `<td class="cb-osd-toggle" onclick="cbTradeToggle('${key}')" title="${esc(t("trade_click"))}"><span class="cb-osd-arrow" data-osd-a="${key}">${open ? "▾" : "▸"}</span> ${label}</td>`; }
+function cbTradeToggle(key) {
+  const open = !cbTradeOpen.has(key); if (open) cbTradeOpen.add(key); else cbTradeOpen.delete(key);
+  // A Trade Budget line inside a collapsed channel section stays hidden.
   document.querySelectorAll(`tr[data-osd-k="${key}"]`).forEach((tr) => { const sec = tr.dataset.ln; tr.style.display = (open && (!sec || cbLnOpen.has(sec))) ? "" : "none"; });
   document.querySelectorAll(`[data-osd-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
 }
@@ -2369,10 +2368,9 @@ function cbSecToggle(key) {
 }
 function cbLnToggle(key) {
   const open = !cbLnOpen.has(key); if (open) cbLnOpen.add(key); else cbLnOpen.delete(key);
-  document.querySelectorAll(`tr.cb-ln-det[data-ln="${key}"]`).forEach((tr) => { const ok = tr.dataset.osdK; tr.style.display = (open && (!ok || cbOsdOpen.has(ok))) ? "" : "none"; });
+  document.querySelectorAll(`tr.cb-ln-det[data-ln="${key}"]`).forEach((tr) => { const ok = tr.dataset.osdK; tr.style.display = (open && (!ok || cbTradeOpen.has(ok))) ? "" : "none"; });
   document.querySelectorAll(`[data-ln-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
 }
-const CB_TYPES = ["pallets", "stands", "polypack", "foc", "pricediff"];
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
 function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbData.closed; }
 function cbAmt(L, sid, ch) { if (L === "all") { const rs = cbData.totals.filter((x) => x.supplierId === sid && x.channel === ch); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = cbData.totals.find((x) => (x.layer || 0) === L && x.supplierId === sid && x.channel === ch); return r ? +r.amount : null; }
@@ -2474,14 +2472,14 @@ function cbLinesTable(L) {
       : `<thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead>`;
     const colg = `<colgroup><col class="c-lbl">${cols.map((c) => `<col${c.tot ? ' class="c-tot"' : ""}>`).join("")}</colgroup>`;
     const open = cbLnOpen.has(key);
-    const dSty = (child) => (!open || (child && !cbOsdOpen.has(key))) ? ' style="display:none"' : "";
+    const dSty = (child) => (!open || (child && !cbTradeOpen.has(key))) ? ' style="display:none"' : "";
     let body;
     if (!managed) body = `<tr class="cb-co"><td>${t("cb_budgetRow")}</td>${row(bud, cbFmt)}</tr>`;
     else {
       body = types.map((bt) => {
-        const child = CB_OSD.includes(bt) && !!cbOsdFirst(types);
-        const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbOsdHead(key, t("bt_osd"))}${row((g) => ln((x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
-        return osd + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
+        const child = CB_TRADE.includes(bt) && !!cbTradeFirst(types);
+        const sub = bt === cbTradeFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbTradeHead(key, t("bt_trade"))}${row((g) => ln((x) => CB_TRADE.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
+        return sub + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
       }).join("")
         + `<tr class="cb-sum cb-sum-first"><td>${t("cb_budgetRow")}</td>${row(bud, cbFmt)}</tr>`
         + `<tr class="cb-sum cb-sum-left"><td>${t("cb_diff")}</td>${row((g) => bud(g) - ln(g), left)}</tr>`;
@@ -2499,11 +2497,11 @@ function cbLinesTable(L) {
     const row = (fn, fmt) => owners.map((sp) => `<td class="cb-tot cb-bs${sp ? "" : " cb-alltot"}">${fmt(fn(own(sp)))}</td>`).join("");
     const ln = (f) => cbLn(L, (x) => mg(x.channel) && f(x)), key = `cl${L}_all`;
     const open = cbLnOpen.has(key);
-    const dSty = (child) => (!open || (child && !cbOsdOpen.has(key))) ? ' style="display:none"' : "";
+    const dSty = (child) => (!open || (child && !cbTradeOpen.has(key))) ? ' style="display:none"' : "";
     const body = types.map((bt) => {
-      const child = CB_OSD.includes(bt) && !!cbOsdFirst(types);
-      const osd = bt === cbOsdFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbOsdHead(key, t("bt_osd"))}${row((g) => ln((x) => CB_OSD.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
-      return osd + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_OSD.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
+      const child = CB_TRADE.includes(bt) && !!cbTradeFirst(types);
+      const sub = bt === cbTradeFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbTradeHead(key, t("bt_trade"))}${row((g) => ln((x) => CB_TRADE.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
+      return sub + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
     }).join("") + `<tr class="cb-grand"><td>${t("cb_budgetRow")}</td>${row((g) => cbTot(L, g), KD)}</tr>`;
     return `<div class="cb-ln-sec"><div class="cb-ln-h cb-ln-all cb-ln-toggle" onclick="cbLnToggle('${key}')"><span class="cb-ln-arrow" data-ln-a="${key}">${open ? "▾" : "▸"}</span> ${t("cb_allCh")}</div><div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln"><colgroup><col class="c-lbl">${owners.map((sp) => `<col${sp ? "" : ' class="c-tot"'}>`).join("")}</colgroup><thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   })();
@@ -2553,24 +2551,24 @@ const SHEETS = {
     refresh: (cells) => alRefresh(cells[0].layer),
   },
 };
-// Supervisor distribution sheet: one cell = a co-op's (or outlet's) D.N or
-// Give Away part of a line, for one supplier × co-op channel.
+// Supervisor distribution sheet: one cell = a co-op's (or outlet's) share of a
+// line, for one supplier × co-op channel.
 SHEETS.dist = {
-  amt: (el) => { const d = el.dataset, sid = +d.sid || 0, row = d.cid ? dsOutRow(d.bt, sid, d.ch, d.coop, d.cid) : dsCoopRow(d.bt, sid, d.ch, d.sm, d.coop); const v = row ? +row[d.f] || 0 : 0; return v ? v : null; },
-  cell: (el, v) => { const d = el.dataset; return { supplierId: +d.sid || 0, channel: d.ch, budgetType: d.bt, field: d.f, salesman: d.sm, coop: d.coop, custId: d.cid || null, amount: v }; },
+  amt: (el) => { const d = el.dataset, sid = +d.sid || 0, row = d.cid ? dsOutRow(d.bt, sid, d.ch, d.coop, d.cid) : dsCoopRow(d.bt, sid, d.ch, d.sm, d.coop); const v = row ? +row.amount || 0 : 0; return v ? v : null; },
+  cell: (el, v) => { const d = el.dataset; return { supplierId: +d.sid || 0, channel: d.ch, budgetType: d.bt, salesman: d.sm, coop: d.coop, custId: d.cid || null, amount: v }; },
   post: (cells) => api("/budget-dist", { method: "POST", body: { month: bpData.month, cells } }),
   apply: (cells) => cells.forEach((c) => {
     const arr = c.custId ? (bpData.allocOutlet || (bpData.allocOutlet = [])) : (bpData.allocCoop || (bpData.allocCoop = []));
     let row = c.custId ? dsOutRow(c.budgetType, c.supplierId, c.channel, c.coop, c.custId) : dsCoopRow(c.budgetType, c.supplierId, c.channel, c.salesman, c.coop);
-    if (!row) { row = { budgetType: c.budgetType, supplierId: c.supplierId, channel: c.channel, coop: c.coop, amount: 0, focAmount: 0 }; if (c.custId) row.custId = c.custId; else row.salesman = c.salesman; arr.push(row); }
-    row[c.field] = c.amount === "" ? 0 : +c.amount;
+    if (!row) { row = { budgetType: c.budgetType, supplierId: c.supplierId, channel: c.channel, coop: c.coop, amount: 0 }; if (c.custId) row.custId = c.custId; else row.salesman = c.salesman; arr.push(row); }
+    row.amount = c.amount === "" ? 0 : +c.amount;
   }),
   refresh: () => dsRefresh(),
 };
 function shOf(el) { const tb = el.closest("[data-kind]"); return tb ? SHEETS[tb.dataset.kind] : null; }
 function cbCell(from, r, c, dir) {
   const tb = from.closest("[data-kind]"); if (!tb) return null;
-  // Rows folded away (e.g. Pallets / Stands under a closed Off-Shelf Display) are skipped.
+  // Rows folded away (e.g. the lines under a closed Trade Budget) are skipped.
   // Rows without an input in that column (a co-op rolled up from its outlets) are skipped too.
   for (let i = 0; i < 400; i++) { const el = tb.querySelector(`.cb-in[data-r="${r}"][data-col="${c}"]`); if (!el) { if (!dir || r < 0) return null; r += dir; continue; } if (el.offsetParent !== null || !dir) return el; r += dir; }
   return null;
@@ -2689,19 +2687,14 @@ function renderBudgetPlan() {
   // sheet (server-side), so the panel is not shown.
   let capsPanel = "";
   if (false) {
-    // المجاني / الكوديشن are not driven by letters: the admin enters their
-    // spend by hand. The FOC row also shows how the allocated FOC breaks down
-    // by the type it was given against (pallets / stands / price diff).
+    // Give Away / Liquidation are not driven by letters: the admin enters their
+    // spend by hand.
     const MANUAL = ["foc", "polypack"];
-    const fo = focByOrigin();
     const rows = d.capped.map((bt) => {
       const spentCell = MANUAL.includes(bt)
         ? `<input id="spent_${bt}" type="number" step="0.001" value="${d.caps[bt] && d.caps[bt].spent != null ? d.caps[bt].spent : ""}" onchange="bpSaveSpent('${bt}',this.value)" style="width:110px" ${dis}>`
         : `<span class="hint">—</span>`;
-      const detail = bt === "foc"
-        ? `<div class="hint" style="margin-top:4px">${t("bp_focOrigin")}: ${DN_TYPES.map((k) => `${budgetTypeLabel(k)} <b class="mono">${KD(fo[k])}</b>`).join(" · ")} — <b class="mono">${KD(fo.total)}</b></div>`
-        : "";
-      return `<tr><td>${budgetTypeLabel(bt)}${detail}</td>
+      return `<tr><td>${budgetTypeLabel(bt)}</td>
       <td><input id="cap_${bt}" type="number" step="0.001" value="${d.caps[bt] && d.caps[bt].amount != null ? d.caps[bt].amount : ""}" style="width:120px" ${dis}></td>
       <td>${spentCell}</td>
       <td><input id="capn_${bt}" value="${esc((d.caps[bt] && d.caps[bt].note) || "")}" style="width:160px" ${dis}></td>
@@ -2776,100 +2769,86 @@ async function vBudgetDist() {
   renderBudgetDist();
 }
 function bpSetMonth2(m) { bpMonth = m; vBudgetDist(); }
-// The Give Away (مجاني) part is entered beside the D.N part of these lines.
-const DN_TYPES = ["pallets", "stands", "pricediff"];
-// Allocated Give Away by the line it was given against (old caps panel, kept for reference).
-function focByOrigin() {
-  const out = { total: 0 };
-  DN_TYPES.forEach((bt) => { let s = 0; (bpData.allocCoop || []).forEach((a) => { if (a.budgetType === bt) s += +a.focAmount || 0; }); out[bt] = s; out.total += s; });
-  return out;
-}
 function bdMeStruct() { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.structure && bpData.structure[me]) || {}; }
 /* ---- Supervisor distribution: the sales manager's split as it came — per
    supplier × co-op channel (Main / Branch) × line — down to co-ops / outlets.
    One sheet per supplier × channel: rows = salesmen → co-ops (→ outlets),
-   columns = the lines. A line's D.N counts against that line; the Give Away
-   parts (on pallets / stands / price diff) count against the Give Away line. ---- */
-const DS_COLS = [
-  { bt: "pallets", f: "amount", grp: "osd" }, { bt: "stands", f: "amount", grp: "osd" },
-  { bt: "polypack", f: "amount" },
-  { bt: "pallets", f: "focAmount", grp: "ga" }, { bt: "stands", f: "focAmount", grp: "ga" }, { bt: "pricediff", f: "focAmount", grp: "ga" },
-  { bt: "pricediff", f: "amount" },
-];
+   columns = the lines; Trade Budget (the sum of its five lines) follows them. ---- */
+const DS_COLS = BUDGET_TYPE_KEYS.map((bt) => ({ bt }));
+const dsTr = (c) => CB_TRADE.includes(c.bt);
+// Columns as shown: the Trade Budget lines, their total, then the other lines.
+const DS_VIEW = [...DS_COLS.filter(dsTr), { sub: true }, ...DS_COLS.filter((c) => !dsTr(c))];
 const dsOpen = new Set(); // co-ops whose outlets are shown
 const dsSame = (a, bt, sid, ch) => a.budgetType === bt && (a.supplierId || 0) === sid && (a.channel || "") === ch;
 function dsShare(sid, ch, bt) { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.distShares || []).filter((x) => x.supervisor === me && x.supplierId === sid && x.channel === ch && x.budgetType === bt).reduce((a, x) => a + (+x.amount || 0), 0); }
 function dsCoopRow(bt, sid, ch, sm, coop) { return (bpData.allocCoop || []).find((a) => dsSame(a, bt, sid, ch) && a.salesman === sm && a.coop === coop); }
 function dsOutRow(bt, sid, ch, coop, cid) { return (bpData.allocOutlet || []).find((a) => dsSame(a, bt, sid, ch) && a.coop === coop && String(a.custId) === String(cid)); }
 // A co-op whose outlets carry any value rolls up from them (per line).
-function dsHasOut(bt, sid, ch, coop) { return (bpData.allocOutlet || []).some((a) => dsSame(a, bt, sid, ch) && a.coop === coop && ((+a.amount || 0) !== 0 || (+a.focAmount || 0) !== 0)); }
+function dsHasOut(bt, sid, ch, coop) { return (bpData.allocOutlet || []).some((a) => dsSame(a, bt, sid, ch) && a.coop === coop && (+a.amount || 0) !== 0); }
 function dsCoopVal(c, sid, ch, sm, coop, outlets) {
-  if (dsHasOut(c.bt, sid, ch, coop)) return (outlets || []).reduce((s, o) => { const r = dsOutRow(c.bt, sid, ch, coop, o.custId); return s + (r ? +r[c.f] || 0 : 0); }, 0);
-  const r = dsCoopRow(c.bt, sid, ch, sm, coop); return r ? +r[c.f] || 0 : 0;
+  if (dsHasOut(c.bt, sid, ch, coop)) return (outlets || []).reduce((s, o) => { const r = dsOutRow(c.bt, sid, ch, coop, o.custId); return s + (r ? +r.amount || 0 : 0); }, 0);
+  const r = dsCoopRow(c.bt, sid, ch, sm, coop); return r ? +r.amount || 0 : 0;
 }
 function dsSum(sid, ch, colF, smF) {
   const st = bdMeStruct(); let s = 0;
   Object.keys(st).forEach((sm) => { if (smF && !smF(sm)) return; Object.keys(st[sm]).forEach((coop) => DS_COLS.forEach((c) => { if (colF(c)) s += dsCoopVal(c, sid, ch, sm, coop, st[sm][coop]); })); });
   return s;
 }
-const dsLineCols = (key) => (key === "foc" ? (c) => c.f === "focAmount" : (c) => c.f === "amount" && c.bt === key);
-const DS_LINES = ["pallets", "stands", "polypack", "foc", "pricediff"];
-function dsRecv(sid, ch) { return DS_LINES.reduce((a, k) => a + dsShare(sid, ch, k), 0); }
+function dsRecv(sid, ch) { return DS_COLS.reduce((a, c) => a + dsShare(sid, ch, c.bt), 0); }
 function dsDist(sid, ch) { return dsSum(sid, ch, () => true); }
 function dsInfo(recv, dist) { return `${t("bd_received")}: <b class="mono">${KD(recv)}</b> · ${t("bp_allocated")}: <b class="mono">${KD(dist)}</b> · ${t("cb_leftLbl")}: <b class="mono">${alLeft(recv - dist)}</b>`; }
 // Which supplier × channel sheets to show: anything received, or anything already distributed.
 function dsSheets() {
   const out = [], sups = bpData.suppliers || [], chs = bpData.distChannels || ["coop_main", "coop_branch"];
-  const has = (sid, ch) => (bpData.allocCoop || []).concat(bpData.allocOutlet || []).some((a) => (a.supplierId || 0) === sid && (a.channel || "") === ch && ((+a.amount || 0) || (+a.focAmount || 0)));
+  const has = (sid, ch) => (bpData.allocCoop || []).concat(bpData.allocOutlet || []).some((a) => (a.supplierId || 0) === sid && (a.channel || "") === ch && (+a.amount || 0));
   sups.forEach((sp) => { const list = chs.filter((ch) => dsRecv(sp.id, ch) > 0 || has(sp.id, ch)); if (list.length) out.push({ sp, chs: list }); });
   return { out, legacy: has(0, "") };
 }
 function dsTable(sid, ch, legacy) {
   const st = bdMeStruct(), dis = bpData.closed ? "disabled" : "", sk = `${sid}_${ch || "x"}`;
-  const head = `<thead><tr><th rowspan="2" class="cb-th-lbl">${t("bd_target")}</th><th colspan="2" class="cb-th-grp ds-osd">${t("bt_osd")}</th><th rowspan="2">${budgetTypeLabel("polypack")}</th><th colspan="3" class="cb-th-grp ds-ga">${budgetTypeLabel("foc")}</th><th rowspan="2">${budgetTypeLabel("pricediff")}</th><th rowspan="2" class="cb-th-sub">${t("total")}</th></tr>
-    <tr><th>${budgetTypeLabel("pallets")}</th><th>${budgetTypeLabel("stands")}</th><th class="ds-ga">${t("ds_on").replace("{x}", budgetTypeLabel("pallets"))}</th><th class="ds-ga">${t("ds_on").replace("{x}", budgetTypeLabel("stands"))}</th><th class="ds-ga">${t("ds_on").replace("{x}", budgetTypeLabel("pricediff"))}</th></tr></thead>`;
-  const colg = `<colgroup><col class="c-lbl">${DS_COLS.map(() => "<col>").join("")}<col class="c-tot"></colgroup>`;
+  const trade = DS_COLS.filter(dsTr), rest = DS_COLS.filter((c) => !dsTr(c));
+  const head = `<thead><tr><th rowspan="2" class="cb-th-lbl">${t("bd_target")}</th><th colspan="${trade.length + 1}" class="cb-th-grp ds-osd">${t("bt_trade")}</th>${rest.map((c) => `<th rowspan="2">${budgetTypeLabel(c.bt)}</th>`).join("")}<th rowspan="2" class="cb-th-sub">${t("total")}</th></tr>
+    <tr>${trade.map((c) => `<th>${budgetTypeLabel(c.bt)}</th>`).join("")}<th class="ds-tb">${t("cb_grpTotal").replace("{g}", t("bt_trade"))}</th></tr></thead>`;
+  const colg = `<colgroup><col class="c-lbl">${DS_VIEW.map((c) => `<col${c.sub ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>`;
+  // A row's cells: cell(col) per line, and the Trade Budget total (of v) after its lines.
+  const tds = (cell, v, fmt = cbFmt) => DS_VIEW.map((c) => c.sub ? `<td class="cb-tot ds-tb">${fmt(trade.reduce((a, x) => a + v(x), 0))}</td>` : cell(c)).join("");
+  const sums = (v, fmt = cbFmt) => tds((c) => `<td class="cb-tot">${fmt(v(c))}</td>`, v, fmt);
   let r = 0;
   const q = (s) => esc(String(s));
-  const inp = (c, sm, coop, cid, v, ri) => `<input class="cb-in" inputmode="decimal" autocomplete="off" data-sheet="${sk}" data-sid="${sid}" data-ch="${ch}" data-bt="${c.bt}" data-f="${c.f}" data-sm="${q(sm)}" data-coop="${q(coop)}"${cid ? ` data-cid="${q(cid)}"` : ""} data-r="${ri}" data-col="${DS_COLS.indexOf(c)}" value="${v ? v : ""}" placeholder="0" ${dis}>`;
+  const inp = (c, sm, coop, cid, v, ri) => `<input class="cb-in" inputmode="decimal" autocomplete="off" data-sheet="${sk}" data-sid="${sid}" data-ch="${ch}" data-bt="${c.bt}" data-sm="${q(sm)}" data-coop="${q(coop)}"${cid ? ` data-cid="${q(cid)}"` : ""} data-r="${ri}" data-col="${DS_COLS.indexOf(c)}" value="${v ? v : ""}" placeholder="0" ${dis}>`;
   // The earlier distribution lists only the co-ops that still carry a value.
-  const anyVal = (sm, coop) => DS_COLS.some((c) => dsCoopVal(c, sid, ch, sm, coop, (st[sm] || {})[coop]) || (((st[sm] || {})[coop]) || []).some((o) => { const x = dsOutRow(c.bt, sid, ch, coop, o.custId); return x && (+x[c.f] || 0); }));
+  const anyVal = (sm, coop) => DS_COLS.some((c) => dsCoopVal(c, sid, ch, sm, coop, (st[sm] || {})[coop]) || (((st[sm] || {})[coop]) || []).some((o) => { const x = dsOutRow(c.bt, sid, ch, coop, o.custId); return x && (+x.amount || 0); }));
   const rows = Object.keys(st).sort().filter((sm) => !legacy || Object.keys(st[sm] || {}).some((coop) => anyVal(sm, coop))).map((sm) => {
     const coops = Object.fromEntries(Object.entries(st[sm] || {}).filter(([coop]) => !legacy || anyVal(sm, coop)));
-    const smRow = `<tr class="cb-sub ds-sm"><td>${escN(sm)}</td>${DS_COLS.map((c) => `<td class="cb-tot">${cbFmt(dsSum(sid, ch, (x) => x === c, (s) => s === sm))}</td>`).join("")}<td class="cb-tot">${cbFmt(dsSum(sid, ch, () => true, (s) => s === sm))}</td></tr>`;
+    const smRow = `<tr class="cb-sub ds-sm"><td>${escN(sm)}</td>${sums((c) => dsSum(sid, ch, (x) => x === c, (s) => s === sm))}<td class="cb-tot">${cbFmt(dsSum(sid, ch, () => true, (s) => s === sm))}</td></tr>`;
     const coopRows = Object.keys(coops).sort().map((coop) => {
       const outlets = coops[coop] || [], ok = `${sk}|${sm}|${coop}`, open = dsOpen.has(ok);
       const name = esc(LANG === "en" ? coop : (coopAr(coop) || coop));
       const tog = outlets.length ? `<button class="ds-tog" onclick="dsToggle(this)" data-k="${q(ok)}" title="${esc(t("ds_outlets"))}">${open ? "▾" : "▸"}</button>` : `<span class="ds-tog-sp"></span>`;
       const cr = r++;
-      const cells = DS_COLS.map((c) => {
-        if (dsHasOut(c.bt, sid, ch, coop)) return `<td class="cb-tot ds-roll" title="${esc(t("ds_roll"))}">${cbFmt(dsCoopVal(c, sid, ch, sm, coop, outlets))}</td>`;
-        const row = dsCoopRow(c.bt, sid, ch, sm, coop); return `<td>${inp(c, sm, coop, null, row ? +row[c.f] || 0 : 0, cr)}</td>`;
-      }).join("");
-      const coopRow = `<tr class="ds-coop"><td>${tog} ${name}</td>${cells}<td class="cb-tot">${cbFmt(DS_COLS.reduce((a, c) => a + dsCoopVal(c, sid, ch, sm, coop, outlets), 0))}</td></tr>`;
+      const val = (c) => dsCoopVal(c, sid, ch, sm, coop, outlets);
+      const cells = tds((c) => {
+        if (dsHasOut(c.bt, sid, ch, coop)) return `<td class="cb-tot ds-roll" title="${esc(t("ds_roll"))}">${cbFmt(val(c))}</td>`;
+        const row = dsCoopRow(c.bt, sid, ch, sm, coop); return `<td>${inp(c, sm, coop, null, row ? +row.amount || 0 : 0, cr)}</td>`;
+      }, val);
+      const coopRow = `<tr class="ds-coop"><td>${tog} ${name}</td>${cells}<td class="cb-tot">${cbFmt(DS_COLS.reduce((a, c) => a + val(c), 0))}</td></tr>`;
       const outRows = outlets.map((o) => {
         const orr = r++;
-        return `<tr class="ds-out" data-ok="${q(ok)}"${open ? "" : ' style="display:none"'}><td>${esc(o.name)}</td>${DS_COLS.map((c) => { const row = dsOutRow(c.bt, sid, ch, coop, o.custId); return `<td>${inp(c, sm, coop, o.custId, row ? +row[c.f] || 0 : 0, orr)}</td>`; }).join("")}<td class="cb-tot">${cbFmt(DS_COLS.reduce((a, c) => { const row = dsOutRow(c.bt, sid, ch, coop, o.custId); return a + (row ? +row[c.f] || 0 : 0); }, 0))}</td></tr>`;
+        const ov = (c) => { const row = dsOutRow(c.bt, sid, ch, coop, o.custId); return row ? +row.amount || 0 : 0; };
+        return `<tr class="ds-out" data-ok="${q(ok)}"${open ? "" : ' style="display:none"'}><td>${esc(o.name)}</td>${tds((c) => `<td>${inp(c, sm, coop, o.custId, ov(c), orr)}</td>`, ov)}<td class="cb-tot">${cbFmt(DS_COLS.reduce((a, c) => a + ov(c), 0))}</td></tr>`;
       }).join("");
       return coopRow + outRows;
     }).join("");
     return smRow + coopRows;
   }).join("");
-  // Footer: distributed per column; received / left per line (Give Away spans its three columns).
-  const dist = `<tr class="cb-sum"><td>${t("bp_allocated")}</td>${DS_COLS.map((c) => `<td class="cb-tot">${cbFmt(dsSum(sid, ch, (x) => x === c))}</td>`).join("")}<td class="cb-tot">${cbFmt(dsDist(sid, ch))}</td></tr>`;
-  const lineRow = (label, fn, fmt, cls, tot) => {
-    let h = "", gaDone = false;
-    DS_COLS.forEach((c) => {
-      if (c.f === "focAmount") { if (!gaDone) { gaDone = true; h += `<td class="cb-tot ds-ga" colspan="3">${fmt(fn("foc"))}</td>`; } return; }
-      h += `<td class="cb-tot">${fmt(fn(c.bt))}</td>`;
-    });
-    return `<tr class="${cls}"><td>${label}</td>${h}<td class="cb-tot">${fmt(tot)}</td></tr>`;
-  };
-  const recv = (k) => (legacy ? 0 : dsShare(sid, ch, k)), used = (k) => dsSum(sid, ch, dsLineCols(k));
+  // Summary per line: received / distributed / left.
+  const used = (c) => dsSum(sid, ch, (x) => x === c), recv = (c) => (legacy ? 0 : dsShare(sid, ch, c.bt));
+  const dist = `<tr class="cb-sum"><td>${t("bp_allocated")}</td>${sums(used)}<td class="cb-tot">${cbFmt(dsDist(sid, ch))}</td></tr>`;
   // The summary sits on top, so it stays in view however long the team is.
   const foot = legacy ? dist.replace('class="cb-sum"', 'class="cb-sum ds-sumtop"')
-    : lineRow(t("bd_received"), recv, cbFmt, "cb-sum", dsRecv(sid, ch)) + dist + lineRow(t("cb_leftLbl"), (k) => recv(k) - used(k), alLeft, "cb-sum cb-sum-left ds-sumtop", dsRecv(sid, ch) - dsDist(sid, ch));
-  return `<div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln ds-sheet" data-kind="dist" data-sheet="${sk}" style="min-width:${220 + DS_COLS.length * 92}px" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">${colg}${head}<tbody>${foot}${rows}</tbody></table></div>`;
+    : `<tr class="cb-sum"><td>${t("bd_received")}</td>${sums(recv)}<td class="cb-tot">${cbFmt(dsRecv(sid, ch))}</td></tr>` + dist
+      + `<tr class="cb-sum cb-sum-left ds-sumtop"><td>${t("cb_leftLbl")}</td>${sums((c) => recv(c) - used(c), alLeft)}<td class="cb-tot">${alLeft(dsRecv(sid, ch) - dsDist(sid, ch))}</td></tr>`;
+  return `<div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln ds-sheet" data-kind="dist" data-sheet="${sk}" style="min-width:${220 + (DS_VIEW.length + 1) * 92}px" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">${colg}${head}<tbody>${foot}${rows}</tbody></table></div>`;
 }
 function dsToggle(btn) {
   const k = btn.dataset.k, open = !dsOpen.has(k); if (open) dsOpen.add(k); else dsOpen.delete(k);
