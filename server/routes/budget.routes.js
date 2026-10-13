@@ -68,10 +68,12 @@ router.put('/channels', requireRole('marketing_manager'), asyncH((req, res) => {
 }));
 
 /* ---------- Monthly budget plan (caps + supervisor allocation + spend) ---------- */
-// Budget lines: Trade Budget (Co Pack · Trade Deals · Price Off · Rentals ·
-// Give Away), then Liquidation (polypack) and Listing. Trade Budget is never
-// typed — it is the sum of its five lines. 'offinv' (خارج الاستثمار) is not a line.
-const TRADE_TYPES = ['copack', 'tradedeals', 'pricediff', 'rentals', 'foc'];
+// Budget lines: Trade Budget (Co Pack · Trade Deals · Prices Off · Rentals ·
+// Give Away), then Liquidation (polypack) and Listing; Rentals is Pallets +
+// Stands. Trade Budget and Rentals are never typed — they are the sums of their
+// lines. 'offinv' (خارج الاستثمار) is not a line.
+const TRADE_TYPES = ['copack', 'tradedeals', 'pricediff', 'pallets', 'stands', 'foc'];
+const RENT_TYPES = ['pallets', 'stands'];
 const CAPPED_TYPES = [...TRADE_TYPES, 'polypack', 'listing'];
 const ALL_BUDGET_TYPES = CAPPED_TYPES.slice();
 function curMonth() { return nowIso().slice(0, 7); }
@@ -153,7 +155,7 @@ function monthSpend(month) {
 // ---- Over-budget guards. The UI only warns (red); the server REFUSES. ----
 const fmtKD = (n) => (Math.round(num(n) * 1000) / 1000).toFixed(3);
 // Budget lines' display names [Arabic, English].
-const BT_NAME = { copack: ['كو باك', 'Co Pack'], tradedeals: ['تريد ديلز', 'Trade Deals'], pricediff: ['فروق الأسعار', 'Prices Off'], rentals: ['إيجارات', 'Rentals'], foc: ['جيف أواي', 'Give Away'], polypack: ['ليكويديشن', 'Liquidation'], listing: ['ليستنج', 'Listing'] };
+const BT_NAME = { copack: ['كو باك', 'Co Pack'], tradedeals: ['تريد ديلز', 'Trade Deals'], pricediff: ['فروق الأسعار', 'Prices Off'], pallets: ['طبالي', 'Pallets'], stands: ['ستاندات', 'Stands'], foc: ['جيف أواي', 'Give Away'], polypack: ['ليكويديشن', 'Liquidation'], listing: ['ليستنج', 'Listing'] };
 function overMsg(what, limit, would) {
   const [ar, en] = BT_NAME[what] || [what, what];
   return `تجاوز البتجيت — ${ar}: الحد ${fmtKD(limit)} د.ك، والمطلوب يوصل ${fmtKD(would)} د.ك | Over budget — ${en}: limit ${fmtKD(limit)} KD, this would make ${fmtKD(would)} KD`;
@@ -786,6 +788,12 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const sups = activeSuppliers();
   const CH = { coop: 'Coops', coop_main: 'Coops Main Markets', coop_branch: 'Coops Branches', ka: 'KA', ecg: 'ECG', ecg_ecom: 'ECG ECOM', ecg_cng: 'ECG C&G', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT OOH' };
   const LBL = Object.fromEntries(CB_TYPES.map((bt) => [bt, BT_NAME[bt][1]]));
+  // [label, lines] in order: Trade Budget and Rentals (sums) before their lines, indented beneath.
+  const LINE_ROWS = [['Trade Budget', TRADE_TYPES]];
+  CB_TYPES.forEach((bt) => {
+    if (bt === RENT_TYPES[0]) LINE_ROWS.push(['   Rentals', RENT_TYPES]);
+    LINE_ROWS.push([RENT_TYPES.includes(bt) ? `      ${LBL[bt]}` : TRADE_TYPES.includes(bt) ? `   ${LBL[bt]}` : LBL[bt], [bt]]);
+  });
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const TT = ['tt_grocery', 'tt_ws', 'tt_horeca'];
   const ECG = ['ecg_ecom', 'ecg_cng'];
@@ -813,7 +821,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
       const left = withLines.length ? sum(withLines.map((sid) => lu([sid], bts, 'u') + lu([sid], bts, 's') - sum(CHANNELS.map((c) => lc([sid], bts, c))))) : '';
       return [name, code, label, u, s2, u + s2, ...COLS.map((c) => lc(sids, bts, c)), sp2, left];
     };
-    const lineRows = (name, code, sids) => [lineRow(name, code, 'Trade Budget', sids, TRADE_TYPES), ...CB_TYPES.map((bt) => lineRow(name, code, TRADE_TYPES.includes(bt) ? `   ${LBL[bt]}` : LBL[bt], sids, [bt]))];
+    const lineRows = (name, code, sids) => LINE_ROWS.map(([label, bts]) => lineRow(name, code, label, sids, bts));
     const head = ['UDC Supplier', 'Code', 'Line', 'UDC', 'Supplier', 'Total', ...COLS.map((c) => c === 'coop' ? 'Total Coops' : c === 'ecg' ? 'Total ECG' : c === 'tt' ? 'Total TT' : CH[c]), 'Split into channels', 'Remaining'];
     const a1 = [[`${lname} budget — each supplier's lines (UDC / Supplier) and their split by channel — ${month}`], [], head];
     sups.forEach((sp) => {
@@ -834,9 +842,8 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
       const L = (sid, bt) => sum(chs.filter((ch) => CHANNEL_MANAGER[ch]).map((ch) => ln[`${sid}|${bt}|${ch}`] || 0));
       const B = (sid) => sum(chs.map((ch) => tot[`${sid}|${ch}`] || 0));
       if (managed) {
-        // Trade Budget = the sum of its lines, listed beneath it.
-        rowOf(label, 'Trade Budget', (sid) => sum(TRADE_TYPES.map((bt) => L(sid, bt))));
-        CB_TYPES.forEach((bt) => rowOf(label, TRADE_TYPES.includes(bt) ? `   ${LBL[bt]}` : LBL[bt], (sid) => L(sid, bt)));
+        // Trade Budget and Rentals = the sums of their lines, listed beneath them.
+        LINE_ROWS.forEach(([lbl, bts]) => rowOf(label, lbl, (sid) => sum(bts.map((bt) => L(sid, bt)))));
         rowOf(label, 'Allocated to supervisors', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
       }
       rowOf(label, managed ? 'Total budget' : 'Total budget (no manager yet)', B);

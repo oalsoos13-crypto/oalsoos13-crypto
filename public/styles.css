@@ -858,3 +858,80 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 }
 .cb-cg td.cb-cg-l,.cb-cg td.cb-osd-toggle,.cb-cg tfoot td:first-child{white-space:normal;line-height:1.2}
 .cb-entry tr.cb-grand td:first-child,.cb-entry tr.cb-ent-tot td:first-child{white-space:normal;line-height:1.25}
+/* Rentals (Pallets + Stands) nested inside Trade Budget */
+.cb-sheet tr.cb-osd-sub.cb-rent-sub td,.cb-cg tr.cb-rent-sub td{background:#fffaf0;color:#8a6414}
+.cb-sheet td.cb-osd-toggle.cb-osd{padding-inline-start:24px!important}
+.cb-sheet tr.cb-osd-child td.cb-osd.cb-osd2,.cb-entry tr.cb-osd-child td.cb-lbl.cb-osd2{padding-inline-start:40px}
+.cb-cg td.cb-osd-toggle.cb-osd{padding-inline-start:14px}
+.cb-cg td.cb-osd2{padding-inline-start:26px}
+.cb-sheet.ds-sheet th.ds-rent{background:#fbf3df;color:#6b4e0e}
+.cb-sheet.ds-sheet td.ds-tb.ds-rt{background:#fffaf0!important}
+.cb-sheet.ds-sheet th.ds-rt{background:#fbf3df}
+/* ---- Budget page layout: Total Company band, then the supplier cards side by side ---- */
+.cb-sum{margin-bottom:16px;padding:18px 20px}
+.cb-sum-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin-bottom:12px}
+.cb-sum-top .val{font-size:30px;line-height:1.1;margin-top:2px}
+.cb-sum-kv{display:flex;gap:10px;flex-wrap:wrap}
+.cb-sum-kv>span{background:#f4f8fd;border:1px solid #dfe9f6;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;color:#5b6f8a}
+.cb-sum-kv b{color:#0e2340;font-size:14px;margin-inline-start:6px}
+.cb-sum-wrap{overflow-x:auto;border:1px solid #e3ebf5;border-radius:10px}
+.panel table.cb-sumt{display:table;width:100%;max-width:none;min-width:820px;overflow:visible;border-collapse:collapse;font-size:12.5px}
+.cb-sumt th{background:#eef4fb;color:#123f70;font-size:11.5px;font-weight:700;text-align:end;padding:8px 10px;white-space:nowrap;border-bottom:1px solid #dfe9f6}
+.cb-sumt td{padding:7px 10px;text-align:end;font-variant-numeric:tabular-nums;border-bottom:1px solid #eef2f7;white-space:nowrap}
+.cb-sumt th:first-child,.cb-sumt td:first-child{text-align:start;font-weight:700;color:var(--ink2);position:sticky;inset-inline-start:0;background:#fff;z-index:1}
+.cb-sumt th:first-child{background:#eef4fb}
+.cb-sumt th.sub,.cb-sumt td.sub{background:#fbf1d5;color:#6b4e0e;font-weight:800}
+.cb-sumt th.sub2,.cb-sumt td.sub2{background:#fff8e8;color:#8a6414;font-weight:700}
+.cb-sumt th.all,.cb-sumt td.all{background:#0e2340;color:#fff;font-weight:800}
+.cb-sumt tr.tot td{font-weight:800;color:#0e2340;border-top:2px solid #e3b23c;border-bottom:0}
+.cb-sumt tr.tot td.all{color:#fff}
+.cb-supcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px;align-items:stretch;margin-bottom:18px}
+.cb-supcard{display:flex;flex-direction:column;margin:0}
+.cb-sc-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding-bottom:10px;margin-bottom:2px;border-bottom:2px solid #eef4fb}
+.cb-sc-name{font-size:16px;font-weight:800;color:#0e2340;line-height:1.2}
+.cb-sc-tot{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
+.cb-sc-tot small{font-size:10.5px;font-weight:700;color:#8a6414;letter-spacing:.3px}
+.cb-sc-tot b{font-size:19px;color:#0e2340}
+.cb-sc-f{margin-top:auto;padding-top:9px;border-top:1px dashed #dfe9f6;font-size:12px;color:var(--muted)}
+.cb-sc-f b{color:var(--ink2)}
+.cb-supcard .cb-cg{margin:8px 0 10px}
+.cb-cg th{width:22%}
+.cb-sec-t{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800;color:#0e2340;margin:4px 0 10px}
+.cb-sec-t::before{content:"";width:4px;height:18px;border-radius:2px;background:#1c4e8a}
+@media (max-width:640px){
+  .cb-sum{padding:14px}
+  .cb-sum-top .val{font-size:24px}
+  .cb-cg th{width:25%}
+}
+.cb-cg{font-size:12px}
+.cb-cg th{width:24%}
+.cb-cg td{padding:2px 3px}
+.cb-supcard{padding:16px 14px}
+.cb-cg th{width:auto}
+.cb-cg col.cg-l{width:32%}
+.cb-cg col.cg-n{width:21.5%}
+.cb-cg col.cg-t{width:25%}
+.cb-cg col.cg-l{width:30%}
+.cb-cg col.cg-n{width:22.5%}
+.cb-cg td.cb-osd-toggle{white-space:nowrap;overflow:visible}
+.cb-cg tfoot td{font-size:11.5px}
+.cb-cg{font-size:11.5px}
+.cb-cg col.cg-l{width:33%}
+.cb-cg col.cg-n{width:21%}
+.cb-cg td.cb-osd-toggle{overflow:hidden}
+.cb-cg td.cb-cg-l{white-space:nowrap}
+.cb-cg td{padding:2px 2px}
+.cb-cg td.cb-osd-toggle{padding-inline-start:4px}
+.cb-cg .cb-osd-arrow{width:11px}
+.cb-cg td.cb-osd-toggle.cb-osd{padding-inline-start:12px}
+.cb-supcard{padding:16px 11px}
+.cb-sc-h,.cb-sc-f{padding-inline:3px}
+.cb-cg col.cg-l{width:33%}
+.cb-cg col.cg-n{width:21.5%}
+.cb-cg col.cg-t{width:24%}
+.cb-cg tfoot td{font-size:11px}
+.cb-cg td.cb-osd-toggle{font-size:11px}
+@media (max-width:640px){
+  .cb-cg tfoot td{font-size:10.5px}
+  .cb-supcard{padding:14px 8px}
+}

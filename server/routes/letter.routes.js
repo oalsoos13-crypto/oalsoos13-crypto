@@ -63,13 +63,13 @@ const REBATE_TYPES = new Set(['cda_pct', 'pctrebate']);
 // The budget classifications a letter can be tagged with. 'offinv' (خارج
 // الاستثمار) is uncapped and covers the Union letters (supplementary/new items,
 // price increase, data update).
-const BUDGET_TYPES = new Set(['copack', 'tradedeals', 'pricediff', 'rentals', 'foc', 'polypack', 'listing', 'offinv']);
+const BUDGET_TYPES = new Set(['copack', 'tradedeals', 'pricediff', 'pallets', 'stands', 'foc', 'polypack', 'listing', 'offinv']);
 // Letters addressed to the Cooperatives Union. Admin-only to create; they enter
 // the chain at the sales-manager stage (no salesman/supervisor step).
 const UNION_TYPES = new Set(['uoc_supp', 'uoc_union', 'uoc_newitems', 'uoc_dataupd']);
 // Auto-classification: the budget type previously chosen for this letter type.
 // Built-in letter-type -> budget-type defaults (a learned map row overrides).
-const DEFAULT_BUDGET_MAP = { palletdn: 'rentals', standdn: 'rentals', pricediff: 'pricediff' };
+const DEFAULT_BUDGET_MAP = { palletdn: 'pallets', standdn: 'stands', pricediff: 'pricediff' };
 function autoBudgetType(letterType) {
   try { const r = db.prepare('SELECT budget_type FROM budget_type_map WHERE letter_type = ?').get(letterType); if (r) return r.budget_type; } catch (e) { /* */ }
   return DEFAULT_BUDGET_MAP[letterType] || null;
@@ -348,12 +348,13 @@ router.post('/letters', requireRole('salesman', 'sales_manager', 'marketing_mana
 // each outlet). This lets the salesman turn that distribution into actual debit
 // notes with one click: for every co-op/outlet allocated a non-zero amount, a
 // letter of the matching type is created with value = the allocated amount.
-// Rentals → a debit note "مقابل إيجارات"; Price Off → a price-difference note.
-// The other lines (Co Pack, Trade Deals, Give Away, Liquidation, Listing) make no letter.
-const GEN_TYPE_OF = { rentals: 'gendn', pricediff: 'pricediff' };
-const GEN_REASON = { gendn: 'إيجارات', pricediff: '' };
-// Rentals letters generated before Pallets / Stands became Rentals count as done.
-const GEN_SAME = { palletdn: 'gendn', standdn: 'gendn' };
+// Rentals (Pallets / Stands) → pallet / stand debit notes; Prices Off → a
+// price-difference note. The other lines (Co Pack, Trade Deals, Give Away,
+// Liquidation, Listing) make no letter.
+const GEN_TYPE_OF = { pallets: 'palletdn', stands: 'standdn', pricediff: 'pricediff' };
+const GEN_REASON = { palletdn: 'إيجار طبلية', standdn: 'إيجار استاند', pricediff: '' };
+// A Rentals letter generated while Rentals was a single line counts as the pallet letter.
+const GEN_SAME = { gendn: 'palletdn' };
 // Mirror of the front-end marketLabel(): the outlet's market label ("السوق …").
 function marketLabelServer(outletText) {
   let m = String(outletText || '').trim();
@@ -374,7 +375,7 @@ function coopFullFromAr(ar, fallback) {
 
 // POST /api/letters/generate-from-budget  { month? }  (supervisor)
 // Creates one debit-note letter per co-op / outlet from the supervisor's
-// distribution of Rentals and Price Off. Generated letters carry meta.genBudget
+// distribution of Pallets, Stands and Prices Off. Generated letters carry meta.genBudget
 // and so follow the short chain: supervisor -> sales manager -> print.
 router.post('/letters/generate-from-budget', requireRole('supervisor'), asyncH((req, res) => {
   const supPf = req.user.username;

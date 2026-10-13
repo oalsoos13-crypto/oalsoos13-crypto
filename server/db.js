@@ -758,33 +758,23 @@ function migrate() {
     db.exec("UPDATE budget_alloc SET budget_type='pallets' WHERE budget_type='rental'");
     db.exec("UPDATE budget_type_map SET budget_type='pallets' WHERE budget_type='rental'");
   } catch (e) { /* tables may not exist yet on a brand-new db */ }
-  // One-off: the budget lines became Trade Budget (Co Pack · Trade Deals · Price
-  // Off · Rentals · Give Away), Liquidation and Listing. Pallets and Stands join
-  // Rentals (amounts summed); the Give Away part the supervisors settled on a
-  // line (foc_amount) becomes the Give Away line itself.
+  // Rows of `from` budget types → one `to` row per key, value columns summed.
+  const mergeBt = (tbl, keys, vals, from, to, ts) => {
+    const ph = from.map(() => '?').join(',');
+    const rows = db.prepare(`SELECT ${keys.join(', ')}, ${vals.map((v) => `SUM(${v}) ${v}`).join(', ')} FROM ${tbl} WHERE budget_type IN (${ph}) GROUP BY ${keys.join(', ')}`).all(...from);
+    if (!rows.length) return;
+    db.prepare(`DELETE FROM ${tbl} WHERE budget_type IN (${ph})`).run(...from);
+    const ins = db.prepare(`INSERT INTO ${tbl} (budget_type, ${keys.join(', ')}, ${vals.join(', ')}, updated_at) VALUES (?, ${keys.concat(vals).map(() => '?').join(', ')}, ?)
+      ON CONFLICT DO UPDATE SET ${vals.map((v) => `${v}=COALESCE(${v},0)+COALESCE(excluded.${v},0)`).join(', ')}, updated_at=excluded.updated_at`);
+    rows.forEach((r) => ins.run(to, ...keys.map((k) => r[k]), ...vals.map((v) => r[v]), ts));
+  };
+  // One-off: the budget lines became Trade Budget (Co Pack · Trade Deals · Prices
+  // Off · Rentals (Pallets + Stands) · Give Away), Liquidation and Listing. The
+  // Give Away part the supervisors settled on a line (foc_amount) becomes the
+  // Give Away line itself.
   if (!db.prepare("SELECT 1 FROM meta WHERE key='bt_trade_lines'").get()) {
     db.transaction(() => {
       const ts = new Date().toISOString();
-      // Rows of `from` types → one `to` row per key, value columns summed.
-      const merge = (tbl, keys, vals, from, to) => {
-        const ph = from.map(() => '?').join(',');
-        const rows = db.prepare(`SELECT ${keys.join(', ')}, ${vals.map((v) => `SUM(${v}) ${v}`).join(', ')} FROM ${tbl} WHERE budget_type IN (${ph}) GROUP BY ${keys.join(', ')}`).all(...from);
-        if (!rows.length) return;
-        db.prepare(`DELETE FROM ${tbl} WHERE budget_type IN (${ph})`).run(...from);
-        const ins = db.prepare(`INSERT INTO ${tbl} (budget_type, ${keys.join(', ')}, ${vals.join(', ')}, updated_at) VALUES (?, ${keys.concat(vals).map(() => '?').join(', ')}, ?)
-          ON CONFLICT DO UPDATE SET ${vals.map((v) => `${v}=COALESCE(${v},0)+COALESCE(excluded.${v},0)`).join(', ')}, updated_at=excluded.updated_at`);
-        rows.forEach((r) => ins.run(to, ...keys.map((k) => r[k]), ...vals.map((v) => r[v]), ts));
-      };
-      const RENT = ['pallets', 'stands'];
-      merge('budget_caps', ['month'], ['amount', 'spent'], RENT, 'rentals');
-      merge('budget_alloc', ['month', 'supervisor'], ['amount'], RENT, 'rentals');
-      merge('budget_alloc_sales', ['month', 'supervisor', 'salesman'], ['amount'], RENT, 'rentals');
-      merge('budget_alloc_sup', ['month', 'layer', 'supplier_id', 'channel', 'supervisor'], ['amount'], RENT, 'rentals');
-      merge('budget_alloc_coop', ['month', 'supplier_id', 'channel', 'salesman', 'coop'], ['amount', 'foc_amount'], RENT, 'rentals');
-      merge('budget_alloc_outlet', ['month', 'supplier_id', 'channel', 'coop', 'cust_id'], ['amount', 'foc_amount'], RENT, 'rentals');
-      db.exec("UPDATE letters SET budget_type='rentals' WHERE budget_type IN ('pallets','stands')");
-      db.exec("UPDATE budget_type_map SET budget_type='rentals' WHERE budget_type IN ('pallets','stands')");
-      // Give Away settled on a line → the Give Away line.
       for (const [tbl, keys] of [['budget_alloc_coop', ['month', 'supplier_id', 'channel', 'salesman', 'coop']], ['budget_alloc_outlet', ['month', 'supplier_id', 'channel', 'coop', 'cust_id']]]) {
         const rows = db.prepare(`SELECT ${keys.join(', ')}, SUM(foc_amount) f FROM ${tbl} WHERE foc_amount<>0 GROUP BY ${keys.join(', ')}`).all();
         const ins = db.prepare(`INSERT INTO ${tbl} (budget_type, ${keys.join(', ')}, amount, updated_at) VALUES ('foc', ${keys.map(() => '?').join(', ')}, ?, ?)
@@ -793,6 +783,26 @@ function migrate() {
         db.exec(`UPDATE ${tbl} SET foc_amount=0 WHERE foc_amount<>0`);
       }
       db.prepare("INSERT INTO meta(key,value) VALUES('bt_trade_lines','1')").run();
+    })();
+  }
+  // One-off: Rentals is again Pallets + Stands (typed separately). An earlier
+  // version briefly kept a single 'rentals' line (Pallets and Stands summed):
+  // that amount goes back under Pallets, and letters follow their letter type.
+  if (!db.prepare("SELECT 1 FROM meta WHERE key='bt_rentals_split'").get()) {
+    db.transaction(() => {
+      const ts = new Date().toISOString(), R = ['rentals'];
+      mergeBt('budget_caps', ['month'], ['amount', 'spent'], R, 'pallets', ts);
+      mergeBt('budget_alloc', ['month', 'supervisor'], ['amount'], R, 'pallets', ts);
+      mergeBt('budget_alloc_sales', ['month', 'supervisor', 'salesman'], ['amount'], R, 'pallets', ts);
+      mergeBt('budget_alloc_sup', ['month', 'layer', 'supplier_id', 'channel', 'supervisor'], ['amount'], R, 'pallets', ts);
+      mergeBt('budget_alloc_coop', ['month', 'supplier_id', 'channel', 'salesman', 'coop'], ['amount', 'foc_amount'], R, 'pallets', ts);
+      mergeBt('budget_alloc_outlet', ['month', 'supplier_id', 'channel', 'coop', 'cust_id'], ['amount', 'foc_amount'], R, 'pallets', ts);
+      mergeBt('supplier_line_budget', ['month', 'layer', 'supplier_id'], ['udc', 'sup'], R, 'pallets', ts);
+      mergeBt('brand_line_budget', ['month', 'layer', 'supplier_id', 'channel'], ['amount'], R, 'pallets', ts);
+      const STAND = "('standdn','rentstand','stand')";
+      db.exec(`UPDATE letters SET budget_type=CASE WHEN type IN ${STAND} THEN 'stands' ELSE 'pallets' END WHERE budget_type='rentals'`);
+      db.exec(`UPDATE budget_type_map SET budget_type=CASE WHEN letter_type IN ${STAND} THEN 'stands' ELSE 'pallets' END WHERE budget_type='rentals'`);
+      db.prepare("INSERT INTO meta(key,value) VALUES('bt_rentals_split','1')").run();
     })();
   }
   // Backfill for letters created before the chain existed: an already-approved

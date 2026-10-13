@@ -558,10 +558,12 @@ const T = {
   bt_tradedeals: { ar: "تريد ديلز", en: "Trade Deals" },
   bt_pricediff: { ar: "فروق أسعار", en: "Prices Off" },
   bt_rentals: { ar: "إيجارات", en: "Rentals" },
+  bt_pallets: { ar: "طبالي", en: "Pallets" },
+  bt_stands: { ar: "ستاندات", en: "Stands" },
   bt_foc: { ar: "جيف أواي", en: "Give Away" },
   bt_polypack: { ar: "ليكويديشن", en: "Liquidation" },
   bt_listing: { ar: "ليستنج", en: "Listing" },
-  trade_click: { ar: "اكبس لتشوف بنود التريد بتجيت", en: "Click to see the Trade Budget lines" },
+  trade_click: { ar: "اكبس لتفتح أو تسكّر البنود اللي تحته", en: "Click to show or hide the lines beneath" },
   bt_offinv: { ar: "خارج الاستثمار", en: "Off-investment" },
   bt_none: { ar: "غير مصنّف", en: "Unclassified" },
   // Monthly budget plan.
@@ -606,6 +608,7 @@ const T = {
   ds_none: { ar: "مدير المبيعات لسا ما وزّع عليك بتجيت لهالشهر.", en: "The sales manager has not allocated you a budget for this month yet." },
   ds_hint: { ar: "كل مورد وكل قسم (مين / برانش) إله بتجيته من مدير المبيعات. وزّع على الجمعيات، أو افتح ▸ ووزّع على الأوتلتات. كل بند بينخصم من المخصّص إله، والتريد بتجيت هو مجموع بنوده. كتب الإيجارات وفروق الأسعار بتطلع لكل مورد لحاله.", en: "Each supplier and channel (Main / Branch) has its own budget from the sales manager. Distribute to the co-ops, or open ▸ to distribute to the outlets. Each line counts against what you received for it; Trade Budget is the sum of its lines. Rentals and Price Off letters come out per supplier." },
   cb_supTotal: { ar: "توتال المورد", en: "Total Supplier" },
+  cb_byLine: { ar: "توزيع البنود على الأقسام", en: "Lines by channel" },
   cb_legacy: { ar: "مدخل قبل التقسيم حسب البند — لما تكتب البنود بيصير التوتل مجموعها", en: "Entered before the split by line — once you type the lines, the total becomes their sum" },
   cb_mdfIn: { ar: "UDC", en: "UDC" },
   cb_mdfOut: { ar: "Supplier", en: "Supplier" },
@@ -2189,7 +2192,7 @@ async function submitQuickEntry() {
 }
 /* ---------- budget-type classification ---------- */
 // Budget lines (offinv "خارج الاستثمار" removed; polypack = Liquidation).
-const BUDGET_TYPE_KEYS = ["copack", "tradedeals", "pricediff", "rentals", "foc", "polypack", "listing"];
+const BUDGET_TYPE_KEYS = ["copack", "tradedeals", "pricediff", "pallets", "stands", "foc", "polypack", "listing"];
 function budgetTypeLabel(bt) { return bt ? (t("bt_" + bt) || bt) : t("bt_none"); }
 // A <select> to classify a letter's budget type (used by sales manager + admin).
 function budgetTypeSelect(L) {
@@ -2303,9 +2306,11 @@ function allocLayerPanel(L) {
   const supRows = sups.map((sp) => {
     const lm = alLineMode(L, sp.id);
     const chRows = chs.map((ch) => {
-      const ok = `al${L}_${sp.id}_${ch}`, K = `${P}${sp.id}_${ch}`;
-      const lines = types.map((bt) => { const r = ri++, f = (x) => x.supplierId === sp.id && x.channel === ch && x.budgetType === bt;
-        return `${bt === cbTradeFirst(types) ? alTradeRow(L, sp.id, ch) : ""}<tr${cbTradeAttr(bt, ok, types)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, c) => { const v = alAmt(L, sp.id, ch, bt, sv);
+      const K = `${P}${sp.id}_${ch}`;
+      const lines = cbLineRows(types, `al${L}_${sp.id}_${ch}`).map((rw) => {
+        if (rw.sub) return alSubRow(L, rw, sp.id, ch);
+        const bt = rw.bt, r = ri++, f = (x) => x.supplierId === sp.id && x.channel === ch && x.budgetType === bt;
+        return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${svs.map((sv, c) => { const v = alAmt(L, sp.id, ch, bt, sv);
           return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${ch}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
           <td class="cb-tot" id="alRA_${K}_${bt}">${cbFmt(alSum(L, f))}</td>${alBL(`${K}_${bt}`, lm ? alLB(L, f) : null, alSum(L, f))}</tr>`; }).join("");
       const fc = (x) => x.supplierId === sp.id && x.channel === ch;
@@ -2318,7 +2323,7 @@ function allocLayerPanel(L) {
   }).join("");
   // All brands: a line's budget counts the brands budgeted by line.
   const lmAny = sups.some((sp) => alLineMode(L, sp.id)), lmF = (x) => alLineMode(L, x.supplierId);
-  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + types.map((bt) => `${bt === cbTradeFirst(types) ? alTradeRow(L, null, null) : ""}<tr class="cb-co"${cbTradeAttr(bt, `al${L}_all`, types)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td>${alBL(`${P}all_${bt}`, lmAny ? alLB(L, (x) => x.budgetType === bt) : null, alSum(L, (x) => x.budgetType === bt && lmF(x)))}</tr>`).join("")
+  const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + cbLineRows(types, `al${L}_all`).map((rw) => { if (rw.sub) return alSubRow(L, rw, null, null); const bt = rw.bt; return `<tr${cbFoldAttr(rw, "cb-co")}>${cbRowLabel(rw)}${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td>${alBL(`${P}all_${bt}`, lmAny ? alLB(L, (x) => x.budgetType === bt) : null, alSum(L, (x) => x.budgetType === bt && lmF(x)))}</tr>`; }).join("")
     + chs.map((ch) => `<tr class="cb-co"><td>${t("total")} — ${t("ch_" + ch)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCC_${P}${ch}_${i}">${cbFmt(alSum(L, (x) => x.channel === ch && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCCA_${P}${ch}">${cbFmt(alSum(L, (x) => x.channel === ch))}</td>${alBL(`${P}allch_${ch}`, alBud(L, (x) => x.channel === ch), alSum(L, (x) => x.channel === ch))}</tr>`).join("")
     + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA_${L}">${KD(alSum(L, () => true))}</td>${alBL(`${P}grand`, alBud(L, () => true), alSum(L, () => true))}</tr>`;
   const totB = alBud(L, () => true), totA = alSum(L, () => true);
@@ -2335,12 +2340,12 @@ function allocLayerPanel(L) {
 }
 // A channel's KPI: allocated of its budget.
 function alLeftOf(L, ch) { const f = (x) => x.channel === ch; return `${KD(alSum(L, f))} <span class="al-of">/ ${KD(alBud(L, f))}</span>`; }
-// Trade Budget subtotal row (sid / ch null = all brands / both channels).
-function alTradeRow(L, sid, ch) {
-  const k = `${L}_${sid == null ? "all" : sid}${ch ? "_" + ch : ""}`, f = (x) => (sid == null || x.supplierId === sid) && (!ch || x.channel === ch) && CB_TRADE.includes(x.budgetType);
+// A Trade Budget / Rentals subtotal row (sid / ch null = all brands / both channels).
+function alSubRow(L, rw, sid, ch) {
+  const k = `${L}_${sid == null ? "all" : sid}${ch ? "_" + ch : ""}_${rw.sub}`, f = (x) => (sid == null || x.supplierId === sid) && (!ch || x.channel === ch) && rw.bts.includes(x.budgetType);
   const lm = sid == null ? (alData.suppliers || []).some((sp) => alLineMode(L, sp.id)) : alLineMode(L, sid);
   const used = sid == null ? alSum(L, (x) => f(x) && alLineMode(L, x.supplierId)) : alSum(L, f);
-  return `<tr class="cb-osd-sub">${cbTradeHead(`al${k}`, t("bt_trade"))}${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum(L, (x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(L, f))}</td>${alBL(`tr_${k}`, lm ? alLB(L, f) : null, used)}</tr>`;
+  return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${alData.supervisors.map((sv, i) => `<td class="cb-tot" id="alOS_${k}_${i}">${cbFmt(alSum(L, (x) => f(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alOSA_${k}">${cbFmt(alSum(L, f))}</td>${alBL(`tr_${k}`, lm ? alLB(L, f) : null, used)}</tr>`;
 }
 // A brand budgeted by line (per layer): the admin gave each line its share of
 // each channel, and the split may not go over it.
@@ -2354,23 +2359,44 @@ function alRefresh(L) {
   const tmp = document.createElement("div"); tmp.innerHTML = allocLayerPanel(L);
   tmp.querySelectorAll("[id]").forEach((n) => { const el = document.getElementById(n.id); if (el && el.innerHTML !== n.innerHTML) el.innerHTML = n.innerHTML; });
 }
-// Trade Budget = Co Pack + Trade Deals + Price Off + Rentals + Give Away: never
-// typed, a subtotal row right before its lines.
-const CB_TRADE = ["copack", "tradedeals", "pricediff", "rentals", "foc"];
-function cbTradeFirst(types) { const o = types.filter((b) => CB_TRADE.includes(b)); return o.length > 1 ? o[0] : null; }
-// Trade Budget is one line; clicking it opens / closes its lines beneath.
-// Where the lines are typed (supplier cards "sc…", channel entry "se…") they
-// start open; in the read-only views they start closed. The set holds the
-// keys switched away from their default.
+// Trade Budget = Co Pack + Trade Deals + Prices Off + Rentals + Give Away, and
+// Rentals = Pallets + Stands: neither is typed — each is a subtotal row right
+// before its lines, and clicking it opens / closes them.
+const CB_TRADE = ["copack", "tradedeals", "pricediff", "pallets", "stands", "foc"];
+const CB_RENT = ["pallets", "stands"];
+// The lines as rows in order: { sub, bts, key } a subtotal, { bt, bts } a line;
+// `fold` = the subtotal keys that must be open for the row to show.
+function cbLineRows(types, key) {
+  const tr = types.filter((b) => CB_TRADE.includes(b)), rn = types.filter((b) => CB_RENT.includes(b)), out = [];
+  const tk = tr.length > 1 ? key : null, rk = rn.length > 1 ? key + "_r" : null;
+  types.forEach((bt) => {
+    if (tk && bt === tr[0]) out.push({ sub: "trade", bts: tr, key: tk, fold: [] });
+    if (rk && bt === rn[0]) out.push({ sub: "rentals", bts: rn, key: rk, fold: tk ? [tk] : [] });
+    out.push({ bt, bts: [bt], fold: [tk && tr.includes(bt) ? tk : null, rk && rn.includes(bt) ? rk : null].filter(Boolean) });
+  });
+  return out;
+}
+// Where the lines are typed (supplier cards "sc…", channel entry "se…") the
+// subtotals start open; in the read-only views they start closed. The set
+// holds the keys switched away from their default.
 const cbTradeOpen = new Set();
 function cbTradeIsOpen(key) { return cbTradeOpen.has(key) !== /^s[ce]/.test(key); }
-function cbTradeAttr(bt, key, types) { if (!cbTradeFirst(types) || !CB_TRADE.includes(bt)) return ""; return ` class="cb-osd-child" data-osd-k="${key}"${cbTradeIsOpen(key) ? "" : ' style="display:none"'}`; }
-function cbTradeHead(key, label) { const open = cbTradeIsOpen(key); return `<td class="cb-osd-toggle" onclick="cbTradeToggle('${key}')" title="${esc(t("trade_click"))}"><span class="cb-osd-arrow" data-osd-a="${key}">${open ? "▾" : "▸"}</span> ${label}</td>`; }
+const cbFoldShown = (fold, ln) => fold.every(cbTradeIsOpen) && (!ln || cbLnOpen.has(ln));
+// A row's attributes: hidden while a subtotal above it (or its section, ln) is closed.
+function cbFoldAttr(rw, cls = "", ln = "") {
+  const c = [cls, rw.sub ? "cb-osd-sub" : "", rw.sub === "rentals" ? "cb-rent-sub" : "", rw.fold.length ? "cb-osd-child" : ""].filter(Boolean).join(" ");
+  return `${c ? ` class="${c}"` : ""}${rw.fold.length ? ` data-fold="${rw.fold.join(" ")}"` : ""}${ln ? ` data-ln="${ln}"` : ""}${cbFoldShown(rw.fold, ln) ? "" : ' style="display:none"'}`;
+}
+// A row's label cell: a subtotal toggles its lines; a line under one is indented.
+function cbRowLabel(rw, cls = "cb-lbl") {
+  if (rw.sub) return cbTradeHead(rw.key, t(rw.sub === "trade" ? "bt_trade" : "bt_rentals"), rw.fold.length ? "cb-osd" : "");
+  return `<td class="${cls}${rw.fold.length ? " cb-osd" : ""}${rw.fold.length > 1 ? " cb-osd2" : ""}">${budgetTypeLabel(rw.bt)}</td>`;
+}
+function cbTradeHead(key, label, cls = "") { const open = cbTradeIsOpen(key); return `<td class="cb-osd-toggle${cls ? " " + cls : ""}" onclick="cbTradeToggle('${key}')" title="${esc(t("trade_click"))}"><span class="cb-osd-arrow" data-osd-a="${key}">${open ? "▾" : "▸"}</span> ${label}</td>`; }
 function cbTradeToggle(key) {
   if (cbTradeOpen.has(key)) cbTradeOpen.delete(key); else cbTradeOpen.add(key);
   const open = cbTradeIsOpen(key);
-  // A Trade Budget line inside a collapsed channel section stays hidden.
-  document.querySelectorAll(`tr[data-osd-k="${key}"]`).forEach((tr) => { const sec = tr.dataset.ln; tr.style.display = (open && (!sec || cbLnOpen.has(sec))) ? "" : "none"; });
+  document.querySelectorAll(`tr[data-fold~="${key}"]`).forEach((tr) => { tr.style.display = cbFoldShown(tr.dataset.fold.split(" "), tr.dataset.ln) ? "" : "none"; });
   document.querySelectorAll(`[data-osd-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
 }
 // Split-by-channel sections fold shut: the header and the Total budget /
@@ -2387,7 +2413,7 @@ function cbSecToggle(key) {
 }
 function cbLnToggle(key) {
   const open = !cbLnOpen.has(key); if (open) cbLnOpen.add(key); else cbLnOpen.delete(key);
-  document.querySelectorAll(`tr.cb-ln-det[data-ln="${key}"]`).forEach((tr) => { const ok = tr.dataset.osdK; tr.style.display = (open && (!ok || cbTradeIsOpen(ok))) ? "" : "none"; });
+  document.querySelectorAll(`tr.cb-ln-det[data-ln="${key}"]`).forEach((tr) => { tr.style.display = cbFoldShown((tr.dataset.fold || "").split(" ").filter(Boolean), key) ? "" : "none"; });
   document.querySelectorAll(`[data-ln-a="${key}"]`).forEach((a) => { a.textContent = open ? "▾" : "▸"; });
 }
 function cbCanSee() { return !!currentUser && ["admin", "marketing_manager", "sales_ops"].includes(currentUser.role); } // not the sales manager: co-op channel only
@@ -2449,27 +2475,41 @@ function cbDerive(L, sid, sup, ch) {
     cbData.totals = cbData.totals.filter((x) => !own(x)).concat(Object.entries(by).map(([c, v]) => ({ layer: L, supplierId: sid, channel: c, amount: r3(v) })));
   }
 }
-// A supplier card (sid null = Total Company): the lines × UDC / Supplier / Total,
-// Trade Budget summing its five lines, the supplier total at the foot.
+// A supplier card's grid: the lines × UDC / Supplier / Total, Trade Budget and
+// Rentals summing their lines, the supplier total at the foot.
 function cbCardGrid(L, sid, ci, ed) {
-  const all = sid == null, ro = all || L === "all", P = `${L}_`, sk = all ? "all" : sid, key = `sc${L}_${sk}`, types = cbData.types;
-  const f = (bts) => (x) => (all || x.supplierId === sid) && bts.includes(x.budgetType);
-  const id = (bt, k) => `cbCg_${P}${sk}_${bt}_${k}`;
-  const open = cbTradeIsOpen(key);
+  const ro = L === "all", P = `${L}_`;
+  const f = (bts) => (x) => x.supplierId === sid && bts.includes(x.budgetType);
+  const id = (k1, k) => `cbCg_${P}${sid}_${k1}_${k}`;
   let ri = 0;
   const part = (bt, k, r) => {
     if (ro) return `<td class="cb-cg-v" id="${id(bt, k)}">${cbFmt(cbSLsum(L, f([bt]), k))}</td>`;
     const row = cbSL(L, sid, bt), v = row && +row[k] ? +row[k] : "";
     return `<td><input class="cb-in cb-cgin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sid}" data-c="${k}" data-b="${bt}" data-r="${r}" data-col="${ci * 2 + (k === "sup" ? 1 : 0)}" value="${v}" placeholder="0" ${ed ? "" : "disabled"}></td>`;
   };
-  const rows = types.map((bt) => {
-    const child = CB_TRADE.includes(bt), r = ri++;
-    const sub = bt === cbTradeFirst(types) ? `<tr class="cb-osd-sub">${cbTradeHead(key, t("bt_trade"))}${["udc", "sup"].map((k) => `<td class="cb-cg-v" id="${id("trade", k)}">${cbFmt(cbSLsum(L, f(CB_TRADE), k))}</td>`).join("")}<td class="cb-cg-t" id="${id("trade", "t")}">${cbFmt(cbSLsum(L, f(CB_TRADE)))}</td></tr>` : "";
-    return sub + `<tr${child ? ` class="cb-osd-child" data-osd-k="${key}"${open ? "" : ' style="display:none"'}` : ""}><td class="cb-cg-l${child ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${part(bt, "udc", r)}${part(bt, "sup", r)}<td class="cb-cg-t" id="${id(bt, "t")}">${cbFmt(cbSLsum(L, f([bt])))}</td></tr>`;
+  const rows = cbLineRows(cbData.types, `sc${L}_${sid}`).map((rw) => {
+    const k1 = rw.sub || rw.bt, tot = `<td class="cb-cg-t" id="${id(k1, "t")}">${cbFmt(cbSLsum(L, f(rw.bts)))}</td>`;
+    if (rw.sub) return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${["udc", "sup"].map((k) => `<td class="cb-cg-v" id="${id(k1, k)}">${cbFmt(cbSLsum(L, f(rw.bts), k))}</td>`).join("")}${tot}</tr>`;
+    const r = ri++;
+    return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw, "cb-cg-l")}${part(rw.bt, "udc", r)}${part(rw.bt, "sup", r)}${tot}</tr>`;
   }).join("");
-  const T = all ? [cbMdfAll(L, "mdfIn"), cbMdfAll(L, "mdfOut"), cbEffAll(L)] : [cbMdf(L, sid, "mdfIn"), cbMdf(L, sid, "mdfOut"), cbEff(L, sid)];
-  const foot = `<tr class="cb-cg-tot"><td>${all ? t("total") : t("cb_supTotal")}</td>${["udc", "sup", "t"].map((k, i) => `<td id="${id("T", k)}">${KD(T[i])}</td>`).join("")}</tr>`;
-  return `<table class="cb-cg"><thead><tr><th></th><th>${t("cb_mdfIn")}</th><th>${t("cb_mdfOut")}</th><th>${t("total")}</th></tr></thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
+  const T = [cbMdf(L, sid, "mdfIn"), cbMdf(L, sid, "mdfOut"), cbEff(L, sid)];
+  const foot = `<tr class="cb-cg-tot"><td>${t("cb_supTotal")}</td>${["udc", "sup", "t"].map((k, i) => `<td id="${id("T", k)}">${KD(T[i])}</td>`).join("")}</tr>`;
+  return `<table class="cb-cg"><colgroup><col class="cg-l"><col class="cg-n"><col class="cg-n"><col class="cg-t"></colgroup><thead><tr><th></th><th>${t("cb_mdfIn")}</th><th>${t("cb_mdfOut")}</th><th>${t("total")}</th></tr></thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
+}
+// Total Company: one band across the page — the total, its UDC / Supplier
+// parts and what is left to split, then every line across (UDC / Supplier / Total).
+function cbSummary(L) {
+  const P = `${L}_`, sups = cbData.suppliers;
+  const cols = cbLineRows(cbData.types, "sum").map((rw) => ({ k: rw.sub || rw.bt, bts: rw.bts, cls: rw.sub ? (rw.sub === "trade" ? "sub" : "sub2") : "", label: rw.sub ? t(rw.sub === "trade" ? "bt_trade" : "bt_rentals") : budgetTypeLabel(rw.bt) }));
+  const v = (bts, k) => cbSLsum(L, (x) => bts.includes(x.budgetType), k);
+  const tot = { udc: cbMdfAll(L, "mdfIn"), sup: cbMdfAll(L, "mdfOut"), t: cbEffAll(L) };
+  const left = sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null;
+  const row = (k, label, cls = "") => `<tr${cls ? ` class="${cls}"` : ""}><td>${label}</td>${cols.map((c) => `<td class="${c.cls}" id="cbSm_${P}${c.k}_${k}">${cbFmt(v(c.bts, k === "t" ? null : k))}</td>`).join("")}<td class="all" id="cbSm_${P}all_${k}">${KD(tot[k])}</td></tr>`;
+  return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(tot.t)}</div></div>
+    <div class="cb-sum-kv"><span>${t("cb_mdfIn")} <b class="mono" id="cbSm_${P}kv_udc">${KD(tot.udc)}</b></span><span>${t("cb_mdfOut")} <b class="mono" id="cbSm_${P}kv_sup">${KD(tot.sup)}</b></span><span>${t("cb_leftSplit")} <b class="mono" id="cbSm_${P}kv_left">${cbLeftFmt(left)}</b></span></div></div>
+    <div class="cb-sum-wrap"><table class="cb-sumt"><thead><tr><th></th>${cols.map((c) => `<th class="${c.cls}">${c.label}</th>`).join("")}<th class="all">${t("total")}</th></tr></thead>
+    <tbody>${row("udc", t("cb_mdfIn"))}${row("sup", t("cb_mdfOut"))}${row("t", t("total"), "tot")}</tbody></table></div></div>`;
 }
 function companyLayerPanel(L) {
   const d = cbData, combined = L === "all", ed = !combined && cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin" && !combined, types = d.types;
@@ -2478,10 +2518,11 @@ function companyLayerPanel(L) {
       ${ed && prevN ? `<button class="btn ghost sm" onclick="cbCopyPrev(${L})">⧉ ${t("cb_copy")} <bdi dir="ltr">${esc(d.prevMonth)}</bdi></button>` : ""}
       ${L ? (ed ? `<button class="btn danger sm" onclick="cbRemoveExtra(${L})">🗑 ${t("cb_removeExtra")}</button>` : "") : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button><button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>`}</div>`
     : (L ? "" : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`);
-  // 1) The cards: each supplier's lines (UDC / Supplier), typed bottom-up; the
-  // Total Company card sums them.
-  const kpis = `<div class="cards cb-kpis cb-supcards" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><div class="card accent cb-supcard"><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div>${cbCardGrid(L, null, 0, false)}</div>
-    ${sups.map((sp, i) => `<div class="card cb-supcard"><div class="lbl">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</div>${cbCardGrid(L, sp.id, i, ed)}${!combined && cbSup(L, sp.id) != null && !cbHasSL(L, sp.id) ? `<div class="cb-legacy">${t("cb_legacy")}</div>` : ""}<div class="cb-k-sub"><span id="cbKs_${P}${sp.id}">${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b></span></div></div>`).join("")}</div>`;
+  // 1) Total Company across the top, then a card per supplier: its lines
+  // (UDC / Supplier), typed bottom-up.
+  const kpis = cbSummary(L) + `<div class="cb-supcards" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
+    ${sups.map((sp, i) => `<div class="card cb-supcard"><div class="cb-sc-h"><span class="cb-sc-name">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</span><span class="cb-sc-tot"><small>${t("cb_supTotal")}</small><b class="mono" id="cbKt_${P}${sp.id}">${KD(cbEff(L, sp.id))}</b></span></div>
+      ${cbCardGrid(L, sp.id, i, ed)}${!combined && cbSup(L, sp.id) != null && !cbHasSL(L, sp.id) ? `<div class="cb-legacy">${t("cb_legacy")}</div>` : ""}<div class="cb-sc-f"><span id="cbKs_${P}${sp.id}">${t("cb_leftSplit")}: <b class="mono">${cbLeftFmt(cbLeftSplit(L, sp.id))}</b></span></div></div>`).join("")}</div>`;
   // 2) Each line split across the channels — rows = supplier → lines, columns = channels.
   let r = 0;
   const own = (sid, bts, chs) => (x) => x.supplierId === sid && bts.includes(x.budgetType) && chs.includes(x.channel);
@@ -2493,11 +2534,10 @@ function companyLayerPanel(L) {
     const v = cbCL(L, sid, col.ch, bts[0]);
     return `<td class="${gs.trim()}"><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sid}" data-c="${col.ch}" data-b="${bts[0]}" data-r="${ri}" data-col="${c++}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join(""); };
   const supRows = (sp) => {
-    const key = `se${L}_${sp.id}`, open = cbTradeIsOpen(key), Q = `cbEL_${P}${sp.id}`;
-    const lines = types.map((bt) => {
-      const child = CB_TRADE.includes(bt);
-      const sub = bt === cbTradeFirst(types) ? `<tr class="cb-osd-sub">${cbTradeHead(key, t("bt_trade"))}${lineCells(sp.id, CB_TRADE, `${Q}_trade`, false)}<td class="cb-tot cb-split" id="${Q}_trade_left">${lineLeft(sp.id, CB_TRADE)}</td></tr>` : "";
-      return sub + `<tr${child ? ` class="cb-osd-child" data-osd-k="${key}"${open ? "" : ' style="display:none"'}` : ""}><td class="cb-lbl${child ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${lineCells(sp.id, [bt], `${Q}_${bt}`, !combined)}<td class="cb-tot cb-split" id="${Q}_${bt}_left">${lineLeft(sp.id, [bt])}</td></tr>`;
+    const Q = `cbEL_${P}${sp.id}`;
+    const lines = cbLineRows(types, `se${L}_${sp.id}`).map((rw) => {
+      const k1 = rw.sub || rw.bt;
+      return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${lineCells(sp.id, rw.bts, `${Q}_${k1}`, !rw.sub && !combined)}<td class="cb-tot cb-split" id="${Q}_${k1}_left">${lineLeft(sp.id, rw.bts)}</td></tr>`;
     }).join("");
     const tot = `<tr class="cb-ent-tot"><td>${t("cb_supTotal")}</td>${cols.map((col) => col.grp ? `<td class="cb-tot cb-gtot" id="cbGr_${P}${sp.id}_${col.grp.k}">${cbFmt(cbTot(L, (x) => x.supplierId === sp.id && col.chs.includes(x.channel)))}</td>` : `<td class="cb-tot${col.gstart ? " cb-gstart" : ""}" id="cbES_${P}${sp.id}_${col.ch}">${cbFmt(cbAmt(L, sp.id, col.ch))}</td>`).join("")}<td class="cb-tot cb-split" id="cbLS_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`;
     const legacy = !combined && cbData.totals.some((x) => (x.layer || 0) === L && x.supplierId === sp.id) && !(cbData.chLines || []).some((x) => (x.layer || 0) === L && x.supplierId === sp.id);
@@ -2518,7 +2558,7 @@ function companyLayerPanel(L) {
   const foldEntry = combined || !!L;
   const entryHdr = foldEntry ? cbSecArrow(eKey) : "";
   const entryBody = foldEntry ? ` id="cbSec_${eKey}"${cbSecClosed.has(eKey) ? ' style="display:none"' : ""}` : "";
-  return `<div class="panel cb-panel${pcls}"><header><h3>${entryHdr}${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body"${entryBody}>${combined ? `<div class="hint" style="margin-bottom:10px">${t("cb_combinedHint")}</div>` : ""}${kpis}${note}${entry}</div></div>
+  return `<div class="panel cb-panel${pcls}"><header><h3>${entryHdr}${title} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3>${tools}</header><div class="body"${entryBody}>${combined ? `<div class="hint" style="margin-bottom:10px">${t("cb_combinedHint")}</div>` : ""}${kpis}${note}<div class="cb-sec-t">${t("cb_byLine")}</div>${entry}</div></div>
     <div class="panel cb-panel${pcls}"><header><h3>${cbSecArrow(lKey)}${t("cb_linesTitle")}${lnTitle ? " — " + lnTitle : ""}</h3></header><div class="body" id="cbSec_${lKey}"${cbSecClosed.has(lKey) ? ' style="display:none"' : ""}><div id="cbLinesWrap_${L}">${cbLinesTable(L)}</div></div></div>`;
 }
 // 2) The split by line, read-only: filled from the channel managers' screens.
@@ -2545,15 +2585,10 @@ function cbLinesTable(L) {
       : `<thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead>`;
     const colg = `<colgroup><col class="c-lbl">${cols.map((c) => `<col${c.tot ? ' class="c-tot"' : ""}>`).join("")}</colgroup>`;
     const open = cbLnOpen.has(key);
-    const dSty = (child) => (!open || (child && !cbTradeIsOpen(key))) ? ' style="display:none"' : "";
     let body;
     if (!managed) body = `<tr class="cb-co"><td>${t("cb_budgetRow")}</td>${row(bud, cbFmt)}</tr>`;
     else {
-      body = types.map((bt) => {
-        const child = CB_TRADE.includes(bt) && !!cbTradeFirst(types);
-        const sub = bt === cbTradeFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbTradeHead(key, t("bt_trade"))}${row((g) => ln((x) => CB_TRADE.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
-        return sub + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
-      }).join("")
+      body = cbLineRows(types, key).map((rw) => `<tr${cbFoldAttr(rw, "cb-ln-det", key)}>${cbRowLabel(rw)}${row((g) => ln((x) => rw.bts.includes(x.budgetType) && g(x)), cbFmt)}</tr>`).join("")
         + `<tr class="cb-sum cb-sum-first"><td>${t("cb_budgetRow")}</td>${row(bud, cbFmt)}</tr>`
         + `<tr class="cb-sum cb-sum-left"><td>${t("cb_diff")}</td>${row((g) => bud(g) - ln(g), left)}</tr>`;
     }
@@ -2570,12 +2605,7 @@ function cbLinesTable(L) {
     const row = (fn, fmt) => owners.map((sp) => `<td class="cb-tot cb-bs${sp ? "" : " cb-alltot"}">${fmt(fn(own(sp)))}</td>`).join("");
     const ln = (f) => cbLn(L, (x) => mg(x.channel) && f(x)), key = `cl${L}_all`;
     const open = cbLnOpen.has(key);
-    const dSty = (child) => (!open || (child && !cbTradeIsOpen(key))) ? ' style="display:none"' : "";
-    const body = types.map((bt) => {
-      const child = CB_TRADE.includes(bt) && !!cbTradeFirst(types);
-      const sub = bt === cbTradeFirst(types) ? `<tr class="cb-osd-sub cb-ln-det" data-ln="${key}"${dSty(false)}>${cbTradeHead(key, t("bt_trade"))}${row((g) => ln((x) => CB_TRADE.includes(x.budgetType) && g(x)), cbFmt)}</tr>` : "";
-      return sub + `<tr class="cb-ln-det"${child ? ` data-osd-k="${key}"` : ""} data-ln="${key}"${dSty(child)}><td class="cb-lbl${CB_TRADE.includes(bt) ? " cb-osd" : ""}">${budgetTypeLabel(bt)}</td>${row((g) => ln((x) => x.budgetType === bt && g(x)), cbFmt)}</tr>`;
-    }).join("") + `<tr class="cb-grand"><td>${t("cb_budgetRow")}</td>${row((g) => cbTot(L, g), KD)}</tr>`;
+    const body = cbLineRows(types, key).map((rw) => `<tr${cbFoldAttr(rw, "cb-ln-det", key)}>${cbRowLabel(rw)}${row((g) => ln((x) => rw.bts.includes(x.budgetType) && g(x)), cbFmt)}</tr>`).join("") + `<tr class="cb-grand"><td>${t("cb_budgetRow")}</td>${row((g) => cbTot(L, g), KD)}</tr>`;
     return `<div class="cb-ln-sec"><div class="cb-ln-h cb-ln-all cb-ln-toggle" onclick="cbLnToggle('${key}')"><span class="cb-ln-arrow" data-ln-a="${key}">${open ? "▾" : "▸"}</span> ${t("cb_allCh")}</div><div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln"><colgroup><col class="c-lbl">${owners.map((sp) => `<col${sp ? "" : ' class="c-tot"'}>`).join("")}</colgroup><thead><tr><th class="cb-th-lbl">${t("cb_line")}</th>${owners.map((sp) => `<th class="cb-bs${sp ? "" : " cb-th-all"}">${supTh(sp)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   })();
   return groups + all;
@@ -2850,11 +2880,11 @@ function bdMeStruct() { const me = (bpData.me && bpData.me.name) || currentUser.
 /* ---- Supervisor distribution: the sales manager's split as it came — per
    supplier × co-op channel (Main / Branch) × line — down to co-ops / outlets.
    One sheet per supplier × channel: rows = salesmen → co-ops (→ outlets),
-   columns = the lines; Trade Budget (the sum of its five lines) follows them. ---- */
+   columns = the lines; Rentals (Pallets + Stands) and Trade Budget totals follow their lines. ---- */
 const DS_COLS = BUDGET_TYPE_KEYS.map((bt) => ({ bt }));
 const dsTr = (c) => CB_TRADE.includes(c.bt);
-// Columns as shown: the Trade Budget lines, their total, then the other lines.
-const DS_VIEW = [...DS_COLS.filter(dsTr), { sub: true }, ...DS_COLS.filter((c) => !dsTr(c))];
+// Columns as shown: each line, with the Rentals / Trade Budget totals after their last line.
+const DS_VIEW = DS_COLS.flatMap((c) => [c].concat(c.bt === CB_RENT[CB_RENT.length - 1] ? [{ sub: "rentals", bts: CB_RENT }] : [], c.bt === CB_TRADE[CB_TRADE.length - 1] ? [{ sub: "trade", bts: CB_TRADE }] : []));
 const dsOpen = new Set(); // co-ops whose outlets are shown
 const dsSame = (a, bt, sid, ch) => a.budgetType === bt && (a.supplierId || 0) === sid && (a.channel || "") === ch;
 function dsShare(sid, ch, bt) { const me = (bpData.me && bpData.me.name) || currentUser.name; return (bpData.distShares || []).filter((x) => x.supervisor === me && x.supplierId === sid && x.channel === ch && x.budgetType === bt).reduce((a, x) => a + (+x.amount || 0), 0); }
@@ -2883,12 +2913,16 @@ function dsSheets() {
 }
 function dsTable(sid, ch, legacy) {
   const st = bdMeStruct(), dis = bpData.closed ? "disabled" : "", sk = `${sid}_${ch || "x"}`;
-  const trade = DS_COLS.filter(dsTr), rest = DS_COLS.filter((c) => !dsTr(c));
-  const head = `<thead><tr><th rowspan="2" class="cb-th-lbl">${t("bd_target")}</th><th colspan="${trade.length + 1}" class="cb-th-grp ds-osd">${t("bt_trade")}</th>${rest.map((c) => `<th rowspan="2">${budgetTypeLabel(c.bt)}</th>`).join("")}<th rowspan="2" class="cb-th-sub">${t("total")}</th></tr>
-    <tr>${trade.map((c) => `<th>${budgetTypeLabel(c.bt)}</th>`).join("")}<th class="ds-tb">${t("cb_grpTotal").replace("{g}", t("bt_trade"))}</th></tr></thead>`;
+  // Three header rows: Trade Budget over its lines (Rentals over Pallets / Stands), then the other lines.
+  const tv = DS_VIEW.filter((c) => c.sub || dsTr(c)), nRent = CB_RENT.length + 1;
+  const h1 = `<th rowspan="3" class="cb-th-lbl">${t("bd_target")}</th><th colspan="${tv.length}" class="cb-th-grp ds-osd">${t("bt_trade")}</th>${DS_COLS.filter((c) => !dsTr(c)).map((c) => `<th rowspan="3">${budgetTypeLabel(c.bt)}</th>`).join("")}<th rowspan="3" class="cb-th-sub">${t("total")}</th>`;
+  const h2 = tv.map((c) => c.sub === "trade" ? `<th rowspan="2" class="ds-tb">${t("cb_grpTotal").replace("{g}", t("bt_trade"))}</th>`
+    : c.bt === CB_RENT[0] ? `<th colspan="${nRent}" class="cb-th-grp ds-rent">${t("bt_rentals")}</th>` : CB_RENT.includes(c.bt) || c.sub ? "" : `<th rowspan="2">${budgetTypeLabel(c.bt)}</th>`).join("");
+  const h3 = CB_RENT.map((bt) => `<th>${budgetTypeLabel(bt)}</th>`).join("") + `<th class="ds-tb ds-rt">${t("cb_grpTotal").replace("{g}", t("bt_rentals"))}</th>`;
+  const head = `<thead><tr>${h1}</tr><tr>${h2}</tr><tr>${h3}</tr></thead>`;
   const colg = `<colgroup><col class="c-lbl">${DS_VIEW.map((c) => `<col${c.sub ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>`;
-  // A row's cells: cell(col) per line, and the Trade Budget total (of v) after its lines.
-  const tds = (cell, v, fmt = cbFmt) => DS_VIEW.map((c) => c.sub ? `<td class="cb-tot ds-tb">${fmt(trade.reduce((a, x) => a + v(x), 0))}</td>` : cell(c)).join("");
+  // A row's cells: cell(col) per line, and the Rentals / Trade Budget totals (of v) after their lines.
+  const tds = (cell, v, fmt = cbFmt) => DS_VIEW.map((c) => c.sub ? `<td class="cb-tot ds-tb${c.sub === "rentals" ? " ds-rt" : ""}">${fmt(DS_COLS.filter((x) => c.bts.includes(x.bt)).reduce((a, x) => a + v(x), 0))}</td>` : cell(c)).join("");
   const sums = (v, fmt = cbFmt) => tds((c) => `<td class="cb-tot">${fmt(v(c))}</td>`, v, fmt);
   let r = 0;
   const q = (s) => esc(String(s));
