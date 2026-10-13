@@ -629,6 +629,7 @@ const T = {
   cb_grpTotal: { ar: "الإجمالي", en: "Total" },
   ch_ka: { ar: "KA", en: "KA" },
   ch_ecg: { ar: "ECG", en: "ECG" },
+  cb_chOf: { ar: "قناة {g}", en: "{g} Channel" },
   ch_ecg_ecom: { ar: "إيكوم", en: "ECOM" },
   ch_ecg_cng: { ar: "سي آند جي", en: "C&G" },
   ch_tt_grocery: { ar: "بقالات", en: "Grocery" },
@@ -2447,11 +2448,13 @@ function cbCols(chs) {
   CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return; mine.forEach((c, i) => cols.push({ ch: c, g, gstart: !i })); if (mine.length > 1) cols.push({ grp: g, chs: mine }); });
   return cols;
 }
+// A channel group's name as a heading: "Coops Channel", "KA Channel", …
+function cbChOf(k) { return t("cb_chOf").replace("{g}", t("ch_" + k)); }
 function cbHead(chs, first, pre = "", post = `<th rowspan="2">${t("total")}</th>`) {
   let r1 = `<th rowspan="2" class="cb-th-lbl">${first}</th>${pre}`, r2 = "";
   CB_GROUPS.forEach((g) => { const mine = g.chs.filter((c) => chs.includes(c)); if (!mine.length) return;
-    if (mine.length === 1) r1 += `<th rowspan="2" class="cb-th-grp cb-th-solo cb-gstart">${t("ch_" + mine[0])}</th>`;
-    else { r1 += `<th colspan="${mine.length + 1}" class="cb-th-grp cb-gstart">${t("ch_" + g.k)}</th>`; r2 += mine.map((c, i) => `<th class="${i ? "" : "cb-gstart"}">${t("ch_" + c)}</th>`).join("") + `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", t("ch_" + g.k))}</th>`; } });
+    if (mine.length === 1) r1 += `<th rowspan="2" class="cb-th-grp cb-th-solo cb-gstart">${cbChOf(g.k)}</th>`;
+    else { r1 += `<th colspan="${mine.length + 1}" class="cb-th-grp cb-gstart">${cbChOf(g.k)}</th>`; r2 += mine.map((c, i) => `<th class="${i ? "" : "cb-gstart"}">${t("ch_" + c)}</th>`).join("") + `<th class="cb-th-sub">${t("cb_grpTotal").replace("{g}", t("ch_" + g.k))}</th>`; } });
   return `<thead><tr>${r1}${post}</tr><tr>${r2}</tr></thead>`;
 }
 function companyPanel() {
@@ -2605,7 +2608,7 @@ function cbLinesTable(L) {
     return `<div class="cb-ln-sec">${hdr}<div class="tbl-wrap cb-wrap"><table class="cb-sheet cb-ln" style="min-width:${190 + cols.length * 68}px">${colg}${head}<tbody>${body}</tbody></table></div></div>`;
   };
   if (!sups.length) return "";
-  const groups = CB_GROUPS.map((g) => { const chs = g.chs.filter((c) => d.channels.includes(c)); return chs.length ? table(chs, t("ch_" + g.k), `cl${L}_${g.k}`) : ""; }).join("");
+  const groups = CB_GROUPS.map((g) => { const chs = g.chs.filter((c) => d.channels.includes(c)); return chs.length ? table(chs, cbChOf(g.k), `cl${L}_${g.k}`) : ""; }).join("");
   // All channels: one column per brand; lines from the managed channels, budget from all.
   const all = (() => {
     const own = (sp) => (x) => !sp || x.supplierId === sp.id;
