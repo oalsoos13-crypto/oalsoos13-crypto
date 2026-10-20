@@ -2439,11 +2439,8 @@ function cbBudOf(L) {
     ch: (sid, ch) => cbGrp(L, (x) => own(sid)(x) && x.grp === ch),
     legacy: (sid, g) => g !== cbGrpOf(g) || !CB_GROUPS.some((x) => x.k === g && x.chs.length > 1) ? false : (cbData.grpTotals || []).some(lyF(L, (x) => own(sid)(x) && x.grp === g)),
     used: (sid, chs, bts) => cbLn(L, (x) => own(sid)(x) && (!chs || chs.includes(x.channel)) && (!bts || bts.includes(x.budgetType))),
-    chLeft: (sid, ch) => {
-      if (sid != null) return B.legacy(sid, cbGrpOf(ch)) ? null : B.ch(sid, ch) - B.used(sid, [ch]);
-      const vs = sups.map((sp) => B.chLeft(sp.id, ch)).filter((v) => v != null);
-      return vs.length ? vs.reduce((a, v) => a + v, 0) : null;
-    },
+    // Unknown (null) while any of it is still on a group total typed before.
+    chLeft: (sid, ch) => ((sid == null ? sups.map((sp) => sp.id) : [sid]).some((id) => B.legacy(id, cbGrpOf(ch))) ? null : B.ch(sid, ch) - B.used(sid, [ch])),
   };
   return B;
 }
@@ -2482,7 +2479,7 @@ function cbSupTable(L) {
   const cells = (sid, q) => cols.map((col) => {
     const gs = col.gstart ? " cb-gstart" : "";
     if (col.grp) return `<td class="cb-tot cb-gtot" id="${q}_${col.grp.k}">${cbGrpFmt(B, sid, col.grp.k)}</td>`;
-    return `<td class="cb-tot${gs}" id="${q}_${col.ch}">${sid != null && B.legacy(sid, col.g.k) ? cbFmt(0) : cbFmt(B.ch(sid, col.ch))}</td>`;
+    return `<td class="cb-tot${gs}" id="${q}_${col.ch}">${cbFmt(B.ch(sid, col.ch))}</td>`;
   }).join("") + `<td class="cb-tot cb-split" id="${q}_t">${KD(B.grp(sid))}</td>`;
   const rows = sups.map((sp) => `<tr><td class="cb-st-name" title="${esc(sp.name)}${sp.code ? ` · ${esc(sp.code)}` : ""}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cells(sp.id, `cbSt_${P}${sp.id}`)}</tr>`).join("");
   const legacy = sups.some((sp) => CB_GROUPS.some((g) => B.legacy(sp.id, g.k)));
@@ -2515,13 +2512,15 @@ function companyLayerPanel(L) {
   // A row of cells: fn(col) per column (null = blank), then the row's total.
   const cells = (fn, tot, cls = "cb-tot") => cols.map((col) => { const v = fn(col); return `<td class="${cls}${col.grp ? " cb-gtot" : ""}${gsOf(col)}"${v && v.id ? ` id="${v.id}"` : ""}>${v == null ? "" : v.h}</td>`; }).join("") + `<td class="cb-tot cb-split"${tot && tot.id ? ` id="${tot.id}"` : ""}>${tot ? tot.h : ""}</td>`;
   // The supplier's budget per channel (typed) and each group's Total (their sum).
+  // data-col is the visible column, so a row copied from the sheet or the Excel
+  // export pastes into the same channels (values over a Total are skipped).
   const budRow = (sid, ri) => {
     const Q = `cbEB_${P}${sid}`;
     return `<tr class="cb-ent-bud"><td>${t("cb_chBudget")}</td>${cols.map((col) => {
       if (col.grp) return `<td class="cb-tot cb-gtot" id="${Q}_${col.grp.k}">${cbGrpFmt(B, sid, col.grp.k)}</td>`;
       const v = B.ch(sid, col.ch);
       if (combined) return `<td class="cb-tot${gsOf(col)}" id="${Q}_${col.ch}">${cbFmt(v)}</td>`;
-      return `<td class="${gsOf(col).trim()}"><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sid}" data-c="${col.ch}" data-r="${ri}" data-col="${allChs.indexOf(col.ch)}" value="${v || ""}" placeholder="0" ${ed ? "" : "disabled"}></td>`;
+      return `<td class="${gsOf(col).trim()}"><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sid}" data-c="${col.ch}" data-r="${ri}" data-col="${cols.indexOf(col)}" value="${v || ""}" placeholder="0" ${ed ? "" : "disabled"}></td>`;
     }).join("")}<td class="cb-tot cb-split" id="${Q}_t">${cbFmt(B.grp(sid))}</td></tr>`;
   };
   const leftRow = (sid, cls, label, Q) => `<tr class="${cls}"><td>${label}</td>${cells((col) => (col.grp ? { id: `${Q}_${col.grp.k}`, h: cbLeftFmt(B.grp(sid, col.grp.k) - dist(sid, col.chs)) } : { id: `${Q}_${col.ch}`, h: cbLeftFmt(B.chLeft(sid, col.ch)) }), { id: `${Q}_t`, h: cbLeftFmt(B.grp(sid) - dist(sid, allChs)) })}</tr>`;
@@ -2626,8 +2625,10 @@ function cbKey(e) {
   else if (e.key === "ArrowUp") to = cbCell(el, r - 1, c, -1);
   else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     const fwd = (e.key === "ArrowRight") !== rtl, atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length, atStart = el.selectionStart === 0 && el.selectionEnd === 0;
-    if (el.selectionStart === 0 && el.selectionEnd === el.value.length) to = cbCell(el, r, fwd ? c + 1 : c - 1);
-    else if (fwd && atEnd) to = cbCell(el, r, c + 1); else if (!fwd && atStart) to = cbCell(el, r, c - 1);
+    // The next cell along the row, stepping over columns without an input (a Total).
+    const side = (st) => { for (let k = 1; k <= 30; k++) { const x = cbCell(el, r, c + st * k); if (x) return x; } return null; };
+    if (el.selectionStart === 0 && el.selectionEnd === el.value.length) to = side(fwd ? 1 : -1);
+    else if (fwd && atEnd) to = side(1); else if (!fwd && atStart) to = side(-1);
   } else if (e.key === "Escape") { const sh = shOf(el), v = sh ? sh.amt(el) : null; el.value = v == null ? "" : v; el.blur(); return; }
   if (to) { e.preventDefault(); to.focus(); } // leaving the cell fires its change → save
 }

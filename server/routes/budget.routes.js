@@ -752,7 +752,8 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     // 2) The managers' split by line, one section per channel and per channel total; brands across.
     const bh = ['Channel', 'Line', ...sups.map((sp) => sp.name + (sp.code ? ` (${sp.code})` : '')), 'Total'];
     const a2 = [[`${lname} budget — split by line, by channel (from the channel managers) — ${month}`], [], bh];
-    const rowOf = (name, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([name, label, ...v, sum(v.map((x) => +x || 0))]); };
+    // The Total of a row; a Budget left is unknown ('') while any supplier's is.
+    const rowOf = (name, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([name, label, ...v, label === 'Budget left' && v.includes('') ? '' : sum(v.map((x) => +x || 0))]); };
     const SECTIONS = [['coop_main'], ['coop_branch'], ['coop', GROUP_CHANNELS.coop], ['ka'], ['ecg_ecom'], ['ecg_cng'], ['ecg', ECG], ...TT.map((c) => [c]), ['tt', TT]];
     SECTIONS.forEach(([name, chs = [name]]) => {
       const label = name === 'coop' ? 'Total Coops' : name === 'ecg' ? 'Total ECG' : name === 'tt' ? 'Total TT' : CH[name];
