@@ -1001,3 +1001,6 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-entry-ln tbody tr:not(.cb-ent-sup) td:first-child{position:sticky;inset-inline-start:0;z-index:2}
 .cb-entry-ln tbody tr:not(.cb-ent-sup):not(.cb-grand) td:first-child{background-color:#fff}
 .cb-entry-ln tr.cb-ent-sup .cb-ent-nm{position:sticky;inset-inline-start:12px;display:inline-block}
+/* The budget table above Lines by channel: the same columns as the sheet below. */
+.cb-sumln td.cb-st-name{font-weight:800;color:#0e2340;font-size:14px;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+.cb-sumln tbody tr:not(.cb-grand) td.cb-split{font-weight:800;color:#0e2340}

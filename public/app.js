@@ -2448,20 +2448,24 @@ function companyPanel() {
   const combined = layers.length > 1 ? companyLayerPanel("all") : "";
   return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + combined;
 }
-// The budget by channel, by supplier (read-only): each supplier's total per
-// channel as typed in Lines by channel below, and what is left of it.
+// The budget by channel, by supplier (read-only), with the same columns as Lines
+// by channel below: each channel's Total (and KA) is the budget typed there,
+// each sub-channel what its manager split into it; then the supplier's Total.
 function cbSupTable(L) {
-  const P = `${L}_`, sups = cbData.suppliers, gks = CB_GROUPS.map((g) => g.k);
+  const P = `${L}_`, sups = cbData.suppliers, cols = cbCols(cbData.channels);
   const act = new Set(sups.map((sp) => sp.id)), own = (sid) => (x) => (sid == null ? act.has(x.supplierId) : x.supplierId === sid);
-  const bud = (sid, g) => cbGrp(L, (x) => own(sid)(x) && (!g || x.grp === g)), used = (sid) => cbLn(L, own(sid));
-  const cells = (sid, q) => gks.map((g) => `<td class="cb-tot" id="${q}_${g}">${cbFmt(bud(sid, g))}</td>`).join("")
-    + `<td class="cb-tot cb-st-tot" id="${q}_t">${KD(bud(sid))}</td><td class="cb-tot cb-st-left" id="${q}_l">${cbLeftFmt(bud(sid) - used(sid))}</td>`;
+  const bud = (sid, g) => cbGrp(L, (x) => own(sid)(x) && (!g || x.grp === g)), used = (sid, chs) => cbLn(L, (x) => own(sid)(x) && (!chs || chs.includes(x.channel)));
+  const cells = (sid, q) => cols.map((col) => {
+    const gs = col.gstart ? " cb-gstart" : "";
+    if (col.grp) return `<td class="cb-tot cb-gtot" id="${q}_${col.grp.k}">${cbFmt(bud(sid, col.grp.k))}</td>`;
+    if (col.g.chs.length === 1) return `<td class="cb-tot${gs}" id="${q}_${col.g.k}">${cbFmt(bud(sid, col.g.k))}</td>`;
+    return `<td class="cb-tot${gs}" id="${q}_${col.ch}">${cbFmt(used(sid, [col.ch]))}</td>`;
+  }).join("") + `<td class="cb-tot cb-split" id="${q}_t">${KD(bud(sid))}</td>`;
   const rows = sups.map((sp) => `<tr><td class="cb-st-name" title="${esc(sp.name)}${sp.code ? ` · ${esc(sp.code)}` : ""}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cells(sp.id, `cbSt_${P}${sp.id}`)}</tr>`).join("");
   return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(bud(null))}</div></div>
     <div class="cb-sum-kv"><span>${t("cb_leftLbl")} <b class="mono" id="cbSm_${P}kv_l">${cbLeftFmt(bud(null) - used(null))}</b></span></div></div>
-    <div class="tbl-wrap cb-st-wrap"><table class="cb-sheet cb-st">
-    <colgroup><col class="c-lbl">${gks.map(() => "<col>").join("")}<col class="c-tot c-st-tot"><col class="c-tot c-st-left"></colgroup>
-    <thead><tr><th class="cb-th-lbl">${t("cb_brand")}</th>${gks.map((g) => `<th>${cbChOf(g)}</th>`).join("")}<th class="cb-st-tot">${t("total")}</th><th class="cb-th-split">${t("cb_leftLbl")}</th></tr></thead>
+    <div class="tbl-wrap cb-st-wrap"><table class="cb-sheet cb-entry cb-entry-ln cb-sumln">
+    <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(cbData.channels, t("cb_brand"), "", `<th rowspan="2" class="cb-th-split">${t("total")}</th>`)}
     <tbody>${rows}<tr class="cb-grand"><td>${t("total")}</td>${cells(null, `cbSt_${P}all`)}</tr></tbody></table></div></div>`;
 }
 function companyLayerPanel(L) {
