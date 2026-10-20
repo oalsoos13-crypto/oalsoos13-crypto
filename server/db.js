@@ -657,6 +657,15 @@ function migrate() {
       udc REAL NOT NULL DEFAULT 0, sup REAL NOT NULL DEFAULT 0, updated_at TEXT,
       PRIMARY KEY (month, layer, supplier_id, budget_type)
     )`);
+  // The admin gives each supplier a total per channel (grp: coop / ka / ecg /
+  // tt); the channel's manager splits it into its sub-channels, lines and
+  // supervisors. (brand_channel_budget / brand_line_budget — earlier per
+  // sub-channel / per line entry — are kept for history only.)
+  db.exec(`CREATE TABLE IF NOT EXISTS channel_group_budget (
+      month TEXT NOT NULL, layer INTEGER NOT NULL DEFAULT 0, supplier_id INTEGER NOT NULL, grp TEXT NOT NULL,
+      amount REAL NOT NULL DEFAULT 0, updated_at TEXT,
+      PRIMARY KEY (month, layer, supplier_id, grp)
+    )`);
   db.exec(`CREATE TABLE IF NOT EXISTS brand_line_budget (
       month TEXT NOT NULL, layer INTEGER NOT NULL DEFAULT 0, supplier_id INTEGER NOT NULL, channel TEXT NOT NULL, budget_type TEXT NOT NULL,
       amount REAL NOT NULL DEFAULT 0, updated_at TEXT,
@@ -783,6 +792,18 @@ function migrate() {
         db.exec(`UPDATE ${tbl} SET foc_amount=0 WHERE foc_amount<>0`);
       }
       db.prepare("INSERT INTO meta(key,value) VALUES('bt_trade_lines','1')").run();
+    })();
+  }
+  // One-off: channel budgets are a total per channel; the totals typed per
+  // sub-channel (Main / Branch, ECOM / C&G, Grocery / WS / OOH) add up into it.
+  if (!db.prepare("SELECT 1 FROM meta WHERE key='cg_budget_v1'").get()) {
+    db.transaction(() => {
+      const G = { coop_main: 'coop', coop_branch: 'coop', coop: 'coop', ka: 'ka', ecg_ecom: 'ecg', ecg_cng: 'ecg', online: 'ecg', tt_grocery: 'tt', tt_ws: 'tt', tt_horeca: 'tt', tt: 'tt' };
+      const ins = db.prepare(`INSERT INTO channel_group_budget (month, layer, supplier_id, grp, amount, updated_at) VALUES (?,?,?,?,?,?)
+        ON CONFLICT(month, layer, supplier_id, grp) DO UPDATE SET amount=amount+excluded.amount`);
+      const ts = new Date().toISOString();
+      db.prepare('SELECT month, layer, supplier_id, channel, amount FROM brand_channel_budget').all().forEach((r) => { if (G[r.channel]) ins.run(r.month, r.layer, r.supplier_id, G[r.channel], +r.amount || 0, ts); });
+      db.prepare("INSERT INTO meta(key,value) VALUES('cg_budget_v1','1')").run();
     })();
   }
   // One-off: a supplier line is one amount — the UDC / Supplier split is gone;

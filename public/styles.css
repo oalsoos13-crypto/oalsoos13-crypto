@@ -980,3 +980,12 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-st td{white-space:nowrap}
 .cb-st col.c-st-tot{width:100px}
 .cb-st col.c-st-left{width:112px}
+/* Lines by channel: the channel budget row (typed), the managers' lines, then given / left */
+.cb-entry tr.cb-ent-bud td{background:#fffaf0!important;border-bottom:1px solid #f0dca6}
+.cb-entry tr.cb-ent-bud td:first-child{font-weight:800;color:#6b4e0e}
+.cb-entry tr.cb-ent-bud .cb-in{border:1.5px solid #ecd28f;background:#fff;font-weight:800;color:#0e2340}
+.cb-entry tr.cb-ent-bud .cb-in:focus{border-color:#b8862a;box-shadow:0 0 0 3px rgba(227,178,60,.22)}
+.cb-entry tr.cb-ent-bud td.cb-split{font-weight:800;color:#6b4e0e}
+.cb-entry tr.cb-ent-coop td{background:#f3faf6!important;color:#1d6b45;font-weight:700}
+.cb-entry tr.cb-ent-left td{background:#eef4fb!important;font-weight:800;color:#0e2340;border-bottom:3px solid #9fb8d8}
+.cb-entry tr.cb-ent-all td{background:#e3ecf7!important;font-weight:800;color:#0e2340}
