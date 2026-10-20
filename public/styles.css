@@ -955,3 +955,28 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-cg td.cb-cg-t{padding-inline-end:9px}
 .cb-sumt th:first-child,.cb-sumt td:first-child{position:static;text-align:end}
 .cb-sumt tr.tot td{border-top:0}
+/* ---- Budget table: a row per supplier, the lines across, Total beneath ---- */
+.cb-st-wrap{border:1px solid #e3ebf5;border-radius:10px}
+.cb-sheet.cb-st{table-layout:fixed;width:100%;min-width:1040px}
+.cb-st col.c-lbl{width:150px}
+.cb-st thead th{font-size:11.5px;line-height:1.25;white-space:normal;vertical-align:bottom;text-align:end;padding:8px 6px}
+.cb-st thead th.cb-th-lbl{text-align:start;vertical-align:middle}
+.cb-st thead th.sub{background:#f1e2b0!important;color:#6b4e0e}
+.cb-st thead th.sub2{background:#fbf3df!important;color:#8a6414}
+.cb-st thead th.cb-st-tot{background:#d3e1f2!important;color:#0e2340}
+.cb-st td{padding:5px 5px;vertical-align:middle}
+.cb-st .cb-in{width:100%;min-width:0;padding:7px 6px;text-align:end}
+.cb-st tbody tr:not(.cb-grand) td.sub{background:#fbf1d5!important;color:#6b4e0e;font-weight:800}
+.cb-st tbody tr:not(.cb-grand) td.sub2{background:#fff8e8!important;color:#8a6414;font-weight:700}
+.cb-st tbody tr:not(.cb-grand) td.cb-st-tot{background:#eef4fb!important;color:#0e2340;font-weight:800}
+.cb-st tbody tr:not(.cb-grand) td.cb-st-left{background:#f6f9fd!important}
+.cb-st td.cb-st-name{font-weight:800;color:#0e2340;font-size:14px;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
+.cb-st td:first-child,.cb-st th.cb-th-lbl{position:sticky;inset-inline-start:0;z-index:2}
+.cb-st tbody tr:not(.cb-grand) td:first-child{background:#fff}
+.cb-st tr.cb-grand td{font-size:13px;padding:10px 6px;text-align:end}
+.cb-st tr.cb-grand td:first-child{text-align:start}
+.cb-legacy-s{display:block;font-size:10.5px;font-weight:600;color:#b8862a;margin-top:2px;white-space:normal}
+.cb-sum .cb-st-wrap{margin-top:2px}
+.cb-st td{white-space:nowrap}
+.cb-st col.c-st-tot{width:100px}
+.cb-st col.c-st-left{width:112px}
