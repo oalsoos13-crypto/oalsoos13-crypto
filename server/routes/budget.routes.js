@@ -741,7 +741,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const gsum = (sid) => sum(GROUPS.map((g) => gb[`${sid}|${g}`] || 0));
     // 1) Each supplier's total per channel, what the managers gave the supervisors and what is left.
     const given = (sid) => sum(allLn.filter((r) => r.layer === layer && r.supplierId === sid).map((r) => +r.amount || 0));
-    const a1 = [[`${lname} budget — by channel, by supplier — ${month}`], [], ['UDC Supplier', 'Code', ...GROUPS.map((g) => `${GROUP_NAME[g][1]} Channel`), 'Total', 'Given to supervisors', 'Budget left']];
+    const a1 = [[`${lname} budget — by channel, by supplier — ${month}`], [], ['UDC Supplier', 'Code', ...GROUPS.map((g) => `${GROUP_NAME[g][1]} Channel`), 'Total', 'Allocated to supervisors', 'Budget left']];
     sups.forEach((sp) => a1.push([sp.name, sp.code, ...GROUPS.map((g) => gb[`${sp.id}|${g}`] || 0), gsum(sp.id), given(sp.id), gsum(sp.id) - given(sp.id)]));
     a1.push(['Total', '', ...GROUPS.map((g) => sum(sups.map((sp) => gb[`${sp.id}|${g}`] || 0))), sum(sups.map((sp) => gsum(sp.id))), sum(sups.map((sp) => given(sp.id))), sum(sups.map((sp) => gsum(sp.id) - given(sp.id)))]);
     // 2) The managers' split by line, one section per channel and per channel total; brands across.

@@ -611,8 +611,7 @@ const T = {
   cb_byLine: { ar: "توزيع البنود على الأقسام", en: "Lines by channel" },
   cb_byLineHint: { ar: "اكتب لكل مورد توتل كل قناة — البنود تحتها بتنقرا من توزيعة المدراء (سائد وغيره)، وما حدا بيقدر يتخطّى التوتل.", en: "Type each supplier's total per channel — the lines beneath come from the channel managers' distribution, and no one can go over the total." },
   cb_chBudget: { ar: "بتجيت القناة", en: "Channel budget" },
-  cb_distMgr: { ar: "الموزّع على المشرفين", en: "Given to supervisors" },
-  cb_distCoop: { ar: "الموزّع على الجمعيات", en: "Given to co-ops" },
+  cb_distCoop: { ar: "الموزّع على الجمعيات", en: "Allocated to co-ops" },
   cb_leftSplit: { ar: "المتبقي", en: "Remaining" },
   cb_supHint: { ar: "اكتب توتال كل مورد فوق بالبطاقة تبعه أول، بعدين وزّعه على الأقسام بالجدول — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total in its card above first, then split it across the channels in the table — the channels together cannot go over the supplier total." },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
@@ -2459,10 +2458,10 @@ function cbSupTable(L) {
     + `<td class="cb-tot cb-st-tot" id="${q}_t">${KD(bud(sid))}</td><td class="cb-tot" id="${q}_g">${cbFmt(given(sid))}</td><td class="cb-tot cb-st-left" id="${q}_l">${cbLeftFmt(bud(sid) - given(sid))}</td>`;
   const rows = sups.map((sp) => `<tr><td class="cb-st-name" title="${esc(sp.name)}${sp.code ? ` · ${esc(sp.code)}` : ""}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cells(sp.id, `cbSt_${P}${sp.id}`)}</tr>`).join("");
   return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(bud(null))}</div></div>
-    <div class="cb-sum-kv"><span>${t("cb_distMgr")} <b class="mono" id="cbSm_${P}kv_g">${KD(given(null))}</b></span><span>${t("cb_leftLbl")} <b class="mono" id="cbSm_${P}kv_l">${cbLeftFmt(bud(null) - given(null))}</b></span></div></div>
+    <div class="cb-sum-kv"><span>${t("cb_distributed")} <b class="mono" id="cbSm_${P}kv_g">${KD(given(null))}</b></span><span>${t("cb_leftLbl")} <b class="mono" id="cbSm_${P}kv_l">${cbLeftFmt(bud(null) - given(null))}</b></span></div></div>
     <div class="tbl-wrap cb-st-wrap"><table class="cb-sheet cb-st">
     <colgroup><col class="c-lbl">${gks.map(() => "<col>").join("")}<col class="c-tot c-st-tot"><col><col class="c-tot c-st-left"></colgroup>
-    <thead><tr><th class="cb-th-lbl">${t("cb_brand")}</th>${gks.map((g) => `<th>${cbChOf(g)}</th>`).join("")}<th class="cb-st-tot">${t("total")}</th><th>${t("cb_distMgr")}</th><th class="cb-th-split">${t("cb_leftLbl")}</th></tr></thead>
+    <thead><tr><th class="cb-th-lbl">${t("cb_brand")}</th>${gks.map((g) => `<th>${cbChOf(g)}</th>`).join("")}<th class="cb-st-tot">${t("total")}</th><th>${t("cb_distributed")}</th><th class="cb-th-split">${t("cb_leftLbl")}</th></tr></thead>
     <tbody>${rows}<tr class="cb-grand"><td>${t("total")}</td>${cells(null, `cbSt_${P}all`)}</tr></tbody></table></div></div>`;
 }
 function companyLayerPanel(L) {
@@ -2504,12 +2503,12 @@ function companyLayerPanel(L) {
   const leftRow = (sid, cls, label, Q) => `<tr class="${cls}"><td>${label}</td>${cells((col) => { const g = grpOf(col); return g ? { id: `${Q}_${g}`, h: cbLeftFmt(bud(sid, g) - dist(sid, chsOf(col))) } : null; }, { id: `${Q}_t`, h: cbLeftFmt(bud(sid) - dist(sid, allChs)) })}</tr>`;
   const supRows = (sp, ri) => {
     const lines = cbLineRows(types, `se${L}_${sp.id}`).map((rw) => `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${cells((col) => ({ h: cbFmt(dist(sp.id, chsOf(col), rw.bts)) }), { h: cbFmt(dist(sp.id, allChs, rw.bts)) })}</tr>`).join("");
-    const given = `<tr class="cb-ent-tot"><td>${t("cb_distMgr")}</td>${cells((col) => ({ h: cbFmt(dist(sp.id, chsOf(col))) }), { h: cbFmt(dist(sp.id, allChs)) })}</tr>`;
+    const given = `<tr class="cb-ent-tot"><td>${t("cb_distributed")}</td>${cells((col) => ({ h: cbFmt(dist(sp.id, chsOf(col))) }), { h: cbFmt(dist(sp.id, allChs)) })}</tr>`;
     const toCoops = showCoops ? `<tr class="cb-ent-coop"><td>${t("cb_distCoop")}</td>${cells((col) => (chsOf(col).every((c) => CB_GROUPS[0].chs.includes(c)) ? { h: cbFmt(coops(sp.id, chsOf(col))) } : null), { h: cbFmt(coops(sp.id, CB_GROUPS[0].chs)) })}</tr>` : "";
     return `<tr class="cb-ent-sup"><td colspan="${cols.length + 2}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td></tr>${budRow(sp.id, ri)}${lines}${given}${toCoops}${leftRow(sp.id, "cb-ent-left", t("cb_leftLbl"), `cbEL_${P}${sp.id}`)}`;
   };
   const grand = `<tr class="cb-ent-tot cb-ent-all"><td>${t("cb_chBudget")} — ${t("total")}</td>${cells((col) => { const g = grpOf(col); return g ? { id: `cbEGB_${P}${g}`, h: KD(bud(null, g)) } : null; }, { id: `cbEGB_${P}t`, h: KD(bud(null)) })}</tr>
-      <tr class="cb-ent-tot cb-ent-all"><td>${t("cb_distMgr")}</td>${cells((col) => ({ h: KD(dist(null, chsOf(col))) }), { h: KD(dist(null, allChs)) })}</tr>
+      <tr class="cb-ent-tot cb-ent-all"><td>${t("cb_distributed")}</td>${cells((col) => ({ h: KD(dist(null, chsOf(col))) }), { h: KD(dist(null, allChs)) })}</tr>
       ${leftRow(null, "cb-grand", t("cb_leftLbl"), `cbEGL_${P}`)}`;
   const entry = sups.length ? `<div class="tbl-wrap cb-wrap cb-entry-wrap"><table class="cb-sheet cb-entry cb-entry-ln" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
       <colgroup><col class="c-lbl">${cols.map((col) => `<col${col.grp ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot"></colgroup>${cbHead(d.channels, t("cb_brand"), "", `<th rowspan="2" class="cb-th-split">${t("total")}</th>`)}<tbody>
