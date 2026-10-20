@@ -815,6 +815,29 @@ function migrate() {
       db.prepare("INSERT INTO meta(key,value) VALUES('sl_single_amount','1')").run();
     })();
   }
+  // One-off: the budget is typed per channel again (Main / Branches, ECOM / C&G,
+  // Grocery / WS / OOH); a group's total is the sum of its channels. A group
+  // total still equal to the per-channel amounts it was summed from gets them
+  // back; any other is kept as the group's total until its channels are typed.
+  if (!db.prepare("SELECT 1 FROM meta WHERE key='ch_budget_v1'").get()) {
+    db.transaction(() => {
+      const GCH = { coop: ['coop_main', 'coop_branch'], ecg: ['ecg_ecom', 'ecg_cng'], tt: ['tt_grocery', 'tt_ws', 'tt_horeca'] };
+      const ts = new Date().toISOString();
+      const ins = db.prepare(`INSERT INTO channel_group_budget (month, layer, supplier_id, grp, amount, updated_at) VALUES (?,?,?,?,?,?)
+        ON CONFLICT(month, layer, supplier_id, grp) DO UPDATE SET amount=excluded.amount, updated_at=excluded.updated_at`);
+      const del = db.prepare('DELETE FROM channel_group_budget WHERE month=? AND layer=? AND supplier_id=? AND grp=?');
+      db.prepare(`SELECT month, layer, supplier_id, grp, amount FROM channel_group_budget WHERE grp IN ('coop','ecg','tt')`).all().forEach((r) => {
+        const chs = GCH[r.grp];
+        if (!(+r.amount)) { del.run(r.month, r.layer, r.supplier_id, r.grp); return; }
+        const parts = db.prepare(`SELECT channel, amount FROM brand_channel_budget WHERE month=? AND layer=? AND supplier_id=? AND channel IN (${chs.map(() => '?').join(',')})`).all(r.month, r.layer, r.supplier_id, ...chs);
+        const sum = parts.reduce((a, p) => a + (+p.amount || 0), 0);
+        if (!parts.length || Math.abs(sum - (+r.amount || 0)) > 1e-6) return;
+        parts.forEach((p) => { if (+p.amount) ins.run(r.month, r.layer, r.supplier_id, p.channel, +p.amount, ts); });
+        del.run(r.month, r.layer, r.supplier_id, r.grp);
+      });
+      db.prepare("INSERT INTO meta(key,value) VALUES('ch_budget_v1','1')").run();
+    })();
+  }
   // One-off: Rentals is again Pallets + Stands (typed separately). An earlier
   // version briefly kept a single 'rentals' line (Pallets and Stands summed):
   // that amount goes back under Pallets, and letters follow their letter type.

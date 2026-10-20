@@ -1004,3 +1004,8 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 /* The budget table above Lines by channel: the same columns as the sheet below. */
 .cb-sumln td.cb-st-name{font-weight:800;color:#0e2340;font-size:14px;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
 .cb-sumln tbody tr:not(.cb-grand) td.cb-split{font-weight:800;color:#0e2340}
+/* A group total typed before the budget was set per channel. */
+.cb-legacy-mk{color:#b8862a;margin-inline-start:3px}
+.cb-sheet tr.cb-grand .cb-legacy-mk{color:#ffe3a3}
+.cb-legacy-note{margin:8px 2px 0}
+.cb-legacy-note:empty{display:none}
