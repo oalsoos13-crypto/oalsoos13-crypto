@@ -582,18 +582,6 @@ function groupTotals(month) {
   return db.prepare('SELECT layer, supplier_id, grp, amount FROM channel_group_budget WHERE month=?').all(month)
     .map((r) => ({ layer: r.layer, supplierId: r.supplier_id, grp: r.grp, amount: r.amount }));
 }
-// What the supervisors gave the co-ops / outlets, per supplier × co-op channel ×
-// line (all layers; a co-op whose outlets carry any value counts its outlets).
-function coopDistribution(month) {
-  const out = {}, add = (sid, ch, bt, v) => { const k = `${sid}|${ch}|${bt}`; out[k] = (out[k] || 0) + v; };
-  const outRows = db.prepare('SELECT supplier_id, channel, budget_type, coop, amount FROM budget_alloc_outlet WHERE month=? AND supplier_id>0').all(month);
-  const byOutletCoop = new Set(outRows.filter((r) => num(r.amount) !== 0).map((r) => `${r.supplier_id}|${r.channel}|${r.budget_type}|${r.coop}`));
-  outRows.forEach((r) => add(r.supplier_id, r.channel, r.budget_type, num(r.amount)));
-  db.prepare('SELECT supplier_id, channel, budget_type, coop, amount FROM budget_alloc_coop WHERE month=? AND supplier_id>0').all(month).forEach((r) => {
-    if (!byOutletCoop.has(`${r.supplier_id}|${r.channel}|${r.budget_type}|${r.coop}`)) add(r.supplier_id, r.channel, r.budget_type, num(r.amount));
-  });
-  return Object.entries(out).filter(([, v]) => v).map(([k, amount]) => { const [sid, channel, budgetType] = k.split('|'); return { supplierId: +sid, channel, budgetType, amount }; });
-}
 // The managers' splits by line, per channel (co-op: sum over supervisors).
 function channelLines(month) {
   return db.prepare('SELECT layer, supplier_id, channel, budget_type, SUM(amount) s FROM budget_alloc_sup WHERE month=? GROUP BY layer, supplier_id, channel, budget_type').all(month)
@@ -612,8 +600,7 @@ function syncCoopCaps(month, now) {
 }
 
 // GET /api/budget-company?month= — suppliers, channels, layers, the admin's
-// channel totals, the managers' split by line (all layers; rows carry `layer`)
-// and what the supervisors gave the co-ops.
+// channel totals and the managers' split by line (all layers; rows carry `layer`).
 router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const prev = prevMonth(month);
@@ -622,7 +609,7 @@ router.get('/budget-company', requireRole(...MGMT), asyncH((req, res) => {
   res.json({
     month, closed: monthClosed(month), types: CB_TYPES, channels: CHANNELS, groups: GROUP_CHANNELS, managed: Object.keys(CHANNEL_MANAGER),
     suppliers: activeSuppliers(), layers: monthLayers(month), grpTotals: groupTotals(month), lines: channelLines(month),
-    coopDist: coopDistribution(month), prevMonth: prev, prevCounts,
+    prevMonth: prev, prevCounts,
   });
 }));
 
@@ -741,11 +728,11 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     const ln = {}; allLn.filter((r) => r.layer === layer).forEach((r) => { ln[`${r.supplierId}|${r.budgetType}|${r.channel}`] = +r.amount || 0; });
     const gb = {}; allG.filter((r) => r.layer === layer).forEach((r) => { gb[`${r.supplierId}|${r.grp}`] = +r.amount || 0; });
     const gsum = (sid) => sum(GROUPS.map((g) => gb[`${sid}|${g}`] || 0));
-    // 1) Each supplier's total per channel, what the managers gave the supervisors and what is left.
-    const given = (sid) => sum(allLn.filter((r) => r.layer === layer && r.supplierId === sid).map((r) => +r.amount || 0));
-    const a1 = [[`${lname} budget — by channel, by supplier — ${month}`], [], ['UDC Supplier', 'Code', ...GROUPS.map((g) => `${GROUP_NAME[g][1]} Channel`), 'Total', 'Allocated to supervisors', 'Budget left']];
-    sups.forEach((sp) => a1.push([sp.name, sp.code, ...GROUPS.map((g) => gb[`${sp.id}|${g}`] || 0), gsum(sp.id), given(sp.id), gsum(sp.id) - given(sp.id)]));
-    a1.push(['Total', '', ...GROUPS.map((g) => sum(sups.map((sp) => gb[`${sp.id}|${g}`] || 0))), sum(sups.map((sp) => gsum(sp.id))), sum(sups.map((sp) => given(sp.id))), sum(sups.map((sp) => gsum(sp.id) - given(sp.id)))]);
+    // 1) Each supplier's total per channel and what is left of it.
+    const used = (sid) => sum(allLn.filter((r) => r.layer === layer && r.supplierId === sid).map((r) => +r.amount || 0));
+    const a1 = [[`${lname} budget — by channel, by supplier — ${month}`], [], ['UDC Supplier', 'Code', ...GROUPS.map((g) => `${GROUP_NAME[g][1]} Channel`), 'Total', 'Budget left']];
+    sups.forEach((sp) => a1.push([sp.name, sp.code, ...GROUPS.map((g) => gb[`${sp.id}|${g}`] || 0), gsum(sp.id), gsum(sp.id) - used(sp.id)]));
+    a1.push(['Total', '', ...GROUPS.map((g) => sum(sups.map((sp) => gb[`${sp.id}|${g}`] || 0))), sum(sups.map((sp) => gsum(sp.id))), sum(sups.map((sp) => gsum(sp.id) - used(sp.id)))]);
     // 2) The managers' split by line, one section per channel and per channel total; brands across.
     const bh = ['Channel', 'Line', ...sups.map((sp) => sp.name + (sp.code ? ` (${sp.code})` : '')), 'Total'];
     const a2 = [[`${lname} budget — split by line, by channel (from the channel managers) — ${month}`], [], bh];
@@ -756,7 +743,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
       const L = (sid, bt) => sum(chs.map((ch) => ln[`${sid}|${bt}|${ch}`] || 0));
       // Trade Budget and Rentals = the sums of their lines, listed beneath them.
       LINE_ROWS.forEach(([lbl, bts]) => rowOf(label, lbl, (sid) => sum(bts.map((bt) => L(sid, bt)))));
-      rowOf(label, 'Allocated to supervisors', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
+      rowOf(label, 'Total', (sid) => sum(CB_TYPES.map((bt) => L(sid, bt))));
       // The channel total the admin gave (per channel, not per sub-channel).
       if (GROUPS.includes(name)) {
         rowOf(label, 'Total budget', (sid) => gb[`${sid}|${name}`] || 0);
