@@ -641,7 +641,9 @@ router.post('/budget-company', requireRole(), asyncH((req, res) => {
     return cells.map((c) => {
       const ch = String(c.channel || ''), layer = layerOf(c.layer);
       assertLayer(month, layer);
-      if (!GROUPS.includes(ch)) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
+      // A cell with a line is from an older page (a line's channel share), not a
+      // channel total: refuse it so it cannot overwrite the total (e.g. 'ka').
+      if (!GROUPS.includes(ch) || c.budgetType) throw badRequest('قناة غير صحيحة | Invalid channel', 'BAD_CHANNEL');
       const sp = db.prepare('SELECT id, name FROM company_suppliers WHERE id=? AND active=1').get(Number(c.supplierId));
       if (!sp) throw badRequest('المورد غير موجود | Supplier not found', 'BAD_SUPPLIER');
       const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
