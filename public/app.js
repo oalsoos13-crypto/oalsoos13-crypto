@@ -613,8 +613,6 @@ const T = {
   cb_chBudget: { ar: "بتجيت القناة", en: "Channel budget" },
   cb_distMgr: { ar: "الموزّع على المشرفين", en: "Given to supervisors" },
   cb_distCoop: { ar: "الموزّع على الجمعيات", en: "Given to co-ops" },
-  cb_legacyShort: { ar: "توتال قبل البنود", en: "Total typed before the lines" },
-  cb_legacy: { ar: "مدخل قبل التقسيم حسب البند — لما تكتب البنود بيصير التوتل مجموعها", en: "Entered before the split by line — once you type the lines, the total becomes their sum" },
   cb_leftSplit: { ar: "المتبقي", en: "Remaining" },
   cb_supHint: { ar: "اكتب توتال كل مورد فوق بالبطاقة تبعه أول، بعدين وزّعه على الأقسام بالجدول — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total in its card above first, then split it across the channels in the table — the channels together cannot go over the supplier total." },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
@@ -2424,13 +2422,6 @@ function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbDa
 // The admin's total per channel (group: coop / ka / ecg / tt) for each supplier.
 function cbGrp(L, f) { return (cbData.grpTotals || []).filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbLn(L, f) { return cbData.lines.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
-// A supplier's total (its lines' sum, or a total typed before the split by line).
-function cbSup(L, sid) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
-// The supplier total is always UDC + Supplier (0 until typed).
-function cbEff(L, sid) { return cbSup(L, sid) || 0; }
-function cbEffAll(L) { return cbData.suppliers.reduce((a, sp) => a + cbEff(L, sp.id), 0); }
-// What is left of a supplier's total to give the channels (null = no total yet).
-function cbLeftSplit(L, sid) { const v = cbSup(L, sid); return v == null ? null : v - cbGrp(L, (x) => x.supplierId === sid); }
 function cbLeftFmt(v) { return v == null ? `<span class="cb-zero">–</span>` : `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">0</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`; }
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
 // Channel groups: Coop (Main · Branch · Coop total), KA, Online, TT (Grocery · WS ·
@@ -2457,46 +2448,22 @@ function companyPanel() {
   const combined = layers.length > 1 ? companyLayerPanel("all") : "";
   return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + combined;
 }
-// Each supplier's budget by line (supLines: a line's amount is kept in `udc`;
-// `sup` is the Supplier part of the earlier UDC / Supplier split, now 0). Once
-// a supplier has lines, its total (supTotals) is their sum — kept in step here
-// as on the server; a total typed before the lines stays as it was.
-const cbSLsum = (L, f) => (cbData.supLines || []).filter(lyF(L, f)).reduce((a, r) => a + (+r.udc || 0) + (+r.sup || 0), 0);
-function cbSL(L, sid, bt) { return (cbData.supLines || []).find((x) => (x.layer || 0) === L && x.supplierId === sid && x.budgetType === bt); }
-const cbHasSL = (L, sid) => (cbData.supLines || []).some(lyF(L, (x) => x.supplierId === sid));
-function cbDerive(L, sid) {
-  const own = (x) => (x.layer || 0) === L && x.supplierId === sid;
-  const rs = (cbData.supLines || []).filter(own), v = rs.reduce((a, r) => a + (+r.udc || 0) + (+r.sup || 0), 0);
-  cbData.supTotals = (cbData.supTotals || []).filter((x) => !own(x));
-  if (rs.length) cbData.supTotals.push({ layer: L, supplierId: sid, amount: Math.round(v * 1000) / 1000 });
-}
-// The budget table: one row per supplier (its amount per line, typed
-// bottom-up), the Total row beneath; the lines run across, Trade Budget and
-// Rentals before their lines (their sums), then each supplier's total and
-// what is left of it to split across the channels.
-function cbSupTable(L, ed) {
-  const P = `${L}_`, sups = cbData.suppliers, ro = L === "all";
-  const cols = cbLineRows(cbData.types, "sum").map((rw) => ({ k: rw.sub || rw.bt, bt: rw.bt, sub: rw.sub, bts: rw.bts, cls: rw.sub ? (rw.sub === "trade" ? "sub" : "sub2") : "", label: rw.sub ? t(rw.sub === "trade" ? "bt_trade" : "bt_rentals") : budgetTypeLabel(rw.bt) }));
-  const act = new Set(sups.map((sp) => sp.id)), v = (f, bts) => cbSLsum(L, (x) => f(x) && bts.includes(x.budgetType));
-  const left = sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null;
-  const rows = sups.map((sp, ri) => {
-    let ci = 0;
-    const own = (x) => x.supplierId === sp.id;
-    const cells = cols.map((c) => {
-      if (c.sub || ro) return `<td class="cb-tot ${c.cls}" id="cbSv_${P}${sp.id}_${c.k}">${cbFmt(v(own, c.bts))}</td>`;
-      const row = cbSL(L, sp.id, c.bt), val = row ? (+row.udc || 0) + (+row.sup || 0) : 0;
-      return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="amount" data-b="${c.bt}" data-r="${ri}" data-col="${ci++}" value="${val || ""}" placeholder="0" ${ed ? "" : "disabled"}></td>`;
-    }).join("");
-    const legacy = !ro && cbSup(L, sp.id) != null && !cbHasSL(L, sp.id) ? `<span class="cb-legacy-s" title="${esc(t("cb_legacy"))}">${t("cb_legacyShort")}</span>` : "";
-    return `<tr><td class="cb-st-name">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}<span id="cbLg_${P}${sp.id}">${legacy}</span></td>${cells}<td class="cb-tot cb-st-tot" id="cbKt_${P}${sp.id}">${KD(cbEff(L, sp.id))}</td><td class="cb-tot cb-st-left" id="cbKs_${P}${sp.id}">${cbLeftFmt(cbLeftSplit(L, sp.id))}</td></tr>`;
-  }).join("");
-  const tot = `<tr class="cb-grand"><td>${t("total")}</td>${cols.map((c) => `<td class="${c.cls}" id="cbSm_${P}${c.k}">${cbFmt(v((x) => act.has(x.supplierId), c.bts))}</td>`).join("")}<td id="cbSm_${P}all">${KD(cbEffAll(L))}</td><td id="cbSm_${P}left">${cbLeftFmt(left)}</td></tr>`;
-  return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
-    <div class="cb-sum-kv"><span>${t("cb_leftSplit")} <b class="mono" id="cbSm_${P}kv_left">${cbLeftFmt(left)}</b></span></div></div>
-    <div class="tbl-wrap cb-st-wrap"><table class="cb-sheet cb-st" data-kind="company" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)">
-    <colgroup><col class="c-lbl">${cols.map((c) => `<col${c.sub ? ' class="c-tot"' : ""}>`).join("")}<col class="c-tot c-st-tot"><col class="c-tot c-st-left"></colgroup>
-    <thead><tr><th class="cb-th-lbl">${t("cb_brand")}</th>${cols.map((c) => `<th class="${c.cls}">${c.label}</th>`).join("")}<th class="cb-st-tot">${t("total")}</th><th class="cb-th-split">${t("cb_leftSplit")}</th></tr></thead>
-    <tbody>${rows}${tot}</tbody></table></div></div>`;
+// The budget by channel, by supplier (read-only): each supplier's total per
+// channel as typed in Lines by channel below, what the channel managers gave
+// the supervisors, and what is left.
+function cbSupTable(L) {
+  const P = `${L}_`, sups = cbData.suppliers, gks = CB_GROUPS.map((g) => g.k);
+  const act = new Set(sups.map((sp) => sp.id)), own = (sid) => (x) => (sid == null ? act.has(x.supplierId) : x.supplierId === sid);
+  const bud = (sid, g) => cbGrp(L, (x) => own(sid)(x) && (!g || x.grp === g)), given = (sid) => cbLn(L, own(sid));
+  const cells = (sid, q) => gks.map((g) => `<td class="cb-tot" id="${q}_${g}">${cbFmt(bud(sid, g))}</td>`).join("")
+    + `<td class="cb-tot cb-st-tot" id="${q}_t">${KD(bud(sid))}</td><td class="cb-tot" id="${q}_g">${cbFmt(given(sid))}</td><td class="cb-tot cb-st-left" id="${q}_l">${cbLeftFmt(bud(sid) - given(sid))}</td>`;
+  const rows = sups.map((sp) => `<tr><td class="cb-st-name" title="${esc(sp.name)}${sp.code ? ` · ${esc(sp.code)}` : ""}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cells(sp.id, `cbSt_${P}${sp.id}`)}</tr>`).join("");
+  return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(bud(null))}</div></div>
+    <div class="cb-sum-kv"><span>${t("cb_distMgr")} <b class="mono" id="cbSm_${P}kv_g">${KD(given(null))}</b></span><span>${t("cb_leftLbl")} <b class="mono" id="cbSm_${P}kv_l">${cbLeftFmt(bud(null) - given(null))}</b></span></div></div>
+    <div class="tbl-wrap cb-st-wrap"><table class="cb-sheet cb-st">
+    <colgroup><col class="c-lbl">${gks.map(() => "<col>").join("")}<col class="c-tot c-st-tot"><col><col class="c-tot c-st-left"></colgroup>
+    <thead><tr><th class="cb-th-lbl">${t("cb_brand")}</th>${gks.map((g) => `<th>${cbChOf(g)}</th>`).join("")}<th class="cb-st-tot">${t("total")}</th><th>${t("cb_distMgr")}</th><th class="cb-th-split">${t("cb_leftLbl")}</th></tr></thead>
+    <tbody>${rows}<tr class="cb-grand"><td>${t("total")}</td>${cells(null, `cbSt_${P}all`)}</tr></tbody></table></div></div>`;
 }
 function companyLayerPanel(L) {
   const d = cbData, combined = L === "all", ed = !combined && cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin" && !combined, types = d.types;
@@ -2505,8 +2472,8 @@ function companyLayerPanel(L) {
       ${ed && prevN ? `<button class="btn ghost sm" onclick="cbCopyPrev(${L})">⧉ ${t("cb_copy")} <bdi dir="ltr">${esc(d.prevMonth)}</bdi></button>` : ""}
       ${L ? (ed ? `<button class="btn danger sm" onclick="cbRemoveExtra(${L})">🗑 ${t("cb_removeExtra")}</button>` : "") : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button><button class="btn ghost sm" onclick="cbOpenSuppliers()">${t("cb_suppliers")}</button>`}</div>`
     : (L ? "" : `<button class="btn ghost sm" onclick="cbExcel()">⬇ Excel</button>`);
-  // 1) The budget table: the suppliers' lines (typed bottom-up) and their Total.
-  const kpis = sups.length ? cbSupTable(L, ed) : "";
+  // 1) The budget by channel, by supplier (read-only).
+  const kpis = sups.length ? cbSupTable(L) : "";
   // 2) Lines by channel: the admin types each supplier's total per channel; the
   // lines beneath are the channel managers' split of it (read-only), then what
   // they gave the supervisors, what the supervisors gave the co-ops, and what is left.
@@ -2576,29 +2543,14 @@ async function cbRemoveExtra(L) {
 // kind's adapter knows how to read, save and re-total its cells.
 const SHEETS = {
   company: {
-    // A cell is a line's amount (c = "amount", b = the line) or a channel total (c = coop / ka / ecg / tt).
-    amt: (el) => { const L = +el.dataset.l || 0, sid = +el.dataset.s, c = el.dataset.c, bt = el.dataset.b; if (c === "amount") { const r = cbSL(L, sid, bt), v = r ? (+r.udc || 0) + (+r.sup || 0) : 0; return v || null; } const g = (cbData.grpTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid && x.grp === c); return g ? +g.amount : null; },
-    cell: (el, v) => ({ layer: +el.dataset.l || 0, supplierId: +el.dataset.s, channel: el.dataset.c, budgetType: el.dataset.b || null, amount: v }),
+    // A cell is a supplier's total for a channel (c = coop / ka / ecg / tt).
+    amt: (el) => { const L = +el.dataset.l || 0, sid = +el.dataset.s, c = el.dataset.c; const g = (cbData.grpTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid && x.grp === c); return g ? +g.amount : null; },
+    cell: (el, v) => ({ layer: +el.dataset.l || 0, supplierId: +el.dataset.s, channel: el.dataset.c, amount: v }),
     post: (cells) => api("/budget-company", { method: "POST", body: { month: cbData.month, cells } }),
-    apply: (cells) => {
-      const touched = new Map();
-      cells.forEach((c) => {
-        const sup = (x) => (x.layer || 0) === c.layer && x.supplierId === c.supplierId;
-        if (c.channel === "amount") {
-          const k = `${c.layer}|${c.supplierId}`;
-          if (!touched.has(k)) touched.set(k, { L: c.layer, sid: c.supplierId, had: (cbData.supLines || []).some(sup) });
-          const arr = cbData.supLines || (cbData.supLines = []);
-          let row = arr.find((x) => sup(x) && x.budgetType === c.budgetType); if (!row) { row = { layer: c.layer, supplierId: c.supplierId, budgetType: c.budgetType, udc: 0, sup: 0 }; arr.push(row); }
-          row.udc = c.amount === "" ? 0 : +c.amount; row.sup = 0;
-          if (!+row.udc) cbData.supLines = arr.filter((r) => r !== row);
-        } else {
-          cbData.grpTotals = (cbData.grpTotals || []).filter((x) => !(sup(x) && x.grp === c.channel));
-          if (c.amount !== "") cbData.grpTotals.push({ layer: c.layer, supplierId: c.supplierId, grp: c.channel, amount: +c.amount });
-        }
-      });
-      // As on the server: the total follows the lines only for a supplier budgeted by line.
-      touched.forEach((x) => { if (x.had || (cbData.supLines || []).some((r) => (r.layer || 0) === x.L && r.supplierId === x.sid)) cbDerive(x.L, x.sid); });
-    },
+    apply: (cells) => cells.forEach((c) => {
+      cbData.grpTotals = (cbData.grpTotals || []).filter((x) => !((x.layer || 0) === c.layer && x.supplierId === c.supplierId && x.grp === c.channel));
+      if (c.amount !== "") cbData.grpTotals.push({ layer: c.layer, supplierId: c.supplierId, grp: c.channel, amount: +c.amount });
+    }),
     refresh: (cells) => cbRefresh(cells[0].layer),
   },
   alloc: {

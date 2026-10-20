@@ -943,7 +943,8 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
    sticks (so its rows never overlap); the label header also sticks sideways. */
 .panel .cb-sheet thead{position:sticky;top:0;z-index:5}
 .panel .cb-sheet thead th{position:static}
-.panel .cb-sheet.cb-ln thead th.cb-th-lbl,.panel .cb-sheet.cb-entry thead th.cb-th-lbl{position:sticky;inset-inline-start:0;z-index:6}
+.panel .cb-sheet.cb-ln thead th.cb-th-lbl,.panel .cb-sheet.cb-entry thead th.cb-th-lbl,.panel .cb-sheet.cb-st thead th.cb-th-lbl{position:sticky;inset-inline-start:0;z-index:6}
+.panel .cb-sheet.cb-st thead th.cb-th-lbl{background:#eef4fb}
 .cb-entry-wrap{max-height:78vh;border:1px solid #e3ebf5;border-radius:10px}
 .cb-entry-wrap tr.cb-ent-sup td{position:sticky;top:var(--thh,78px);z-index:4}
 /* One amount per line: the card is label | amount; the band is one row of line totals */
@@ -957,8 +958,8 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-sumt tr.tot td{border-top:0}
 /* ---- Budget table: a row per supplier, the lines across, Total beneath ---- */
 .cb-st-wrap{border:1px solid #e3ebf5;border-radius:10px}
-.cb-sheet.cb-st{table-layout:fixed;width:100%;min-width:1040px}
-.cb-st col.c-lbl{width:150px}
+.cb-sheet.cb-st{table-layout:fixed;width:100%;min-width:760px}
+.cb-st col.c-lbl{width:190px}
 .cb-st thead th{font-size:11.5px;line-height:1.25;white-space:normal;vertical-align:bottom;text-align:end;padding:8px 6px}
 .cb-st thead th.cb-th-lbl{text-align:start;vertical-align:middle}
 .cb-st thead th.sub{background:#f1e2b0!important;color:#6b4e0e}
@@ -978,6 +979,8 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-legacy-s{display:block;font-size:10.5px;font-weight:600;color:#b8862a;margin-top:2px;white-space:normal}
 .cb-sum .cb-st-wrap{margin-top:2px}
 .cb-st td{white-space:nowrap}
+.cb-st td.cb-st-name{white-space:normal;overflow-wrap:anywhere}
+.panel table.cb-st{display:table;width:100%;max-width:none;overflow:visible}
 .cb-st col.c-st-tot{width:100px}
 .cb-st col.c-st-left{width:112px}
 /* Lines by channel: the channel budget row (typed), the managers' lines, then given / left */
