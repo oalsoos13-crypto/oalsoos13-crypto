@@ -785,6 +785,15 @@ function migrate() {
       db.prepare("INSERT INTO meta(key,value) VALUES('bt_trade_lines','1')").run();
     })();
   }
+  // One-off: a supplier line is one amount — the UDC / Supplier split is gone;
+  // its two parts are added up (kept in udc, sup = 0), likewise the totals.
+  if (!db.prepare("SELECT 1 FROM meta WHERE key='sl_single_amount'").get()) {
+    db.transaction(() => {
+      db.exec('UPDATE supplier_line_budget SET udc = udc + sup, sup = 0 WHERE sup <> 0');
+      db.exec('UPDATE supplier_budget SET mdf_in = amount, mdf_out = 0 WHERE mdf_out <> 0');
+      db.prepare("INSERT INTO meta(key,value) VALUES('sl_single_amount','1')").run();
+    })();
+  }
   // One-off: Rentals is again Pallets + Stands (typed separately). An earlier
   // version briefly kept a single 'rentals' line (Pallets and Stands summed):
   // that amount goes back under Pallets, and letters follow their letter type.

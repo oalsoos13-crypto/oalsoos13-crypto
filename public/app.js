@@ -610,8 +610,6 @@ const T = {
   cb_supTotal: { ar: "الإجمالي", en: "Total" },
   cb_byLine: { ar: "توزيع البنود على الأقسام", en: "Lines by channel" },
   cb_legacy: { ar: "مدخل قبل التقسيم حسب البند — لما تكتب البنود بيصير التوتل مجموعها", en: "Entered before the split by line — once you type the lines, the total becomes their sum" },
-  cb_mdfIn: { ar: "UDC", en: "UDC" },
-  cb_mdfOut: { ar: "Supplier", en: "Supplier" },
   cb_leftSplit: { ar: "المتبقي", en: "Remaining" },
   cb_supHint: { ar: "اكتب توتال كل مورد فوق بالبطاقة تبعه أول، بعدين وزّعه على الأقسام بالجدول — مجموع الأقسام ما بيقدر يتجاوز توتال المورد.", en: "Type each supplier's total in its card above first, then split it across the channels in the table — the channels together cannot go over the supplier total." },
   cb_suppliers: { ar: "الموردين", en: "Suppliers" },
@@ -2428,14 +2426,11 @@ function cbEditable() { return !!cbData && currentUser.role === "admin" && !cbDa
 function cbAmt(L, sid, ch) { if (L === "all") { const rs = cbData.totals.filter((x) => x.supplierId === sid && x.channel === ch); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = cbData.totals.find((x) => (x.layer || 0) === L && x.supplierId === sid && x.channel === ch); return r ? +r.amount : null; }
 function cbTot(L, f) { return cbData.totals.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
 function cbLn(L, f) { return cbData.lines.filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0); }
-// Supplier total and its UDC / Supplier parts (the lines' sums, or a total
-// typed before the split by line).
-function cbMdf(L, sid, which) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.reduce((a, r) => a + (+r[which] || 0), 0); } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r[which] || 0 : 0; }
+// A supplier's total (its lines' sum, or a total typed before the split by line).
 function cbSup(L, sid) { if (L === "all") { const rs = (cbData.supTotals || []).filter((x) => x.supplierId === sid); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; } const r = (cbData.supTotals || []).find((x) => (x.layer || 0) === L && x.supplierId === sid); return r ? +r.amount : null; }
 // The supplier total is always UDC + Supplier (0 until typed).
 function cbEff(L, sid) { return cbSup(L, sid) || 0; }
 function cbEffAll(L) { return cbData.suppliers.reduce((a, sp) => a + cbEff(L, sp.id), 0); }
-function cbMdfAll(L, which) { return cbData.suppliers.reduce((a, sp) => a + cbMdf(L, sp.id, which), 0); }
 function cbLeftSplit(L, sid) { const v = cbSup(L, sid); return v == null ? null : v - cbTot(L, (x) => x.supplierId === sid); }
 function cbLeftFmt(v) { return v == null ? `<span class="cb-zero">–</span>` : `<span style="${v < -1e-9 ? "color:var(--danger)" : ""}">${v ? KD(v) : `<span class="cb-zero">0</span>`}${v < -1e-9 ? " ⚠" : ""}</span>`; }
 function cbFmt(v) { return v ? KD(v) : `<span class="cb-zero">–</span>`; }
@@ -2463,11 +2458,12 @@ function companyPanel() {
   const combined = layers.length > 1 ? companyLayerPanel("all") : "";
   return layers.map(({ layer }) => companyLayerPanel(layer)).join("") + combined;
 }
-// Each supplier's budget by line: UDC / Supplier per line (supLines) and each
-// line's split by channel (chLines). Once a supplier has lines, its total and
-// channel totals (supTotals / totals) are their sums — kept in step here as on
-// the server; totals typed before the split by line stay as they were.
-const cbSLsum = (L, f, k) => (cbData.supLines || []).filter(lyF(L, f)).reduce((a, r) => a + (k ? +r[k] || 0 : (+r.udc || 0) + (+r.sup || 0)), 0);
+// Each supplier's budget by line (supLines: a line's amount is kept in `udc`;
+// `sup` is the Supplier part of the earlier UDC / Supplier split, now 0) and
+// each line's split by channel (chLines). Once a supplier has lines, its total
+// and channel totals (supTotals / totals) are their sums — kept in step here as
+// on the server; totals typed before the split by line stay as they were.
+const cbSLsum = (L, f) => (cbData.supLines || []).filter(lyF(L, f)).reduce((a, r) => a + (+r.udc || 0) + (+r.sup || 0), 0);
 const cbCLsum = (L, f) => (cbData.chLines || []).filter(lyF(L, f)).reduce((a, r) => a + (+r.amount || 0), 0);
 function cbSL(L, sid, bt) { return (cbData.supLines || []).find((x) => (x.layer || 0) === L && x.supplierId === sid && x.budgetType === bt); }
 function cbCL(L, sid, ch, bt) { const f = (x) => x.supplierId === sid && x.channel === ch && x.budgetType === bt; const rs = (cbData.chLines || []).filter(lyF(L, f)); return rs.length ? rs.reduce((a, r) => a + (+r.amount || 0), 0) : null; }
@@ -2475,50 +2471,40 @@ const cbHasSL = (L, sid) => (cbData.supLines || []).some(lyF(L, (x) => x.supplie
 function cbDerive(L, sid, sup, ch) {
   const own = (x) => (x.layer || 0) === L && x.supplierId === sid, r3 = (v) => Math.round(v * 1000) / 1000;
   if (sup) {
-    const rs = (cbData.supLines || []).filter(own), u = rs.reduce((a, r) => a + (+r.udc || 0), 0), s2 = rs.reduce((a, r) => a + (+r.sup || 0), 0);
+    const rs = (cbData.supLines || []).filter(own), v = rs.reduce((a, r) => a + (+r.udc || 0) + (+r.sup || 0), 0);
     cbData.supTotals = (cbData.supTotals || []).filter((x) => !own(x));
-    if (rs.length) cbData.supTotals.push({ layer: L, supplierId: sid, amount: r3(u + s2), mdfIn: u, mdfOut: s2 });
+    if (rs.length) cbData.supTotals.push({ layer: L, supplierId: sid, amount: r3(v) });
   }
   if (ch) {
     const by = {}; (cbData.chLines || []).filter(own).forEach((r) => { by[r.channel] = (by[r.channel] || 0) + (+r.amount || 0); });
     cbData.totals = cbData.totals.filter((x) => !own(x)).concat(Object.entries(by).map(([c, v]) => ({ layer: L, supplierId: sid, channel: c, amount: r3(v) })));
   }
 }
-// A supplier card's grid: the lines × UDC / Supplier / Total, Trade Budget and
-// Rentals summing their lines, the supplier total at the foot.
+// A supplier card's grid: each line and its amount, Trade Budget and Rentals
+// summing their lines (the supplier total sits in the card's header).
 function cbCardGrid(L, sid, ed) {
   const ro = L === "all", P = `${L}_`;
   const f = (bts) => (x) => x.supplierId === sid && bts.includes(x.budgetType);
-  const id = (k1, k) => `cbCg_${P}${sid}_${k1}_${k}`;
+  const id = (k1) => `cbCg_${P}${sid}_${k1}`;
   let ri = 0;
-  const part = (bt, k, r) => {
-    if (ro) return `<td class="cb-cg-v" id="${id(bt, k)}">${cbFmt(cbSLsum(L, f([bt]), k))}</td>`;
-    const row = cbSL(L, sid, bt), v = row && +row[k] ? +row[k] : "";
-    return `<td><input class="cb-in cb-cgin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sid}" data-c="${k}" data-b="${bt}" data-r="${r}" data-col="${k === "sup" ? 1 : 0}" value="${v}" placeholder="0" ${ed ? "" : "disabled"}></td>`;
-  };
   const rows = cbLineRows(cbData.types, `sc${L}_${sid}`).map((rw) => {
-    const k1 = rw.sub || rw.bt, tot = `<td class="cb-cg-t" id="${id(k1, "t")}">${cbFmt(cbSLsum(L, f(rw.bts)))}</td>`;
-    if (rw.sub) return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${["udc", "sup"].map((k) => `<td class="cb-cg-v" id="${id(k1, k)}">${cbFmt(cbSLsum(L, f(rw.bts), k))}</td>`).join("")}${tot}</tr>`;
-    const r = ri++;
-    return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw, "cb-cg-l")}${part(rw.bt, "udc", r)}${part(rw.bt, "sup", r)}${tot}</tr>`;
+    if (rw.sub || ro) return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw, "cb-cg-l")}<td class="cb-cg-t" id="${id(rw.sub || rw.bt)}">${cbFmt(cbSLsum(L, f(rw.bts)))}</td></tr>`;
+    const row = cbSL(L, sid, rw.bt), v = row ? (+row.udc || 0) + (+row.sup || 0) : 0, r = ri++;
+    return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw, "cb-cg-l")}<td><input class="cb-in cb-cgin" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sid}" data-c="amount" data-b="${rw.bt}" data-r="${r}" data-col="0" value="${v || ""}" placeholder="0" ${ed ? "" : "disabled"}></td></tr>`;
   }).join("");
-  const T = [cbMdf(L, sid, "mdfIn"), cbMdf(L, sid, "mdfOut"), cbEff(L, sid)];
-  const foot = `<tr class="cb-cg-tot"><td>${t("cb_supTotal")}</td>${["udc", "sup", "t"].map((k, i) => `<td id="${id("T", k)}">${KD(T[i])}</td>`).join("")}</tr>`;
-  return `<table class="cb-cg" data-kind="company"><colgroup><col class="cg-l"><col class="cg-n"><col class="cg-n"><col class="cg-t"></colgroup><thead><tr><th></th><th>${t("cb_mdfIn")}</th><th>${t("cb_mdfOut")}</th><th>${t("total")}</th></tr></thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
+  return `<table class="cb-cg" data-kind="company"><colgroup><col class="cg-l"><col class="cg-a"></colgroup><tbody>${rows}</tbody></table>`;
 }
-// Total Company: one band across the page — the total, its UDC / Supplier
-// parts and what is left to split, then every line across (UDC / Supplier / Total).
+// Total: one band across the page — the total and what is left to split, then
+// every line across.
 function cbSummary(L) {
   const P = `${L}_`, sups = cbData.suppliers;
   const cols = cbLineRows(cbData.types, "sum").map((rw) => ({ k: rw.sub || rw.bt, bts: rw.bts, cls: rw.sub ? (rw.sub === "trade" ? "sub" : "sub2") : "", label: rw.sub ? t(rw.sub === "trade" ? "bt_trade" : "bt_rentals") : budgetTypeLabel(rw.bt) }));
-  const act = new Set(sups.map((sp) => sp.id)), v = (bts, k) => cbSLsum(L, (x) => act.has(x.supplierId) && bts.includes(x.budgetType), k);
-  const tot = { udc: cbMdfAll(L, "mdfIn"), sup: cbMdfAll(L, "mdfOut"), t: cbEffAll(L) };
+  const act = new Set(sups.map((sp) => sp.id)), v = (bts) => cbSLsum(L, (x) => act.has(x.supplierId) && bts.includes(x.budgetType));
   const left = sups.some((sp) => cbSup(L, sp.id) != null) ? sups.reduce((a, sp) => a + (cbLeftSplit(L, sp.id) || 0), 0) : null;
-  const row = (k, label, cls = "") => `<tr${cls ? ` class="${cls}"` : ""}><td>${label}</td>${cols.map((c) => `<td class="${c.cls}" id="cbSm_${P}${c.k}_${k}">${cbFmt(v(c.bts, k === "t" ? null : k))}</td>`).join("")}<td class="all" id="cbSm_${P}all_${k}">${KD(tot[k])}</td></tr>`;
-  return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(tot.t)}</div></div>
-    <div class="cb-sum-kv"><span>${t("cb_mdfIn")} <b class="mono" id="cbSm_${P}kv_udc">${KD(tot.udc)}</b></span><span>${t("cb_mdfOut")} <b class="mono" id="cbSm_${P}kv_sup">${KD(tot.sup)}</b></span><span>${t("cb_leftSplit")} <b class="mono" id="cbSm_${P}kv_left">${cbLeftFmt(left)}</b></span></div></div>
-    <div class="cb-sum-wrap"><table class="cb-sumt"><thead><tr><th></th>${cols.map((c) => `<th class="${c.cls}">${c.label}</th>`).join("")}<th class="all">${t("total")}</th></tr></thead>
-    <tbody>${row("udc", t("cb_mdfIn"))}${row("sup", t("cb_mdfOut"))}${row("t", t("total"), "tot")}</tbody></table></div></div>`;
+  return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(cbEffAll(L))}</div></div>
+    <div class="cb-sum-kv"><span>${t("cb_leftSplit")} <b class="mono" id="cbSm_${P}kv_left">${cbLeftFmt(left)}</b></span></div></div>
+    <div class="cb-sum-wrap"><table class="cb-sumt"><thead><tr>${cols.map((c) => `<th class="${c.cls}">${c.label}</th>`).join("")}<th class="all">${t("total")}</th></tr></thead>
+    <tbody><tr class="tot">${cols.map((c) => `<td class="${c.cls}" id="cbSm_${P}${c.k}">${cbFmt(v(c.bts))}</td>`).join("")}<td class="all" id="cbSm_${P}all">${KD(cbEffAll(L))}</td></tr></tbody></table></div></div>`;
 }
 function companyLayerPanel(L) {
   const d = cbData, combined = L === "all", ed = !combined && cbEditable(), sups = d.suppliers, cols = cbCols(d.channels), P = `${L}_`, isAdmin = currentUser.role === "admin" && !combined, types = d.types;
@@ -2637,21 +2623,21 @@ async function cbRemoveExtra(L) {
 // kind's adapter knows how to read, save and re-total its cells.
 const SHEETS = {
   company: {
-    amt: (el) => { const L = +el.dataset.l || 0, sid = +el.dataset.s, c = el.dataset.c, bt = el.dataset.b; if (c === "udc" || c === "sup") { const r = cbSL(L, sid, bt); return r && +r[c] ? +r[c] : null; } return cbCL(L, sid, c, bt); },
+    amt: (el) => { const L = +el.dataset.l || 0, sid = +el.dataset.s, c = el.dataset.c, bt = el.dataset.b; if (c === "amount") { const r = cbSL(L, sid, bt), v = r ? (+r.udc || 0) + (+r.sup || 0) : 0; return v || null; } return cbCL(L, sid, c, bt); },
     cell: (el, v) => ({ layer: +el.dataset.l || 0, supplierId: +el.dataset.s, channel: el.dataset.c, budgetType: el.dataset.b, amount: v }),
     post: (cells) => api("/budget-company", { method: "POST", body: { month: cbData.month, cells } }),
     apply: (cells) => {
       const touched = new Map();
       cells.forEach((c) => {
         const own = (x) => (x.layer || 0) === c.layer && x.supplierId === c.supplierId && x.budgetType === c.budgetType;
-        const part = c.channel === "udc" || c.channel === "sup", k = `${c.layer}|${c.supplierId}`;
+        const part = c.channel === "amount", k = `${c.layer}|${c.supplierId}`;
         const has = (arr) => (arr || []).some((x) => (x.layer || 0) === c.layer && x.supplierId === c.supplierId);
         const t2 = touched.get(k) || { L: c.layer, sid: c.supplierId, sup: false, ch: false, hadSup: has(cbData.supLines), hadCh: has(cbData.chLines), has }; t2[part ? "sup" : "ch"] = true; touched.set(k, t2);
         if (part) {
           const arr = cbData.supLines || (cbData.supLines = []);
           let row = arr.find(own); if (!row) { row = { layer: c.layer, supplierId: c.supplierId, budgetType: c.budgetType, udc: 0, sup: 0 }; arr.push(row); }
-          row[c.channel] = c.amount === "" ? 0 : +c.amount;
-          if (!+row.udc && !+row.sup) cbData.supLines = arr.filter((r) => r !== row);
+          row.udc = c.amount === "" ? 0 : +c.amount; row.sup = 0;
+          if (!+row.udc) cbData.supLines = arr.filter((r) => r !== row);
         } else {
           cbData.chLines = (cbData.chLines || []).filter((x) => !(own(x) && x.channel === c.channel));
           if (c.amount !== "") cbData.chLines.push({ layer: c.layer, supplierId: c.supplierId, channel: c.channel, budgetType: c.budgetType, amount: +c.amount });

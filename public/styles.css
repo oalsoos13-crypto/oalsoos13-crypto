@@ -946,3 +946,12 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .panel .cb-sheet.cb-ln thead th.cb-th-lbl,.panel .cb-sheet.cb-entry thead th.cb-th-lbl{position:sticky;inset-inline-start:0;z-index:6}
 .cb-entry-wrap{max-height:78vh;border:1px solid #e3ebf5;border-radius:10px}
 .cb-entry-wrap tr.cb-ent-sup td{position:sticky;top:var(--thh,78px);z-index:4}
+/* One amount per line: the card is label | amount; the band is one row of line totals */
+.cb-cg col.cg-l{width:60%}
+.cb-cg col.cg-a{width:40%}
+.cb-cg{font-size:12.5px}
+.cb-cg td.cb-osd-toggle{font-size:12px}
+.cb-cg .cb-in{font-size:14px;padding:4px 8px}
+.cb-cg td.cb-cg-t{padding-inline-end:9px}
+.cb-sumt th:first-child,.cb-sumt td:first-child{position:static;text-align:end}
+.cb-sumt tr.tot td{border-top:0}
