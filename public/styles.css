@@ -1009,3 +1009,6 @@ html[dir="rtl"] .ds-sup-h{background:linear-gradient(270deg,#123f70,#1c4e8a)}
 .cb-sheet tr.cb-grand .cb-legacy-mk{color:#ffe3a3}
 .cb-legacy-note{margin:8px 2px 0}
 .cb-legacy-note:empty{display:none}
+/* Keyboard focus keeps the cell clear of the pinned label column, header and
+   supplier band. */
+.cb-entry-wrap{scroll-padding-inline-start:154px;scroll-padding-top:calc(var(--thh,78px) + 42px)}
