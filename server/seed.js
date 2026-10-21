@@ -262,8 +262,10 @@ function seedContracts() {
     // Already at the current seed version, or the user has created, edited or
     // paid against contracts — never overwrite those.
     if (ver === CONTRACTS_SEED_V) return 0;
+    // (a deleted contract leaves no row behind, only its audit entry)
     const userMade = db.prepare('SELECT COUNT(*) n FROM contract_hdr WHERE created_by IS NOT NULL OR updated_by IS NOT NULL').get().n
-      + db.prepare("SELECT COUNT(*) n FROM contract_installments WHERE status='paid'").get().n;
+      + db.prepare("SELECT COUNT(*) n FROM contract_installments WHERE status='paid'").get().n
+      + db.prepare("SELECT COUNT(*) n FROM audit_log WHERE action IN ('contract.set','contract.delete')").get().n;
     if (userMade) return 0;
     // Only seed-origin rows present and version is stale → refresh to the full set.
     db.exec('DELETE FROM contract_items; DELETE FROM contract_hdr; DELETE FROM contract_installments');
@@ -378,6 +380,8 @@ function seedContractsArchive() {
   const n = (v, d = 0) => { const x = parseFloat(v); return isNaN(x) ? d : x; };
   const now = nowIso();
   const has = db.prepare("SELECT 1 FROM contract_hdr WHERE pdf=? AND COALESCE(code,'')=? AND coop=?");
+  // the same contract already typed in by hand (the editor stores no file)
+  const typed = db.prepare("SELECT 1 FROM contract_hdr WHERE created_by IS NOT NULL AND coop=? AND code=? AND kind=?");
   const insH = db.prepare(`INSERT INTO contract_hdr (code,title,subject_year,is_renewal,party_rep,contract_date,
     level,coop,coop_ar,cust_id,period_from,period_to,renewable,value_mode,value,pct,pay_freq,bonus_terms,value_kind,
     grace_days,pay_within,kind,parent_id,pdf,verified,note,status,pcode,created_at,updated_at)
@@ -397,6 +401,7 @@ function seedContractsArchive() {
       if (doneSet.has(e.id)) continue;
       doneSet.add(e.id);
       if (has.get(e.pdf, e.code || '', e.coop)) continue;
+      if (e.code && typed.get(e.coop, e.code, e.kind === 'addendum' ? 'addendum' : 'base')) continue;
       const id = insH.run({
         code: e.code || '', title: e.title || '', subject_year: e.subjectYear || '', is_renewal: e.isRenewal ? 1 : 0,
         contract_date: e.contractDate || '', coop: e.coop, coop_ar: e.coopAr || '', period_from: e.periodFrom || '', period_to: e.periodTo || '',
@@ -428,7 +433,7 @@ function seedContractsArchive() {
       if (u.pcode) db.prepare('UPDATE contract_hdr SET pcode=? WHERE id=?').run(u.pcode, row.id);
       if (u.status === 'closed' && row.status !== 'closed') {
         const note = row.note && !row.note.includes(u.note || '') ? row.note + '؛ ' + (u.note || '') : (row.note || u.note || '');
-        db.prepare("UPDATE contract_hdr SET status='closed', renewable=0, note=?, updated_at=? WHERE id=?").run(note, now, row.id);
+        db.prepare("UPDATE contract_hdr SET status='closed', note=?, updated_at=? WHERE id=?").run(note, now, row.id);
       }
     }
     db.prepare("INSERT INTO meta(key,value) VALUES('contracts_archive_done',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify([...doneSet]));

@@ -5600,17 +5600,19 @@ function cxRenderList() {
   const coopCount = {};
   cxData.contracts.forEach((c) => { const k = dispCoop(c); coopCount[k] = (coopCount[k] || 0) + 1; });
   bases.sort((a, b) => dispCoop(a).localeCompare(dispCoop(b), "ar") || String(cyr(a)).localeCompare(String(cyr(b))));
-  let body = "", curCoop = null;
+  let body = "";
   const header = (name) => `<tr style="background:#eef3f9"><td colspan="7" style="font-weight:800;color:#123f70">🏢 ${esc(name)} <span class="pill-info">${coopCount[name] || 0}</span></td></tr>`;
-  for (const b of bases) {
-    const dc = dispCoop(b);
-    if (dc !== curCoop) { body += header(dc); curCoop = dc; }
-    body += rowHtml(b, false);
-    adds.filter((a) => a.parentId === b.id).forEach((a) => { body += rowHtml(a, true); });
-  }
+  // Addenda whose base is not in the list stay in their co-op's group, after its contracts.
   const orphans = adds.filter((a) => !bases.some((b) => b.id === a.parentId));
-  orphans.sort((a, b) => dispCoop(a).localeCompare(dispCoop(b), "ar"));
-  for (const a of orphans) { const dc = dispCoop(a); if (dc !== curCoop) { body += header(dc); curCoop = dc; } body += rowHtml(a, true); }
+  const names = [...new Set(bases.map(dispCoop).concat(orphans.map(dispCoop)))].sort((a, b) => a.localeCompare(b, "ar"));
+  for (const dc of names) {
+    body += header(dc);
+    for (const b of bases.filter((x) => dispCoop(x) === dc)) {
+      body += rowHtml(b, false);
+      adds.filter((a) => a.parentId === b.id).forEach((a) => { body += rowHtml(a, true); });
+    }
+    orphans.filter((a) => dispCoop(a) === dc).forEach((a) => { body += rowHtml(a, true); });
+  }
   box.innerHTML = cxData.contracts.length
     ? `<table><thead><tr><th>${t("cxCode")}</th><th>${t("coop")}/${t("cxOutletOpt")}</th><th>${t("cxPeriodFrom")}→${t("cxPeriodTo")}</th><th>${t("cxItems")}</th><th>${t("cxTotal")}</th><th>${t("cxStatus")}</th><th></th></tr></thead><tbody>${body}</tbody></table>`
     : `<div class="empty">${t("cxNoContracts")}</div>`;
