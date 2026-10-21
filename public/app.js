@@ -5593,7 +5593,9 @@ function cxRenderList() {
   };
   // Group by co-op (each co-op's contracts together), sorted by co-op then year;
   // addenda render indented under their base.
-  const dispCoop = (c) => cxCoopName(c);
+  const coopLbl = {};
+  cxData.contracts.forEach((c) => { const k = c.coop || cxCoopName(c); if (!coopLbl[k]) { const e = cxData.coops.find((x) => x.coop === c.coop); coopLbl[k] = e ? cxCoopLabel(e) : cxCoopName(c); } });
+  const dispCoop = (c) => coopLbl[c.coop || cxCoopName(c)];
   const cyr = (c) => c.subjectYear || String((c.period && c.period.from) || "").slice(0, 4) || "";
   const coopCount = {};
   cxData.contracts.forEach((c) => { const k = dispCoop(c); coopCount[k] = (coopCount[k] || 0) + 1; });
@@ -5655,15 +5657,24 @@ async function vContractsDash() {
     <div style="margin-top:16px">${tbl(t("cxByCoop"), s.byCoop, "#1e874b")}</div>`;
 }
 function cxCoopOptions(sel) {
-  return `<option value="">${t("choose")}</option>` + cxData.coops.map((c) => `<option value="${esc(c.coop)}" ${sel === c.coop ? "selected" : ""}>${esc(cxCoopLabel(c))}</option>`).join("");
+  // A contract's co-op that has no outlets (e.g. an Arabic-named co-op) stays selectable.
+  const own = sel && !cxData.coops.some((c) => c.coop === sel)
+    ? `<option value="${esc(sel)}" selected>${esc(cxCoopLabel({ coop: sel, coopAr: (cxEdit && cxEdit.coop === sel && cxEdit.coopAr) || sel }))}</option>` : "";
+  return `<option value="">${t("choose")}</option>` + own + cxData.coops.map((c) => `<option value="${esc(c.coop)}" ${sel === c.coop ? "selected" : ""}>${esc(cxCoopLabel(c))}</option>`).join("");
 }
 function cxOutletOptions(coop, sel) {
   const e = cxData.coops.find((x) => x.coop === coop);
   const outs = e ? e.outlets : [];
-  return `<option value="">${t("choose")}</option>` + outs.map((o) => `<option value="${esc(o.custId)}" ${String(sel) === String(o.custId) ? "selected" : ""}>${esc(LANG === "en" ? (o.name || o.nameAr) : (o.nameAr || o.name))}</option>`).join("");
+  // Keep a stored customer number that is not in the co-op's outlet list.
+  const own = sel && !outs.some((o) => String(o.custId) === String(sel)) ? `<option value="${esc(sel)}" selected>${esc(sel)}</option>` : "";
+  return `<option value="">${t("choose")}</option>` + own + outs.map((o) => `<option value="${esc(o.custId)}" ${String(sel) === String(o.custId) ? "selected" : ""}>${esc(LANG === "en" ? (o.name || o.nameAr) : (o.nameAr || o.name))}</option>`).join("");
 }
-function cxSpaceOptions(sel) {
-  return `<option value="">—</option>` + (cxData.spaces || []).map((s) => `<option value="${s.id}" data-name="${esc(s.name)}" ${String(sel) === String(s.id) ? "selected" : ""}>${esc(LANG === "en" ? (s.nameEn || arToEn(s.name)) : s.name)}</option>`).join("");
+function cxSpaceOptions(sel, name) {
+  // Items seeded without a space id keep their space name (selected by name, or as its own option).
+  const sps = cxData.spaces || [];
+  const byName = !sel && name ? sps.find((s) => s.name === name) : null;
+  const own = !sel && name && !byName ? `<option value="" data-name="${esc(name)}" selected>${esc(cxSpaceDisp(name))}</option>` : "";
+  return `<option value="">—</option>` + own + sps.map((s) => `<option value="${s.id}" data-name="${esc(s.name)}" ${String(sel) === String(s.id) || byName === s ? "selected" : ""}>${esc(LANG === "en" ? (s.nameEn || arToEn(s.name)) : s.name)}</option>`).join("");
 }
 
 function cxEditContract(id, parentId) {
@@ -5765,8 +5776,8 @@ function cxScopeSelect(it, i) {
 function cxItemRow(it, i) {
   return `<tr data-i="${i}">
     <td>${cxScopeSelect(it, i)}</td>
-    <td><select class="cxItSpace">${cxSpaceOptions(it.spaceId)}</select></td>
-    <td><input class="cxItCount" type="number" min="1" value="${it.count || 1}" style="width:64px"></td>
+    <td><select class="cxItSpace">${cxSpaceOptions(it.spaceId, it.space)}</select></td>
+    <td><input class="cxItCount" type="number" min="0" step="any" value="${it.count || 1}" style="width:64px"></td>
     <td><input class="cxItDim" ${tvAttrs(it.dimensions || "")} placeholder="${t("cxDimPh")}"></td>
     <td><input class="cxItCat" ${tvAttrs(it.category || "")} placeholder="${t("cxCatPh")}"></td>
     <td><input class="cxItLoc" ${tvAttrs(it.location || "")} placeholder="${t("cxLocPh")}"></td>
@@ -5786,17 +5797,19 @@ function cxSyncItems() {
   cxEdit.items = [...document.querySelectorAll("#cxItemsBody tr")].map((tr) => {
     const sp = tr.querySelector(".cxItSpace");
     const cust = tr.querySelector(".cxItCust");
+    const prev = cxEdit.items[+tr.dataset.i] || {};
     return {
       scope: tr.querySelector(".cxItScope").value,
       custId: cust ? cust.value : "",
       spaceId: sp.value || null,
       space: sp.selectedOptions[0] ? (sp.selectedOptions[0].dataset.name || "") : "",
-      count: parseInt(tr.querySelector(".cxItCount").value, 10) || 1,
+      count: parseFloat(tr.querySelector(".cxItCount").value) || 1,
       dimensions: tvRead(tr.querySelector(".cxItDim")),
       category: tvRead(tr.querySelector(".cxItCat")),
       location: tvRead(tr.querySelector(".cxItLoc")),
       amount: parseFloat(tr.querySelector(".cxItAmt").value) || 0,
       description: tvRead(tr.querySelector(".cxItDesc")),
+      note: prev.note || "",
     };
   });
 }

@@ -14,6 +14,50 @@ db.pragma('busy_timeout = 5000');
 
 const SCHEMA_VERSION = 1;
 
+// Fill contract_hdr.pcode for contracts that have none (see migrate()). Also run
+// by the seed after it adds contracts, so letters find them without a restart.
+function linkContractPcodes() {
+  try {
+    const normAr = (s) => String(s || '').replace(/[ـ]/g, '').replace(/[إأآا]/g, 'ا')
+      .replace(/[ىي]/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ')
+      .replace(/(جمعيه|التعاونيه|المحترمين)/g, '').trim();
+    // Drop the seh/heh and the ya/alef-maqsura variance too, so "الصليبيخات"
+    // matches "الصليبخات" and "الروضه وحولي" still carries "الروضه".
+    const nc = (s) => normAr(s).replace(/\s/g, '');
+    // Uppercase P-codes (some rows carry lower-case "p655"/"p702") and skip the
+    // junk rows whose code is blank (Arabic-named duplicates) — otherwise their
+    // empty code would win the exact match and block the real P-code.
+    const coopList = db.prepare("SELECT code, name_ar FROM coops WHERE name_ar IS NOT NULL AND TRIM(COALESCE(code,'')) <> ''").all()
+      .map((c) => ({ code: String(c.code).toUpperCase(), k: nc(c.name_ar) })).filter((c) => c.k.length >= 3);
+    const byExact = new Map(coopList.map((c) => [c.k, c.code]));
+    // Known spelling variants the fuzzy match can't bridge (صليبيخات vs
+    // صليبخات, صباح الناصر vs صباح ناصر).
+    const ALIAS = [
+      [/شمالغربالصليب/, 'P655'], [/الصليبيخات/, 'P44'], [/صباحالناصر/, 'P49'],
+      [/الوفرهالزراعيه/, 'P41'], // the Wafra agricultural co-op, not Al-Wafra (P608)
+    ];
+    const resolve = (arName) => {
+      const k = nc(arName);
+      if (byExact.has(k)) return byExact.get(k);
+      for (const [rx, code] of ALIAS) if (rx.test(k)) return code;
+      // token containment: the contract name contains a co-op's whole name
+      // (e.g. "الاندلسوالرقعي" contains "الاندلس"), longest match wins.
+      let best = null, bl = 0;
+      for (const c of coopList) {
+        if (c.k.length > bl && (k.includes(c.k) || c.k.includes(k))) { best = c.code; bl = c.k.length; }
+      }
+      return best;
+    };
+    const setP = db.prepare('UPDATE contract_hdr SET pcode = ? WHERE id = ?');
+    const link = db.transaction(() => {
+      for (const r of db.prepare('SELECT id, coop_ar FROM contract_hdr WHERE pcode IS NULL AND coop_ar IS NOT NULL').all()) {
+        const code = resolve(r.coop_ar);
+        if (code) setP.run(code, r.id);
+      }
+    });
+    link();
+  } catch (e) { /* linkage is best-effort */ }
+}
 function migrate() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS meta (
@@ -440,45 +484,7 @@ function migrate() {
   // matches coops.name_ar. Resolved once here into contract_hdr.pcode.
   const chCols = db.prepare("PRAGMA table_info(contract_hdr)").all().map((c) => c.name);
   if (chCols.length && !chCols.includes('pcode')) db.exec('ALTER TABLE contract_hdr ADD COLUMN pcode TEXT');
-  try {
-    const normAr = (s) => String(s || '').replace(/[ـ]/g, '').replace(/[إأآا]/g, 'ا')
-      .replace(/[ىي]/g, 'ي').replace(/[ةه]/g, 'ه').replace(/\s+/g, ' ')
-      .replace(/(جمعيه|التعاونيه|المحترمين)/g, '').trim();
-    // Drop the seh/heh and the ya/alef-maqsura variance too, so "الصليبيخات"
-    // matches "الصليبخات" and "الروضه وحولي" still carries "الروضه".
-    const nc = (s) => normAr(s).replace(/\s/g, '');
-    // Uppercase P-codes (some rows carry lower-case "p655"/"p702") and skip the
-    // junk rows whose code is blank (Arabic-named duplicates) — otherwise their
-    // empty code would win the exact match and block the real P-code.
-    const coopList = db.prepare("SELECT code, name_ar FROM coops WHERE name_ar IS NOT NULL AND TRIM(COALESCE(code,'')) <> ''").all()
-      .map((c) => ({ code: String(c.code).toUpperCase(), k: nc(c.name_ar) })).filter((c) => c.k.length >= 3);
-    const byExact = new Map(coopList.map((c) => [c.k, c.code]));
-    // Known spelling variants the fuzzy match can't bridge (صليبيخات vs
-    // صليبخات, صباح الناصر vs صباح ناصر).
-    const ALIAS = [
-      [/شمالغربالصليب/, 'P655'], [/الصليبيخات/, 'P44'], [/صباحالناصر/, 'P49'],
-    ];
-    const resolve = (arName) => {
-      const k = nc(arName);
-      if (byExact.has(k)) return byExact.get(k);
-      for (const [rx, code] of ALIAS) if (rx.test(k)) return code;
-      // token containment: the contract name contains a co-op's whole name
-      // (e.g. "الاندلسوالرقعي" contains "الاندلس"), longest match wins.
-      let best = null, bl = 0;
-      for (const c of coopList) {
-        if (c.k.length > bl && (k.includes(c.k) || c.k.includes(k))) { best = c.code; bl = c.k.length; }
-      }
-      return best;
-    };
-    const setP = db.prepare('UPDATE contract_hdr SET pcode = ? WHERE id = ?');
-    const link = db.transaction(() => {
-      for (const r of db.prepare('SELECT id, coop_ar FROM contract_hdr WHERE pcode IS NULL AND coop_ar IS NOT NULL').all()) {
-        const code = resolve(r.coop_ar);
-        if (code) setP.run(code, r.id);
-      }
-    });
-    link();
-  } catch (e) { /* linkage is best-effort */ }
+  linkContractPcodes();
   const prodCols = db.prepare("PRAGMA table_info(products)").all().map((c) => c.name);
   for (const col of ['weight', 'circular', 'circular_date']) {
     if (!prodCols.includes(col)) db.exec(`ALTER TABLE products ADD COLUMN ${col} TEXT`);
@@ -951,5 +957,6 @@ function migrate() {
 
 migrate();
 
+db.linkContractPcodes = linkContractPcodes;
 module.exports = db;
 module.exports.SCHEMA_VERSION = SCHEMA_VERSION;

@@ -46,7 +46,7 @@ function itemPriceWarnings(items) {
 
 const getCoop = db.prepare('SELECT code, mains, listing_markets FROM coops WHERE name = ?');
 const getCoopContracts = db.prepare(
-  "SELECT value_mode, pct, value, value_kind, period_from, period_to, status FROM contract_hdr WHERE pcode = ? AND kind <> 'addendum'"
+  "SELECT value_mode, pct, value, value_kind, period_from, period_to, status FROM contract_hdr WHERE pcode = ? AND kind <> 'addendum' AND COALESCE(status, 'active') <> 'closed'"
 );
 
 // Letter types whose cost the contract percentage already bundles (clause 3 +

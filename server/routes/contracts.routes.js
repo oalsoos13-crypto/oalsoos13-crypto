@@ -71,7 +71,9 @@ function hydrate(c) {
 //  autorenew — renewable and the term ended (still in force; carries cycles + implied current end)
 //  expired   — NOT renewable and the term ended (needs a new/renewed contract)
 //  future    — term has not started;  unknown — no end date
+//  closed    — closed by hand or replaced by a newer contract (history only)
 function effStatus(c) {
+  if (c.status === 'closed') return { s: 'closed', cycles: 0, to: c.period_to || '' };
   const to = c.period_to ? new Date(c.period_to) : null;
   const from = c.period_from ? new Date(c.period_from) : null;
   const today = new Date();
@@ -377,30 +379,34 @@ router.get('/contracts/stats', asyncH((req, res) => {
   const yr = (c) => (c.subject_year || String(c.period_from || '').slice(0, 4) || '—');
   const money = (c) => (c.value_mode === 'pct' ? 0 : (c.value || 0));
   const eff = new Map(rows.map((c) => [c.id, effStatus(c)]));
+  // Closed contracts (cancelled, or replaced by a newer one) are history: they
+  // count in the total and the by-year view, not in the current value.
+  const live = rows.filter((c) => c.status !== 'closed');
   const s = {
     total: rows.length,
     base: rows.filter((c) => c.kind !== 'addendum').length,
     addendum: rows.filter((c) => c.kind === 'addendum').length,
     renewable: rows.filter((c) => c.renewable).length,
-    active: rows.filter((c) => c.status !== 'closed').length,
+    active: live.length,
+    closed: rows.length - live.length,
     effActive: rows.filter((c) => eff.get(c.id).s === 'active').length,
     effAutoRenew: rows.filter((c) => eff.get(c.id).s === 'autorenew').length,
     effExpired: rows.filter((c) => eff.get(c.id).s === 'expired').length,
     effUnknown: rows.filter((c) => eff.get(c.id).s === 'unknown').length,
-    lumpCount: rows.filter((c) => c.value_mode !== 'pct').length,
-    lumpSum: Math.round(rows.reduce((a, c) => a + money(c), 0) * 1000) / 1000,
-    pctCount: rows.filter((c) => c.value_mode === 'pct').length,
+    lumpCount: live.filter((c) => c.value_mode !== 'pct').length,
+    lumpSum: Math.round(live.reduce((a, c) => a + money(c), 0) * 1000) / 1000,
+    pctCount: live.filter((c) => c.value_mode === 'pct').length,
     spaces: 0,
   };
-  const pcts = rows.filter((c) => c.value_mode === 'pct').map((c) => c.pct).filter((x) => x > 0);
+  const pcts = live.filter((c) => c.value_mode === 'pct').map((c) => c.pct).filter((x) => x > 0);
   s.pctAvg = pcts.length ? Math.round((pcts.reduce((a, b) => a + b, 0) / pcts.length) * 100) / 100 : 0;
   s.pctMin = pcts.length ? Math.min(...pcts) : 0;
   s.pctMax = pcts.length ? Math.max(...pcts) : 0;
   if (rows.length) s.spaces = db.prepare(`SELECT COUNT(*) n FROM contract_items WHERE contract_id IN (${rows.map(() => '?').join(',')})`).get(...rows.map((c) => c.id)).n;
 
-  const group = (keyFn, labelFn) => {
+  const group = (keyFn, labelFn, list = live) => {
     const m = new Map();
-    for (const c of rows) {
+    for (const c of list) {
       const k = keyFn(c); if (k == null || k === '') continue;
       if (!m.has(k)) m.set(k, { key: k, label: labelFn ? labelFn(c, k) : k, count: 0, sum: 0, pctSum: 0, pctN: 0 });
       const g = m.get(k); g.count++; g.sum += money(c);
@@ -410,20 +416,20 @@ router.get('/contracts/stats', asyncH((req, res) => {
   };
   const KIND = { rent: 'إيجارات', support: 'دعم', cda: 'دعم تجاري CDA', marketing: 'تسويق', other: 'أخرى' };
   s.byKind = group((c) => c.value_kind || 'other', (c, k) => KIND[k] || k).sort((a, b) => b.count - a.count);
-  s.byYear = group(yr).sort((a, b) => String(b.key).localeCompare(String(a.key)));
-  s.byCoop = group((c) => c.coop, (c) => AR.coops[c.coop] || c.coop).sort((a, b) => b.sum - a.sum || b.count - a.count);
+  s.byYear = group(yr, null, rows).sort((a, b) => String(b.key).localeCompare(String(a.key)));
+  s.byCoop = group((c) => c.coop, (c) => AR.coops[c.coop] || c.coop_ar || c.coop).sort((a, b) => b.sum - a.sum || b.count - a.count);
 
   s.expiring = rows.filter((c) => c.status !== 'closed' && c.period_to && c.period_to >= today && c.period_to <= in90)
-    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: c.period_to }))
+    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop_ar || c.coop, to: c.period_to }))
     .sort((a, b) => a.to.localeCompare(b.to));
   s.expired = rows.filter((c) => c.status !== 'closed' && c.period_to && c.period_to < today).length;
   // Truly expired (not renewable, ended) — need a renewed/new contract.
   s.expiredList = rows.filter((c) => eff.get(c.id).s === 'expired')
-    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: c.period_to, value: c.value_mode === 'pct' ? c.pct + '%' : c.value }))
+    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop_ar || c.coop, to: c.period_to, value: c.value_mode === 'pct' ? c.pct + '%' : c.value }))
     .sort((a, b) => String(a.to).localeCompare(String(b.to)));
   // Auto-renew contracts whose current implied cycle ends within 90 days (decision window).
   s.renewalDue = rows.filter((c) => { const e = eff.get(c.id); return e.s === 'autorenew' && e.to >= today && e.to <= in90; })
-    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop, to: eff.get(c.id).to, cycles: eff.get(c.id).cycles }))
+    .map((c) => ({ id: c.id, code: c.code, coopAr: AR.coops[c.coop] || c.coop_ar || c.coop, to: eff.get(c.id).to, cycles: eff.get(c.id).cycles }))
     .sort((a, b) => a.to.localeCompare(b.to));
   res.json(s);
 }));
