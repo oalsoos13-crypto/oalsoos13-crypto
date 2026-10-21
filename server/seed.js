@@ -350,6 +350,69 @@ function seedContracts() {
   return cnt;
 }
 
+// Contracts from the co-op contract archive (Lay's / Frito-Lay / Lavina tea, and
+// the 2014 agreements after the agency transfer) that the first seed did not
+// have: server/seed_data/contracts_archive.json, PDFs in contract_pdfs. Added
+// once per contracts seed version, never over an existing contract with the same
+// file for the same co-op. Also applies what the archive shows about contracts
+// already seeded: the Wafra agricultural co-op's 2022 contract belongs to it,
+// and the Hateen and Rumaithiya rentals were cancelled by letter.
+const CONTRACTS_ARCHIVE_V = CONTRACTS_SEED_V + '.1';
+function seedContractsArchive() {
+  const ver = (db.prepare("SELECT value FROM meta WHERE key='contracts_archive_v'").get() || {}).value;
+  if (ver === CONTRACTS_ARCHIVE_V) return 0;
+  let list = [];
+  try { list = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed_data', 'contracts_archive.json'), 'utf8')); }
+  catch (e) { return 0; }
+  const n = (v, d = 0) => { const x = parseFloat(v); return isNaN(x) ? d : x; };
+  const now = nowIso();
+  const has = db.prepare('SELECT 1 FROM contract_hdr WHERE pdf=? AND coop=?');
+  const insH = db.prepare(`INSERT INTO contract_hdr (code,title,subject_year,is_renewal,party_rep,contract_date,
+    level,coop,coop_ar,cust_id,period_from,period_to,renewable,value_mode,value,pct,pay_freq,bonus_terms,value_kind,
+    grace_days,pay_within,kind,parent_id,pdf,verified,note,status,created_at,updated_at)
+    VALUES (@code,@title,@subject_year,@is_renewal,'',@contract_date,'coop',@coop,@coop_ar,'',@period_from,@period_to,
+    @renewable,@value_mode,@value,@pct,@pay_freq,@bonus_terms,@value_kind,@grace_days,@pay_within,@kind,NULL,@pdf,0,@note,@status,@now,@now)`);
+  const insI = db.prepare(`INSERT INTO contract_items (contract_id,scope,cust_id,space_id,space,count,dimensions,category,location,amount,description,note,sort)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const close = db.prepare(`UPDATE contract_hdr SET status='closed', renewable=0, note=CASE WHEN note IS NULL OR note='' THEN @why ELSE note || '؛ ' || @why END, updated_at=@now
+    WHERE code=@code AND status='active' AND created_by IS NULL`);
+  let cnt = 0;
+  db.transaction(() => {
+    for (const e of list) {
+      if (has.get(e.pdf, e.coop)) continue;
+      const id = insH.run({
+        code: e.code || '', title: e.title || '', subject_year: e.subjectYear || '', is_renewal: e.isRenewal ? 1 : 0,
+        contract_date: e.contractDate || '', coop: e.coop, coop_ar: e.coopAr || '', period_from: e.periodFrom || '', period_to: e.periodTo || '',
+        renewable: e.renewable === false ? 0 : 1, value_mode: e.valueMode === 'pct' ? 'pct' : 'lump', value: n(e.value), pct: n(e.pct),
+        pay_freq: e.payFreq || 'once', bonus_terms: e.bonusTerms || '', value_kind: e.valueKind || 'other', grace_days: n(e.graceDays, 45),
+        pay_within: n(e.payWithin, 14), kind: e.kind === 'addendum' ? 'addendum' : 'base', pdf: e.pdf, note: e.note || '',
+        status: e.status === 'closed' ? 'closed' : 'active', now,
+      }).lastInsertRowid;
+      (e.items || []).forEach((it, i) => {
+        const sc = ['main', 'branches', 'outlet', 'all'].includes(it.scope) ? it.scope : 'main';
+        insI.run(id, sc, it.custId || '', null, it.space || '', n(it.count, 1), it.dimensions || '', it.category || '', it.location || '',
+          n(it.amount), it.description || '', it.note || '', i);
+      });
+      cnt++;
+    }
+    db.prepare("UPDATE contract_hdr SET coop='WAFRA FARMING COOP' WHERE code='LYSAL/3760/2022' AND coop_ar LIKE '%الزراعية%' AND created_by IS NULL").run();
+    for (const code of ['LYSAL/2727/2021', 'LYSAL/2728/2021']) close.run({ code, now, why: 'ملغي اعتباراً من 2025-11-01 (كتاب الإلغاء LYSAL/8394/2025)' });
+    close.run({ code: 'LYSAL/2729/2021', now, why: 'ملغي اعتباراً من 2026-07-01 (كتاب الإلغاء LYSAL/9660/2026)' });
+    // Each addendum under a base contract of the same co-op (same reference first).
+    // Prefer a base that had started by the addendum's date, then the latest.
+    const adds = db.prepare("SELECT id, coop, code, period_from FROM contract_hdr WHERE kind='addendum' AND parent_id IS NULL AND created_by IS NULL").all();
+    const findBase = db.prepare(`SELECT id FROM contract_hdr WHERE kind='base' AND coop=@coop AND id<>@id
+      ORDER BY (code<>'' AND code=@code) DESC, (period_from<>'' AND period_from<=@from) DESC, period_from DESC, id`);
+    const link = db.prepare('UPDATE contract_hdr SET parent_id=? WHERE id=?');
+    for (const a of adds) {
+      const b = findBase.get({ coop: a.coop, id: a.id, code: a.code || '', from: a.period_from || '9999' });
+      if (b) link.run(b.id, a.id);
+    }
+    db.prepare("INSERT INTO meta(key,value) VALUES('contracts_archive_v',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(CONTRACTS_ARCHIVE_V);
+  })();
+  return cnt;
+}
+
 // Co-ops/entities that appear in the contracts but were not in the original
 // master list. Registered here so contracts link to a real co-op record and
 // show up in the co-op reference. Idempotent (INSERT OR IGNORE by name).
@@ -399,6 +462,7 @@ function run() {
   seedExtraCoops();
   seedContractSpaces();
   seedContracts();
+  seedContractsArchive();
   seedCounter();
   const createdUsers = seedUsers();
   ensureDefaultPasswords();
