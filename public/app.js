@@ -2336,10 +2336,9 @@ function allocLayerPanel(L) {
     + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA_${L}">${KD(alSum(L, () => true))}</td></tr>`;
   const totB = alBud(L, () => true), totA = alSum(L, () => true);
   // Budget the admin gave (total, then each channel — with what is allocated of it),
-  // what is allocated, and what remains of the total and of each channel.
+  // and what remains of the total and of each channel.
   const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("al_budget")}</div><div class="val mono">${KD(totB)}</div></div>
     ${chs.map((ch) => { const b = alChBud(L, ch); return `<div class="card"><div class="lbl">${t("ch_" + ch)}</div><div class="val mono" id="alK_b_${P}${ch}">${b == null ? "–" : KD(b)}</div><div class="hint" id="alK_c_${P}${ch}">${t("bp_allocated")}: <b class="mono">${alLeftOf(L, ch)}</b></div></div>`; }).join("")}
-    <div class="card"><div class="lbl">${t("bp_allocated")}</div><div class="val mono" id="alK_a_${L}">${KD(totA)}</div></div>
     <div class="card"><div class="lbl">${t("cb_leftLbl")}</div><div class="val mono" id="alK_l_${L}">${alLeft(totB - totA)}</div></div>
     ${chs.map((ch) => { const b = alChBud(L, ch); return `<div class="card"><div class="lbl">${t("cb_leftSplit")} — ${t("ch_" + ch)}</div><div class="val mono" id="alK_r_${P}${ch}">${b == null ? "–" : alLeft(b - alSum(L, (x) => x.channel === ch))}</div></div>`; }).join("")}</div>
     <div class="cb-chips">${svs.map((sv, i) => `<span class="cb-chip"><b>${escN(sv)}</b> <span class="mono" id="alKS_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</span></span>`).join("")}</div>`;
