@@ -756,12 +756,20 @@ function migrate() {
       db.prepare("UPDATE company_suppliers SET name='Bisconni' WHERE name='Biscuni'").run();
       db.prepare("INSERT INTO meta(key,value) VALUES('sup_bisconni','1')").run();
     }
+    // One-off: the budget suppliers are named by their company codes — Lay's → SSFL,
+    // Frito-Lay → IEI, Bisconni → ORT.
+    if (!db.prepare("SELECT 1 FROM meta WHERE key='sup_codes_names'").get()) {
+      const ren = db.prepare('UPDATE company_suppliers SET name=?, code=CASE WHEN COALESCE(code,\'\')=\'\' THEN ? ELSE code END, updated_at=? WHERE name=?');
+      const ts = new Date().toISOString();
+      [["Lay's", 'SSFL'], ['Frito-Lay', 'IEI'], ['Bisconni', 'ORT']].forEach(([from, to]) => ren.run(to, to, ts, from));
+      db.prepare("INSERT INTO meta(key,value) VALUES('sup_codes_names','1')").run();
+    }
   })();
 
   if (!db.prepare('SELECT COUNT(*) c FROM company_suppliers').get().c) {
     const ins = db.prepare('INSERT INTO company_suppliers (code, name, sort, created_at) VALUES (?,?,?,?)');
     const ts = new Date().toISOString();
-    [["Lay's", 1], ['Frito-Lay', 2], ['Bisconni', 3]].forEach(([n, i]) => ins.run('', n, i, ts));
+    [['SSFL', 1], ['IEI', 2], ['ORT', 3]].forEach(([n, i]) => ins.run(n, n, i, ts));
   }
   const bcCols = db.prepare("PRAGMA table_info(budget_caps)").all().map((c) => c.name);
   if (!bcCols.includes('spent')) db.exec('ALTER TABLE budget_caps ADD COLUMN spent REAL');
