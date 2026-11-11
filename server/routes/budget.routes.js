@@ -746,14 +746,14 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
     // 1) Each supplier's budget by channel, as on the screen; then its total and
     // what is left of it.
     const COLS1 = []; GROUPS.forEach((g) => { const chs = GROUP_CHANNELS[g]; if (chs.length > 1) chs.forEach((ch) => COLS1.push([CH[ch], (sid) => chBud(sid, ch)])); COLS1.push([`${GROUP_NAME[g][1]} Channel`, (sid) => gt[`${sid}|${g}`] || 0]); });
-    const a1 = [[`${lname} budget — by channel, by supplier — ${month}`], [], ['UDC Supplier', 'Code', ...COLS1.map(([h]) => h), 'Total', 'Budget left']];
+    const a1 = [[`${lname} budget — by channel, by supplier — ${month}`], [], ['UDC Supplier', 'Code', ...COLS1.map(([h]) => h), 'Total', 'Budget remaining']];
     sups.forEach((sp) => a1.push([sp.name, sp.code, ...COLS1.map(([, f]) => f(sp.id)), gsum(sp.id), gsum(sp.id) - used(sp.id)]));
     a1.push(['Total', '', ...COLS1.map(([, f]) => sum(sups.map((sp) => +f(sp.id) || 0))), sum(sups.map((sp) => gsum(sp.id))), sum(sups.map((sp) => gsum(sp.id) - used(sp.id)))]);
     // 2) The managers' split by line, one section per channel and per channel total; brands across.
     const bh = ['Channel', 'Line', ...sups.map((sp) => sp.name + (sp.code ? ` (${sp.code})` : '')), 'Total'];
     const a2 = [[`${lname} budget — split by line, by channel (from the channel managers) — ${month}`], [], bh];
     // The Total of a row; a Budget left is unknown ('') while any supplier's is.
-    const rowOf = (name, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([name, label, ...v, label === 'Budget left' && v.includes('') ? '' : sum(v.map((x) => +x || 0))]); };
+    const rowOf = (name, label, fn) => { const v = sups.map((sp) => fn(sp.id)); a2.push([name, label, ...v, label === 'Budget remaining' && v.includes('') ? '' : sum(v.map((x) => +x || 0))]); };
     const SECTIONS = [['coop_main'], ['coop_branch'], ['coop', GROUP_CHANNELS.coop], ['ka'], ['ecg_ecom'], ['ecg_cng'], ['ecg', ECG], ...TT.map((c) => [c]), ['tt', TT]];
     SECTIONS.forEach(([name, chs = [name]]) => {
       const label = name === 'coop' ? 'Total Coops' : name === 'ecg' ? 'Total ECG' : name === 'tt' ? 'Total TT' : CH[name];
@@ -764,7 +764,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
       // The budget the admin gave (a channel's, or a group's = its channels') and what is left of it.
       const B = (sid) => (GROUPS.includes(name) && chs.length > 1 ? gt[`${sid}|${name}`] || 0 : chBud(sid, name));
       rowOf(label, 'Total budget', B);
-      rowOf(label, 'Budget left', (sid) => (B(sid) === '' ? '' : B(sid) - sum(CB_TYPES.map((bt) => L(sid, bt)))));
+      rowOf(label, 'Budget remaining', (sid) => (B(sid) === '' ? '' : B(sid) - sum(CB_TYPES.map((bt) => L(sid, bt)))));
       a2.push([]);
     });
     for (const [aoa, name] of [[a1, `${lname} - brand totals`], [a2, `${lname} - split by line`]]) {
