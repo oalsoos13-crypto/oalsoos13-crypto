@@ -887,8 +887,10 @@ const DEFAULT_USERS = [
   { u: "6872", pw: "6872", name: "Tamer Issua", role: "salesman" },
   { u: "7044", pw: "7044", name: "Omar Sabri", role: "salesman" },
   { u: "7055", pw: "7055", name: "MOHAMED ADEL", role: "salesman" },
-  { u: "6933", pw: "6933", name: "Ahmed Fadel", role: "supervisor" },
-  { u: "7056", pw: "7056", name: "Othman Saleh", role: "supervisor" },
+  { u: "6933", pw: "6933", name: "Ahmed Fadel", role: "supervisor", ch: "coop_main" },
+  { u: "7056", pw: "7056", name: "Othman Saleh", role: "supervisor", ch: "coop_main" },
+  // PF not known yet: signs in as "ahmed.kamal" with the default password until the admin sets it.
+  { u: "ahmed.kamal", name: "Ahmed Kamal", role: "supervisor", ch: "coop_branch" },
 ];
 
 module.exports = { SEED, DEFAULT_DIST, DEFAULT_USERS };

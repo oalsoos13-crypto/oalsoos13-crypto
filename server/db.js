@@ -897,6 +897,16 @@ function migrate() {
   // English display name per user (shown wherever the UI language is English).
   const uCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
   if (!uCols.includes('name_en')) db.exec('ALTER TABLE users ADD COLUMN name_en TEXT');
+  // The budget channels a supervisor may get a split of (comma list, e.g.
+  // 'coop_main'); empty = any channel.
+  if (!uCols.includes('budget_channels')) db.exec("ALTER TABLE users ADD COLUMN budget_channels TEXT NOT NULL DEFAULT ''");
+  // One-off: Ahmed Fadel and Othman Saleh take the co-op main markets; the
+  // branches go to Ahmed Kamal (seeded with them).
+  if (!db.prepare("SELECT 1 FROM meta WHERE key='sup_channels_v1'").get()) {
+    db.prepare("UPDATE users SET budget_channels='coop_main' WHERE role='supervisor' AND name IN ('Ahmed Fadel','Othman Saleh')").run();
+    db.prepare("UPDATE users SET budget_channels='coop_branch' WHERE role='supervisor' AND name='Ahmed Kamal'").run();
+    db.prepare("INSERT INTO meta(key,value) VALUES('sup_channels_v1','1')").run();
+  }
   // coop_terms redesign: per (coop + letter_type). Recreate the table if it
   // predates the letter_type column (config-only, safe to rebuild).
   const ctInfo = db.prepare("PRAGMA table_info(coop_terms)").all();

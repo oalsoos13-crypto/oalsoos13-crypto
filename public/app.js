@@ -2320,6 +2320,7 @@ function allocLayerPanel(L) {
         if (rw.sub) return alSubRow(L, rw, sp.id, ch);
         const bt = rw.bt, r = ri++, f = (x) => x.supplierId === sp.id && x.channel === ch && x.budgetType === bt;
         return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${svs.map((sv, c) => { const v = alAmt(L, sp.id, ch, bt, sv);
+          if (!alSvOk(sv, ch) && v == null) return `<td class="cb-tot"><span class="cb-zero">–</span></td>`;
           return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${ch}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
           <td class="cb-tot" id="alRA_${K}_${bt}">${cbFmt(alSum(L, f))}</td></tr>`; }).join("");
       const fc = (x) => x.supplierId === sp.id && x.channel === ch;
@@ -2334,10 +2335,13 @@ function allocLayerPanel(L) {
     + chs.map((ch) => `<tr class="cb-co"><td>${t("total")} — ${t("ch_" + ch)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alCC_${P}${ch}_${i}">${cbFmt(alSum(L, (x) => x.channel === ch && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCCA_${P}${ch}">${cbFmt(alSum(L, (x) => x.channel === ch))}</td></tr>`).join("")
     + `<tr class="cb-grand"><td>${t("al_grand")}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alG_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alGA_${L}">${KD(alSum(L, () => true))}</td></tr>`;
   const totB = alBud(L, () => true), totA = alSum(L, () => true);
+  // Budget the admin gave (total, then each channel — with what is allocated of it),
+  // what is allocated, and what remains of the total and of each channel.
   const kpis = `<div class="cards cb-kpis"><div class="card accent"><div class="lbl">${t("al_budget")}</div><div class="val mono">${KD(totB)}</div></div>
-    ${chs.map((ch) => `<div class="card"><div class="lbl">${t("ch_" + ch)}</div><div class="val mono" id="alK_c_${P}${ch}">${alLeftOf(L, ch)}</div></div>`).join("")}
+    ${chs.map((ch) => { const b = alChBud(L, ch); return `<div class="card"><div class="lbl">${t("ch_" + ch)}</div><div class="val mono" id="alK_b_${P}${ch}">${b == null ? "–" : KD(b)}</div><div class="hint" id="alK_c_${P}${ch}">${t("bp_allocated")}: <b class="mono">${alLeftOf(L, ch)}</b></div></div>`; }).join("")}
     <div class="card"><div class="lbl">${t("bp_allocated")}</div><div class="val mono" id="alK_a_${L}">${KD(totA)}</div></div>
-    <div class="card"><div class="lbl">${t("cb_leftLbl")}</div><div class="val mono" id="alK_l_${L}">${alLeft(totB - totA)}</div></div></div>
+    <div class="card"><div class="lbl">${t("cb_leftLbl")}</div><div class="val mono" id="alK_l_${L}">${alLeft(totB - totA)}</div></div>
+    ${chs.map((ch) => { const b = alChBud(L, ch); return `<div class="card"><div class="lbl">${t("cb_leftSplit")} — ${t("ch_" + ch)}</div><div class="val mono" id="alK_r_${P}${ch}">${b == null ? "–" : alLeft(b - alSum(L, (x) => x.channel === ch))}</div></div>`; }).join("")}</div>
     <div class="cb-chips">${svs.map((sv, i) => `<span class="cb-chip"><b>${escN(sv)}</b> <span class="mono" id="alKS_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</span></span>`).join("")}</div>`;
   const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>`
     : (L ? "" : `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">${t("al_note")}</div>`);
@@ -2346,7 +2350,16 @@ function allocLayerPanel(L) {
   return `<div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>${L ? "➕ " + esc(lyName(L)) + " · " : ""}${t("al_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3></header><div class="body">${kpis}${note}${sheet}</div></div>`;
 }
 // A sub-channel's KPI: what is allocated there (the budget is per channel).
+// Whether a supervisor may get a split of a channel (none listed = any).
+function alSvOk(sv, ch) { const c = alData.supChannels && alData.supChannels[sv]; return !c || c.includes(ch); }
 function alLeftOf(L, ch) { return KD(alSum(L, (x) => x.channel === ch)); }
+// A channel's own budget from the admin; null while its group still has only one
+// total typed before the budget was set per channel.
+function alChBud(L, ch) {
+  const g = CB_GROUPS.find((x) => x.chs.includes(ch));
+  if (g && g.chs.length > 1 && alData.budget.some(lyF(L, (x) => x.grp === g.k))) return null;
+  return alBud(L, (x) => x.grp === ch);
+}
 // A Trade Budget / Rentals subtotal row (sid / ch null = all brands / both channels).
 function alSubRow(L, rw, sid, ch) {
   const k = `${L}_${sid == null ? "all" : sid}${ch ? "_" + ch : ""}_${rw.sub}`, f = (x) => (sid == null || x.supplierId === sid) && (!ch || x.channel === ch) && rw.bts.includes(x.budgetType);

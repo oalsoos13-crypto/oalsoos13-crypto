@@ -805,19 +805,27 @@ function syncAllocFromSup(month, now) {
   syncCoopCaps(month, now);
 }
 
+// Supervisor name → the channels they may get a split of (only those limited to some).
+function supervisorChannels() {
+  const out = {};
+  db.prepare("SELECT name, budget_channels c FROM users WHERE role='supervisor' AND active=1 AND COALESCE(budget_channels,'')<>''").all()
+    .forEach((r) => { out[r.name] = r.c.split(',').map((x) => x.trim()).filter(Boolean); });
+  return out;
+}
 // GET /api/budget-alloc-sup?month= — layers, brands, supervisors, each brand's
 // budget per channel (of the manager's channels) per layer and the manager's split of it.
 router.get('/budget-alloc-sup', requireRole(...MANAGER_ROLES, ...MGMT), asyncH((req, res) => {
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const channels = roleChannels(req.user.role);
   const supervisors = db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1 ORDER BY name").all().map((r) => r.name);
+  const supChannels = supervisorChannels();
   const layers = monthLayers(month), groups = groupsOf(channels);
   const budget = groupTotals(month).filter((r) => groups.includes(grpOfKey(r.grp)));
   const chSet = new Set(channels);
   const rows = db.prepare('SELECT layer, supplier_id, channel, budget_type, supervisor, amount FROM budget_alloc_sup WHERE month=?').all(month)
     .filter((r) => chSet.has(r.channel))
     .map((r) => ({ layer: r.layer, supplierId: r.supplier_id, channel: r.channel, budgetType: r.budget_type, supervisor: r.supervisor, amount: r.amount }));
-  res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels, groups: groups.map((g) => ({ k: g, chs: GROUP_CHANNELS[g].filter((ch) => chSet.has(ch)) })), suppliers: activeSuppliers(), supervisors, layers, budget, rows });
+  res.json({ month, closed: monthClosed(month), types: CB_TYPES, channels, groups: groups.map((g) => ({ k: g, chs: GROUP_CHANNELS[g].filter((ch) => chSet.has(ch)) })), suppliers: activeSuppliers(), supervisors, supChannels, layers, budget, rows });
 }));
 
 // POST /api/budget-alloc-sup (channel managers) — { month, cells: [{ layer, supplierId,
@@ -832,6 +840,7 @@ router.post('/budget-alloc-sup', requireRole(...MANAGER_ROLES), asyncH((req, res
   const cells = Array.isArray(req.body.cells) ? req.body.cells : [req.body];
   if (!cells.length || cells.length > 2000) throw badRequest('بيانات ناقصة', 'NO_CELLS');
   const sups = new Set(db.prepare("SELECT name FROM users WHERE role='supervisor' AND active=1").all().map((r) => r.name));
+  const supChannels = supervisorChannels();
   const now = nowIso();
   // A brand's split of some channels: all their lines and supervisors.
   const allocSum = (layer, sid, chs) => num(db.prepare(`SELECT COALESCE(SUM(amount),0) s FROM budget_alloc_sup WHERE month=? AND layer=? AND supplier_id=? AND channel IN (${chs.map(() => '?').join(',')})`).get(month, layer, sid, ...chs).s);
@@ -849,6 +858,7 @@ router.post('/budget-alloc-sup', requireRole(...MANAGER_ROLES), asyncH((req, res
       const cap = managerCap(month, layer, sp.id, ch), tk = `${layer}|${sp.id}|${cap.key}`;
       if (!before.has(tk)) before.set(tk, { before: allocSum(layer, sp.id, cap.chs), cap });
       const raw = c.amount == null ? '' : String(c.amount).replace(/,/g, '').trim();
+      if (raw !== '' && supChannels[sv] && !supChannels[sv].includes(ch)) throw badRequest(`${sv} ما إله بتجيت بهالقناة | ${sv} has no budget in this channel`, 'SUP_CHANNEL');
       if (raw === '') db.prepare('DELETE FROM budget_alloc_sup WHERE month=? AND layer=? AND supplier_id=? AND channel=? AND budget_type=? AND supervisor=?').run(month, layer, sp.id, ch, bt, sv);
       else {
         const amount = Number(raw);
