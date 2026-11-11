@@ -809,7 +809,7 @@ function migrate() {
     })();
   }
   // One-off: channel budgets are a total per channel; the totals typed per
-  // sub-channel (Main / Branch, ECOM / C&G, Grocery / WS / OOH) add up into it.
+  // sub-channel (Main / Branch, ECOM / C&G, Grocery / WS / HORECA) add up into it.
   if (!db.prepare("SELECT 1 FROM meta WHERE key='cg_budget_v1'").get()) {
     db.transaction(() => {
       const G = { coop_main: 'coop', coop_branch: 'coop', coop: 'coop', ka: 'ka', ecg_ecom: 'ecg', ecg_cng: 'ecg', online: 'ecg', tt_grocery: 'tt', tt_ws: 'tt', tt_horeca: 'tt', tt: 'tt' };
@@ -830,7 +830,7 @@ function migrate() {
     })();
   }
   // One-off: the budget is typed per channel again (Main / Branches, ECOM / C&G,
-  // Grocery / WS / OOH); a group's total is the sum of its channels. A group
+  // Grocery / WS / HORECA); a group's total is the sum of its channels. A group
   // total still equal to the per-channel amounts it was summed from gets them
   // back; any other is kept as the group's total until its channels are typed.
   if (!db.prepare("SELECT 1 FROM meta WHERE key='ch_budget_v1'").get()) {

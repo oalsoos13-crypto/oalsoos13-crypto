@@ -533,7 +533,7 @@ router.post('/budget-spent', requireRole(), asyncH((req, res) => {
 
 // ---- Company budget ----
 // Admin enters each supplier's budget per channel (channel_group_budget: Coops
-// Main / Branches, KA, ECG ECOM / C&G, TT Grocery / WS / OOH); a channel group's
+// Main / Branches, KA, ECG ECOM / C&G, TT Grocery / WS / HORECA); a channel group's
 // total is the sum of its channels. Each channel's manager splits his brand
 // budgets into lines and supervisors (budget_alloc_sup), and the admin's view of
 // the lines by channel is built from those splits. Every month has the main
@@ -560,7 +560,7 @@ const GROUPS = Object.keys(GROUP_CHANNELS);
 const CHANNEL_GROUP = {};
 Object.entries(GROUP_CHANNELS).forEach(([g, chs]) => chs.forEach((ch) => { CHANNEL_GROUP[ch] = g; }));
 const GROUP_NAME = { coop: ['الجمعيات', 'Coops'], ka: ['KA', 'KA'], ecg: ['ECG', 'ECG'], tt: ['TT', 'TT'] };
-const CHANNEL_NAME = { coop_main: ['الجمعيات مين ماركتس', 'Coops Main Markets'], coop_branch: ['الجمعيات برانشيز', 'Coops Branches'], ka: ['KA', 'KA'], ecg_ecom: ['ECG إيكوم', 'ECG ECOM'], ecg_cng: ['ECG سي آند جي', 'ECG C&G'], tt_grocery: ['TT بقالات', 'TT Grocery'], tt_ws: ['TT WS', 'TT WS'], tt_horeca: ['TT OOH', 'TT OOH'] };
+const CHANNEL_NAME = { coop_main: ['الجمعيات مين ماركتس', 'Coops Main Markets'], coop_branch: ['الجمعيات برانشيز', 'Coops Branches'], ka: ['KA', 'KA'], ecg_ecom: ['ECG إيكوم', 'ECG ECOM'], ecg_cng: ['ECG سي آند جي', 'ECG C&G'], tt_grocery: ['TT بقالات', 'TT Grocery'], tt_ws: ['TT WS', 'TT WS'], tt_horeca: ['TT هوريكا', 'TT HORECA'] };
 // A budget row's group: rows are keyed by a channel, or by a group (coop / ecg /
 // tt) for a group total typed before the budget was set per channel; such a
 // total stands for the whole group until the admin types its channels.
@@ -722,7 +722,7 @@ router.get('/budget-company.xlsx', requireRole(...MGMT), asyncH((req, res) => {
   const XLSX = require('xlsx');
   const month = isMonth(req.query.month) ? req.query.month : curMonth();
   const sups = activeSuppliers();
-  const CH = { coop: 'Coops', coop_main: 'Coops Main Markets', coop_branch: 'Coops Branches', ka: 'KA', ecg: 'ECG', ecg_ecom: 'ECG ECOM', ecg_cng: 'ECG C&G', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT OOH' };
+  const CH = { coop: 'Coops', coop_main: 'Coops Main Markets', coop_branch: 'Coops Branches', ka: 'KA', ecg: 'ECG', ecg_ecom: 'ECG ECOM', ecg_cng: 'ECG C&G', tt_grocery: 'TT Grocery', tt_ws: 'TT WS', tt_horeca: 'TT HORECA' };
   const LBL = Object.fromEntries(CB_TYPES.map((bt) => [bt, BT_NAME[bt][1]]));
   // [label, lines] in order: Trade Budget and Rentals (sums) before their lines, indented beneath.
   const LINE_ROWS = [['Trade Budget', TRADE_TYPES]];

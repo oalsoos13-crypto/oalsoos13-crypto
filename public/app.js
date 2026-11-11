@@ -634,7 +634,7 @@ const T = {
   ch_ecg_cng: { ar: "سي آند جي", en: "C&G" },
   ch_tt_grocery: { ar: "بقالات", en: "Grocery" },
   ch_tt_ws: { ar: "WS", en: "WS" },
-  ch_tt_horeca: { ar: "OOH", en: "OOH" },
+  ch_tt_horeca: { ar: "هوريكا", en: "HORECA" },
   cb_brand: { ar: "مورد UDC", en: "UDC Supplier" },
   cb_extra: { ar: "بتجيت إضافي", en: "Extra budget" },
   cb_addExtra: { ar: "بتجيت إضافي", en: "Extra budget" },
