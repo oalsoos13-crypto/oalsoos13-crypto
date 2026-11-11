@@ -5101,7 +5101,7 @@ function renderOutlets() {
     !q || [o.name, o.parent, o.salesman, o.route, o.cust_id, o.merchandiser].some((v) => String(v || "").toLowerCase().includes(q)));
   document.getElementById("olCount").textContent = rows.length + " / " + outletsCache.length;
   document.getElementById("outletsBox").innerHTML = rows.length
-    ? `<table><thead><tr><th>CUST</th><th>${t("outlet")}</th><th>${t("coop")}</th><th>${t("route")}</th><th>${t("r_salesman")}</th><th>${t("merchandiser")}</th><th>${t("contract")}</th><th>Lays</th><th>IEC</th></tr></thead><tbody>${rows
+    ? `<table><thead><tr><th>CUST</th><th>${t("outlet")}</th><th>${t("coop")}</th><th>${t("route")}</th><th>${t("r_salesman")}</th><th>${t("merchandiser")}</th><th>${t("contract")}</th><th>SSFL</th><th>IEI</th></tr></thead><tbody>${rows
         .map((o) => `<tr><td class="mono-sm">${esc(o.cust_id)}</td><td>${esc(o.name)}</td><td>${esc(o.parent)}</td><td class="mono-sm">${esc(o.route || "")}</td><td>${esc(o.salesman || "")}</td><td>${esc(o.merchandiser || "")}</td><td class="mono-sm">${esc(contractLabel(o))}</td><td class="mono">${o.lays_sales != null ? KD(o.lays_sales) : "—"}</td><td class="mono">${o.iec_sales != null ? KD(o.iec_sales) : "—"}</td></tr>`)
         .join("")}</tbody></table>`
     : `<div class="empty">${t("noOutlets")}</div>`;
