@@ -2281,6 +2281,8 @@ async function vBudgetPlan(refresh) {
 }
 function bpSetMonth(m) { bpMonth = m; vBudgetPlan(); }
 /* ---- Company budget: one entry sheet, supplier × budget line × channel ---- */
+// A supplier's code badge, unless the code is the name itself (SSFL · SSFL).
+function supCodeShown(sp) { return !!sp.code && sp.code.trim().toLowerCase() !== String(sp.name || "").trim().toLowerCase(); }
 let cbData = null;
 /* Budget layers: 0 = main budget, 1..n = extra budgets (each mirrors the whole flow). */
 function lyName(L) { return L ? t("cb_extra") + (cbLayerCount() > 2 ? " " + L : "") : ""; }
@@ -2331,7 +2333,7 @@ function allocLayerPanel(L) {
         <tr class="cb-sub al-chsub"><td>${t("total")} — ${t("ch_" + ch)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alST_${K}_${i}">${cbFmt(alSum(L, (x) => fc(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alSA_${K}">${cbFmt(alSum(L, fc))}</td></tr>`;
     }).join("");
     const fb = (x) => x.supplierId === sp.id;
-    return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id, null)}</span></div></td></tr>${chRows}
+    return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${supCodeShown(sp) ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id, null)}</span></div></td></tr>${chRows}
       <tr class="cb-sub al-brandtot"><td>${t("total")} — ${esc(sp.name)} (${chs.map((c) => t("ch_" + c)).join(" + ")})</td>${svs.map((sv, i) => `<td class="cb-tot" id="alBT_${P}${sp.id}_${i}">${cbFmt(alSum(L, (x) => fb(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alBA_${P}${sp.id}">${cbFmt(alSum(L, fb))}</td></tr>`;
   }).join("");
   const coRows = `<tr class="cb-grp cb-grp-co"><td colspan="${n}">${t("al_allSup")}</td></tr>` + cbLineRows(types, `al${L}_all`).map((rw) => { if (rw.sub) return alSubRow(L, rw, null, null); const bt = rw.bt; return `<tr${cbFoldAttr(rw, "cb-co")}>${cbRowLabel(rw)}${svs.map((sv, i) => `<td class="cb-tot" id="alCT_${P}${bt}_${i}">${cbFmt(alSum(L, (x) => x.budgetType === bt && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alCA_${P}${bt}">${cbFmt(alSum(L, (x) => x.budgetType === bt))}</td></tr>`; }).join("")
@@ -2372,7 +2374,7 @@ function alMergedRows(L, sp, svs, types, one, ed, nextRow) {
   }).join("");
   const fb = (x) => x.supplierId === sp.id;
   const chInfo = chs.map((ch) => `<span class="cb-grp-info" id="alGI_${P}${sp.id}_${ch}"><b>${t("ch_" + ch)}</b> — ${alGrpInfo(L, sp.id, ch)}</span>`).join("<br>");
-  return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id, null)}</span></div></td></tr>
+  return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${supCodeShown(sp) ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id, null)}</span></div></td></tr>
     <tr class="al-ch"><td colspan="${n}"><div class="cb-grp-row"><span></span><span style="text-align:end">${chInfo}</span></div></td></tr>${lines}
     <tr class="cb-sub al-brandtot"><td>${t("total")} — ${esc(sp.name)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alBT_${P}${sp.id}_${i}">${cbFmt(alSum(L, (x) => fb(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alBA_${P}${sp.id}">${cbFmt(alSum(L, fb))}</td></tr>`;
 }
@@ -2519,7 +2521,7 @@ function cbSupTable(L) {
     if (col.grp) return `<td class="cb-tot cb-gtot" id="${q}_${col.grp.k}">${cbGrpFmt(B, sid, col.grp.k)}</td>`;
     return `<td class="cb-tot${gs}" id="${q}_${col.ch}">${cbFmt(B.ch(sid, col.ch))}</td>`;
   }).join("") + `<td class="cb-tot cb-split" id="${q}_t">${KD(B.grp(sid))}</td>`;
-  const rows = sups.map((sp) => `<tr><td class="cb-st-name" title="${esc(sp.name)}${sp.code ? ` · ${esc(sp.code)}` : ""}">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cells(sp.id, `cbSt_${P}${sp.id}`)}</tr>`).join("");
+  const rows = sups.map((sp) => `<tr><td class="cb-st-name" title="${esc(sp.name)}${supCodeShown(sp) ? ` · ${esc(sp.code)}` : ""}">${esc(sp.name)}${supCodeShown(sp) ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</td>${cells(sp.id, `cbSt_${P}${sp.id}`)}</tr>`).join("");
   const legacy = sups.some((sp) => CB_GROUPS.some((g) => B.legacy(sp.id, g.k)));
   return `<div class="card accent cb-sum"><div class="cb-sum-top"><div><div class="lbl">${esc(lyLabel(L))}</div><div class="val mono" id="cbK_all_${L}">${KD(B.grp(null))}</div></div>
     <div class="cb-sum-kv"><span>${t("cb_leftLbl")} <b class="mono" id="cbSm_${P}kv_l">${cbLeftFmt(B.grp(null) - B.used(null))}</b></span></div></div>
@@ -2565,7 +2567,7 @@ function companyLayerPanel(L) {
   const supRows = (sp, ri) => {
     const lines = cbLineRows(types, `se${L}_${sp.id}`).map((rw) => `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${cells((col) => ({ h: cbFmt(dist(sp.id, chsOf(col), rw.bts)) }), { h: cbFmt(dist(sp.id, allChs, rw.bts)) })}</tr>`).join("");
     const tot = `<tr class="cb-ent-tot"><td>${t("cb_supTotal")}</td>${cells((col) => ({ h: cbFmt(dist(sp.id, chsOf(col))) }), { h: cbFmt(dist(sp.id, allChs)) })}</tr>`;
-    return `<tr class="cb-ent-sup"><td colspan="${cols.length + 2}"><span class="cb-ent-nm">${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</span></td></tr>${budRow(sp.id, ri)}${lines}${tot}${leftRow(sp.id, "cb-ent-left", t("cb_leftLbl"), `cbEL_${P}${sp.id}`)}`;
+    return `<tr class="cb-ent-sup"><td colspan="${cols.length + 2}"><span class="cb-ent-nm">${esc(sp.name)}${supCodeShown(sp) ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</span></td></tr>${budRow(sp.id, ri)}${lines}${tot}${leftRow(sp.id, "cb-ent-left", t("cb_leftLbl"), `cbEL_${P}${sp.id}`)}`;
   };
   const grand = `<tr class="cb-ent-tot cb-ent-all"><td>${t("cb_chBudget")} — ${t("total")}</td>${cells((col) => (col.grp ? { id: `cbEGB_${P}${col.grp.k}`, h: KD(B.grp(null, col.grp.k)) } : { id: `cbEGB_${P}${col.ch}`, h: KD(B.ch(null, col.ch)) }), { id: `cbEGB_${P}t`, h: KD(B.grp(null)) })}</tr>
       <tr class="cb-ent-tot cb-ent-all"><td>${t("cb_supTotal")}</td>${cells((col) => ({ h: KD(dist(null, chsOf(col))) }), { h: KD(dist(null, allChs)) })}</tr>
@@ -2946,7 +2948,7 @@ function dsPanel() {
     <div class="card"><div class="lbl">${t("cb_leftLbl")}</div><div class="val mono">${alLeft(totRecv - totDist)}</div></div></div>`;
   const sheets = out.map(({ sp, chs: list }) => {
     const r = list.reduce((a, ch) => a + dsRecv(sp.id, ch), 0), d = list.reduce((a, ch) => a + dsDist(sp.id, ch), 0);
-    return `<div class="ds-sup"><div class="ds-sup-h"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info">${dsInfo(r, d)}</span></div>
+    return `<div class="ds-sup"><div class="ds-sup-h"><span>${esc(sp.name)}${supCodeShown(sp) ? ` <span class="cb-code">${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info">${dsInfo(r, d)}</span></div>
       ${list.map((ch) => `<div class="ds-ch-h"><span>${esc(sp.name)} · <b>${t("ch_" + ch)}</b></span><span class="cb-grp-info">${dsInfo(dsRecv(sp.id, ch), dsDist(sp.id, ch))}</span></div>${dsTable(sp.id, ch, false)}`).join("")}</div>`;
   }).join("");
   const old = legacy ? `<div class="ds-sup ds-legacy"><div class="ds-sup-h"><span>${t("ds_legacy")}</span></div><div class="hint" style="margin:8px 2px">${t("ds_legacyHint")}</div>${dsTable(0, "", true)}</div>` : "";
