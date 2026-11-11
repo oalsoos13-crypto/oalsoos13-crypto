@@ -2313,7 +2313,10 @@ function allocLayerPanel(L) {
   const d = alData, ed = isChannelMgr() && !d.closed, sups = d.suppliers, svs = d.supervisors, types = d.types, chs = d.channels || ["coop_main", "coop_branch"];
   const n = svs.length + 2, P = `${L}_`;
   let ri = 0;
-  const supRows = sups.map((sp) => {
+  // Every supervisor works one of these channels: one block of lines per brand,
+  // each supervisor's column saving to his own channel.
+  const one = alOneChannel(svs, chs);
+  const supRows = one ? sups.map((sp) => alMergedRows(L, sp, svs, types, one, ed, () => ri++)).join("") : sups.map((sp) => {
     const chRows = chs.map((ch) => {
       const K = `${P}${sp.id}_${ch}`;
       const lines = cbLineRows(types, `al${L}_${sp.id}_${ch}`).map((rw) => {
@@ -2344,11 +2347,35 @@ function allocLayerPanel(L) {
     <div class="cb-chips">${svs.map((sv, i) => `<span class="cb-chip"><b>${escN(sv)}</b> <span class="mono" id="alKS_${P}${i}">${KD(alSum(L, (x) => x.supervisor === sv))}</span></span>`).join("")}</div>`;
   const note = d.closed ? `<div class="pill-info" style="margin-bottom:10px">🔒 ${t("cb_locked")}</div>`
     : (L ? "" : `<div class="hint" style="margin:10px 0 2px">⌨ ${t("cb_keys")}</div><div class="hint" style="margin:0 0 10px">${t("al_note")}</div>`);
-  const sheet = sups.length && svs.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" data-kind="alloc" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><thead><tr><th>${t("cb_line")}</th>${svs.map((sv) => `<th>${escN(sv)}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
+  const sheet = sups.length && svs.length ? `<div class="tbl-wrap cb-wrap"><table class="cb-sheet" data-kind="alloc" onkeydown="cbKey(event)" onchange="cbChange(event)" onpaste="cbPaste(event)" onfocusin="cbFocus(event)" onmouseup="cbMouseUp(event)"><thead><tr><th>${t("cb_line")}</th>${svs.map((sv) => `<th>${escN(sv)}${one ? `<div class="hint" style="font-weight:400">${t("ch_" + one[sv])}</div>` : ""}</th>`).join("")}<th>${t("total")}</th></tr></thead><tbody>${supRows}${coRows}</tbody></table></div>`
     : `<div class="empty">${t(svs.length ? "cb_none" : "noAssign")}</div>`;
   return `<div class="panel cb-panel${L ? " cb-extra" : ""}"><header><h3>${L ? "➕ " + esc(lyName(L)) + " · " : ""}${t("al_title")} · <bdi class="mono" dir="ltr">${esc(d.month)}</bdi></h3></header><div class="body">${kpis}${note}${sheet}</div></div>`;
 }
 // A sub-channel's KPI: what is allocated there (the budget is per channel).
+// Supervisor → his one channel, when every supervisor is limited to exactly one
+// of these channels; else null (the sheet then shows a block per channel).
+function alOneChannel(svs, chs) {
+  const out = {};
+  for (const sv of svs) { const c = ((alData.supChannels || {})[sv] || []).filter((x) => chs.includes(x)); if (c.length !== 1) return null; out[sv] = c[0]; }
+  return out;
+}
+// A brand's lines with each supervisor's cell on his own channel; the brand
+// header shows the budget and remaining of the brand and of each channel.
+function alMergedRows(L, sp, svs, types, one, ed, nextRow) {
+  const P = `${L}_`, n = svs.length + 2, chs = [...new Set(svs.map((sv) => one[sv]))];
+  const lines = cbLineRows(types, `al${L}_${sp.id}`).map((rw) => {
+    if (rw.sub) return alSubRow(L, rw, sp.id, null);
+    const bt = rw.bt, r = nextRow();
+    return `<tr${cbFoldAttr(rw)}>${cbRowLabel(rw)}${svs.map((sv, c) => { const ch = one[sv], v = alAmt(L, sp.id, ch, bt, sv);
+      return `<td><input class="cb-in" inputmode="decimal" autocomplete="off" data-l="${L}" data-s="${sp.id}" data-c="${ch}" data-b="${bt}" data-sup="${esc(sv)}" data-r="${r}" data-col="${c}" value="${v == null ? "" : v}" placeholder="0" ${ed ? "" : "disabled"}></td>`; }).join("")}
+      <td class="cb-tot" id="alRA_${P}${sp.id}_${bt}">${cbFmt(alSum(L, (x) => x.supplierId === sp.id && x.budgetType === bt))}</td></tr>`;
+  }).join("");
+  const fb = (x) => x.supplierId === sp.id;
+  const chInfo = chs.map((ch) => `<span class="cb-grp-info" id="alGI_${P}${sp.id}_${ch}"><b>${t("ch_" + ch)}</b> — ${alGrpInfo(L, sp.id, ch)}</span>`).join("<br>");
+  return `<tr class="cb-grp"><td colspan="${n}"><div class="cb-grp-row"><span>${esc(sp.name)}${sp.code ? ` <span class="cb-code">${t("cb_code")}: ${esc(sp.code)}</span>` : ""}</span><span class="cb-grp-info" id="alGI_${P}${sp.id}">${alGrpInfo(L, sp.id, null)}</span></div></td></tr>
+    <tr class="al-ch"><td colspan="${n}"><div class="cb-grp-row"><span></span><span style="text-align:end">${chInfo}</span></div></td></tr>${lines}
+    <tr class="cb-sub al-brandtot"><td>${t("total")} — ${esc(sp.name)}</td>${svs.map((sv, i) => `<td class="cb-tot" id="alBT_${P}${sp.id}_${i}">${cbFmt(alSum(L, (x) => fb(x) && x.supervisor === sv))}</td>`).join("")}<td class="cb-tot" id="alBA_${P}${sp.id}">${cbFmt(alSum(L, fb))}</td></tr>`;
+}
 // Whether a supervisor may get a split of a channel (none listed = any).
 function alSvOk(sv, ch) { const c = alData.supChannels && alData.supChannels[sv]; return !c || c.includes(ch); }
 // A channel's own budget from the admin; null while its group still has only one
